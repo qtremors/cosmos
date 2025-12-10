@@ -1,0 +1,583 @@
+import { kmToUnits } from './PhysicalScale';
+import { BODY_DATA } from './BodyData';
+import { trueAnomaly } from './OrbitalMechanics';
+import { TIME_PRESETS, DEFAULT_TIME_SCALE } from './TimeConfig';
+import * as THREE from 'three';
+
+/**
+ * Cosmos SDK
+ * Core physics and visuals engine for the virtual cosmos.
+ */
+
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+export interface MoonConfig {
+    RADIUS: number;
+    DISTANCE: number;
+    SPEED: number;
+}
+
+export interface RingConfig {
+    INNER_RADIUS: number;
+    OUTER_RADIUS: number;
+}
+
+export interface PlanetConfig {
+    RADIUS: number;
+    DISTANCE: number;
+    SPEED: number;
+    COLOR: THREE.Color;
+    MOON?: MoonConfig;
+    RING?: RingConfig;
+}
+
+export interface PlanetsConfig {
+    MERCURY: PlanetConfig;
+    VENUS: PlanetConfig;
+    EARTH: PlanetConfig & { MOON: MoonConfig };
+    MARS: PlanetConfig;
+    JUPITER: PlanetConfig & { MOON: MoonConfig };
+    SATURN: PlanetConfig & { MOON: MoonConfig; RING: RingConfig };
+    URANUS: PlanetConfig;
+    NEPTUNE: PlanetConfig;
+    PLUTO: PlanetConfig & { MOON: MoonConfig };  // Dwarf planet with Charon
+}
+
+export interface UnitsConfig {
+    SOLAR_RADIUS: number;
+    AU: number;
+    LIGHT_SPEED: number;
+}
+
+export interface AsteroidsConfig {
+    COUNT: number;
+    INNER_RADIUS: number;
+    OUTER_RADIUS: number;
+}
+
+export interface ControlsConfig {
+    FLY_SPEED: number;
+    BOOST_MULTIPLIER: number;
+    ROLL_SPEED: number;
+    FOV_DEFAULT: number;
+    FOV_MIN: number;
+    FOV_MAX: number;
+    ORBIT_SPEED_SCALE: number;
+}
+
+export interface RadarColors {
+    SUN: string;
+    MERCURY: string;
+    VENUS: string;
+    EARTH: string;
+    MOON: string;
+    MARS: string;
+    JUPITER: string;
+    SATURN: string;
+    URANUS: string;
+    NEPTUNE: string;
+    PLUTO: string;
+}
+
+export interface RadarConfig {
+    RANGE: number;
+    RADIUS: number;
+    COLORS: RadarColors;
+}
+
+export interface LightingConfig {
+    SUN_COLOR: number;
+    SUN_INTENSITY: number;
+    AMBIENT_COLOR: number;
+    AMBIENT_INTENSITY: number;
+    MOON_COLOR: number;
+}
+
+export interface CameraConfig {
+    LOCK_DISTANCE_MULTIPLIER: number;
+    CHASE_OFFSET: { X: number; Y: number; Z: number };
+    LERP_FACTOR: number;
+}
+
+export interface LabelConfig {
+    HEIGHT_MULTIPLIER: number;
+    FADE_START_MULTIPLIER: number;
+    FADE_END_MULTIPLIER: number;
+}
+
+// =============================================================================
+// COLOR INSTANCES
+// =============================================================================
+
+const PLANET_COLORS = {
+    MERCURY: new THREE.Color(0xA5A5A5),
+    VENUS: new THREE.Color(0xE3BC79),
+    EARTH: new THREE.Color(0x2233ff),
+    MARS: new THREE.Color(0xc1440e),
+    JUPITER: new THREE.Color(0xd8ca9d),
+    SATURN: new THREE.Color(0xeead6b),
+    URANUS: new THREE.Color(0x73d7ee),
+    NEPTUNE: new THREE.Color(0x3e54e8),
+    PLUTO: new THREE.Color(0xc2b8a3),
+} as const;
+
+// =============================================================================
+// COSMOS SDK CLASS
+// =============================================================================
+
+export class Cosmos {
+
+    // -------------------------------------------------------------------------
+    // UNITS & SCALE
+    // -------------------------------------------------------------------------
+
+    static readonly UNITS: UnitsConfig = {
+        SOLAR_RADIUS: kmToUnits(695700),
+        AU: 200.0,
+        LIGHT_SPEED: kmToUnits(299792.458),
+    };
+
+    // -------------------------------------------------------------------------
+    // REAL ASTRONOMICAL DATA (NASA values)
+    // -------------------------------------------------------------------------
+
+    /** Orbital periods in Earth days */
+    static readonly ORBITAL_PERIODS = {
+        MERCURY: 87.97,
+        VENUS: 224.7,
+        EARTH: 365.25,
+        MARS: 687.0,
+        JUPITER: 4333.0,
+        SATURN: 10759.0,
+        URANUS: 30687.0,
+        NEPTUNE: 60190.0,
+        PLUTO: 90560.0,
+        MOON: 27.32,
+        EUROPA: 3.55,
+        TITAN: 15.95,
+        CHARON: 6.39,
+    };
+
+    /** Rotation periods in Earth hours (negative = retrograde) */
+    static readonly ROTATION_PERIODS = {
+        SUN: 609.12,
+        MERCURY: 1407.6,
+        VENUS: -5832.5,
+        EARTH: 23.93,
+        MARS: 24.62,
+        JUPITER: 9.93,
+        SATURN: 10.66,
+        URANUS: -17.24,
+        NEPTUNE: 16.11,
+        PLUTO: -153.29,
+        MOON: 655.7,
+    };
+
+    /** Real distances in AU (1 AU = Earth-Sun distance) */
+    static readonly DISTANCES_AU = {
+        MERCURY: 0.387,
+        VENUS: 0.723,
+        EARTH: 1.0,
+        MARS: 1.524,
+        JUPITER: 5.203,
+        SATURN: 9.537,
+        URANUS: 19.19,
+        NEPTUNE: 30.07,
+        PLUTO: 39.48,
+        MOON: 0.00257,
+        EUROPA: 0.00449,
+        TITAN: 0.00816,
+        CHARON: 0.000131,
+    };
+
+    /** Orbital eccentricity (0 = circle, 1 = parabola) - NASA values */
+    static readonly ECCENTRICITY = {
+        MERCURY: 0.206,
+        VENUS: 0.007,
+        EARTH: 0.017,
+        MARS: 0.093,
+        JUPITER: 0.048,
+        SATURN: 0.054,
+        URANUS: 0.047,
+        NEPTUNE: 0.009,
+        PLUTO: 0.248,
+    };
+
+    /** Orbital inclination in degrees (relative to ecliptic) */
+    static readonly INCLINATION = {
+        MERCURY: 7.0,
+        VENUS: 3.4,
+        EARTH: 0.0,
+        MARS: 1.9,
+        JUPITER: 1.3,
+        SATURN: 2.5,
+        URANUS: 0.8,
+        NEPTUNE: 1.8,
+        PLUTO: 17.2,
+    };
+    static readonly RADII_EARTH = {
+        SUN: 109.2,
+        MERCURY: 0.383,
+        VENUS: 0.949,
+        EARTH: 1.0,
+        MARS: 0.532,
+        JUPITER: 11.21,
+        SATURN: 9.45,
+        URANUS: 4.01,
+        NEPTUNE: 3.88,
+        PLUTO: 0.186,
+        MOON: 0.273,
+        EUROPA: 0.245,
+        TITAN: 0.404,
+        CHARON: 0.095,
+    };
+
+    /** Time scale presets (seconds of simulation per real second) */
+    static readonly TIME_PRESETS = TIME_PRESETS;
+    static readonly DEFAULT_TIME_SCALE = DEFAULT_TIME_SCALE;
+
+    // -------------------------------------------------------------------------
+    // PLANET CONFIGURATIONS (using cached colors)
+    // -------------------------------------------------------------------------
+
+    static readonly PLANETS: PlanetsConfig = {
+        MERCURY: {
+            RADIUS: kmToUnits(BODY_DATA.Mercury.equatorialKm ?? BODY_DATA.Mercury.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Mercury.axisKm!),
+            SPEED: 0.5,
+            COLOR: PLANET_COLORS.MERCURY,
+        },
+        VENUS: {
+            RADIUS: kmToUnits(BODY_DATA.Venus.equatorialKm ?? BODY_DATA.Venus.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Venus.axisKm!),
+            SPEED: 0.35,
+            COLOR: PLANET_COLORS.VENUS,
+        },
+        EARTH: {
+            RADIUS: kmToUnits(BODY_DATA.Earth.equatorialKm ?? BODY_DATA.Earth.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Earth.axisKm!),
+            SPEED: 0.3,
+            COLOR: PLANET_COLORS.EARTH,
+            MOON: {
+                RADIUS: kmToUnits(BODY_DATA.Moon.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Moon.axisKm!),
+                SPEED: 2.0,
+            }
+        },
+        MARS: {
+            RADIUS: kmToUnits(BODY_DATA.Mars.equatorialKm ?? BODY_DATA.Mars.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Mars.axisKm!),
+            SPEED: 0.24,
+            COLOR: PLANET_COLORS.MARS,
+        },
+        JUPITER: {
+            RADIUS: kmToUnits(BODY_DATA.Jupiter.equatorialKm ?? BODY_DATA.Jupiter.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Jupiter.axisKm!),
+            SPEED: 0.13,
+            COLOR: PLANET_COLORS.JUPITER,
+            MOON: {
+                RADIUS: kmToUnits(BODY_DATA.Europa.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Europa.axisKm!),
+                SPEED: 1.5,
+            }
+        },
+        SATURN: {
+            RADIUS: kmToUnits(BODY_DATA.Saturn.equatorialKm ?? BODY_DATA.Saturn.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Saturn.axisKm!),
+            SPEED: 0.09,
+            COLOR: PLANET_COLORS.SATURN,
+            RING: {
+                INNER_RADIUS: kmToUnits(66900),
+                OUTER_RADIUS: kmToUnits(140180),
+            },
+            MOON: {
+                RADIUS: kmToUnits(BODY_DATA.Titan.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Titan.axisKm!),
+                SPEED: 1.0,
+            }
+        },
+        URANUS: {
+            RADIUS: kmToUnits(BODY_DATA.Uranus.equatorialKm ?? BODY_DATA.Uranus.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Uranus.axisKm!),
+            SPEED: 0.06,
+            COLOR: PLANET_COLORS.URANUS,
+        },
+        NEPTUNE: {
+            RADIUS: kmToUnits(BODY_DATA.Neptune.equatorialKm ?? BODY_DATA.Neptune.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Neptune.axisKm!),
+            SPEED: 0.05,
+            COLOR: PLANET_COLORS.NEPTUNE,
+        },
+        PLUTO: {
+            RADIUS: kmToUnits(BODY_DATA.Pluto.equatorialKm ?? BODY_DATA.Pluto.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Pluto.axisKm!),
+            SPEED: 0.04,
+            COLOR: PLANET_COLORS.PLUTO,
+            MOON: {
+                RADIUS: kmToUnits(BODY_DATA.Charon.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Charon.axisKm!),
+                SPEED: 3.0,
+            }
+        }
+    };
+
+    // -------------------------------------------------------------------------
+    // ASTEROIDS
+    // -------------------------------------------------------------------------
+
+    static readonly ASTEROIDS: AsteroidsConfig = {
+        COUNT: 2000,
+        INNER_RADIUS: 2.1 * Cosmos.UNITS.AU,
+        OUTER_RADIUS: 3.3 * Cosmos.UNITS.AU,
+    };
+
+    // -------------------------------------------------------------------------
+    // CONTROLS
+    // -------------------------------------------------------------------------
+
+    static readonly CONTROLS: ControlsConfig = {
+        FLY_SPEED: 20.0,
+        BOOST_MULTIPLIER: 10.0,
+        ROLL_SPEED: Math.PI / 3,
+        FOV_DEFAULT: 50,
+        FOV_MIN: 20,
+        FOV_MAX: 70,
+        ORBIT_SPEED_SCALE: 0.2, // Unified orbit speed multiplier
+    };
+
+    // -------------------------------------------------------------------------
+    // RADAR
+    // -------------------------------------------------------------------------
+
+    static readonly RADAR: RadarConfig = {
+        RANGE: 2000,
+        RADIUS: 100,
+        COLORS: {
+            SUN: '#ffaa00',
+            MERCURY: '#aaaaaa',
+            VENUS: '#e3bc79',
+            EARTH: '#2233ff',
+            MOON: '#ffffff',
+            MARS: '#c1440e',
+            JUPITER: '#d8ca9d',
+            SATURN: '#eead6b',
+            URANUS: '#73d7ee',
+            NEPTUNE: '#3e54e8',
+            PLUTO: '#c2b8a3',
+        }
+    };
+
+    // -------------------------------------------------------------------------
+    // LIGHTING
+    // -------------------------------------------------------------------------
+
+    static readonly LIGHTING: LightingConfig = {
+        SUN_COLOR: 0xffffff,
+        SUN_INTENSITY: 5.0,
+        AMBIENT_COLOR: 0x404040,
+        AMBIENT_INTENSITY: 1.5,
+        MOON_COLOR: 0xccddee,
+    };
+
+    // -------------------------------------------------------------------------
+    // CAMERA
+    // -------------------------------------------------------------------------
+
+    static readonly CAMERA: CameraConfig = {
+        LOCK_DISTANCE_MULTIPLIER: 3.0,
+        CHASE_OFFSET: { X: 0.7, Y: 0.3, Z: 0.7 },
+        LERP_FACTOR: 0.1,
+    };
+
+    // -------------------------------------------------------------------------
+    // LABELS
+    // -------------------------------------------------------------------------
+
+    static readonly LABELS: LabelConfig = {
+        HEIGHT_MULTIPLIER: 2.5,
+        FADE_START_MULTIPLIER: 5.0,
+        FADE_END_MULTIPLIER: 20.0,
+    };
+
+    // =========================================================================
+    // UTILITY FUNCTIONS
+    // =========================================================================
+
+    /**
+     * Performs smooth Hermite interpolation.
+     */
+    static smoothstep(min: number, max: number, value: number): number {
+        const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+        return x * x * (3 - 2 * x);
+    }
+
+    /**
+     * Calculates adaptive glare opacity based on distance.
+     */
+    static getAdaptiveGlareOpacity(distance: number, radius: number): number {
+        const fadeStart = radius * 12.0;
+        const fadeEnd = radius * 4.0;
+        const t = (distance - fadeEnd) / (fadeStart - fadeEnd);
+        return Math.max(0.0, Math.min(1.0, t));
+    }
+
+    /**
+     * Calculates label opacity based on camera distance.
+     */
+    static getLabelOpacity(distance: number, radius: number): number {
+        return this.smoothstep(
+            radius * this.LABELS.FADE_START_MULTIPLIER,
+            radius * this.LABELS.FADE_END_MULTIPLIER,
+            distance
+        );
+    }
+
+    /**
+     * Calculates orbital position at a given time.
+     */
+    static getOrbitalPosition(
+        initialAngle: number,
+        time: number,
+        speed: number,
+        distance: number
+    ): { x: number; z: number } {
+        const theta = initialAngle + time * speed * this.CONTROLS.ORBIT_SPEED_SCALE;
+        return {
+            x: Math.cos(theta) * distance,
+            z: Math.sin(theta) * distance,
+        };
+    }
+
+    /**
+     * Gets dimensions of an object.
+     */
+    static getObjectRadius(object: THREE.Object3D, fallback: number = 5): number {
+        // If it's a mesh with sphere geometry
+        if (object instanceof THREE.Mesh) {
+            const geo = object.geometry as THREE.SphereGeometry;
+            if (geo.parameters?.radius) {
+                return geo.parameters.radius;
+            }
+        }
+
+        // If it's a group, check first child
+        if (object instanceof THREE.Group && object.children.length > 0) {
+            const firstChild = object.children[0];
+            if (firstChild instanceof THREE.Mesh) {
+                const geo = firstChild.geometry as THREE.SphereGeometry;
+                if (geo.parameters?.radius) {
+                    return geo.parameters.radius;
+                }
+            }
+        }
+
+        // Check for custom radius property
+        if ('radius' in object && typeof object.radius === 'number') {
+            return object.radius;
+        }
+
+        return fallback;
+    }
+
+    /**
+     * Calculates color for blackbody temperature.
+     */
+    static getKelvinColor(kelvin: number): [number, number, number] {
+        if (kelvin < 4000) return [1.0, 0.4, 0.0]; // Red/Orange
+        if (kelvin < 6000) return [1.0, 0.9, 0.7]; // Sun-like
+        if (kelvin < 10000) return [0.8, 0.9, 1.0]; // Blue-white
+        return [0.5, 0.5, 1.0]; // Blue
+    }
+
+    // =========================================================================
+    // REALISTIC ORBITAL MECHANICS
+    // =========================================================================
+
+    /** Seconds per Earth day */
+    static readonly SECONDS_PER_DAY = 86400;
+
+    /** Seconds per Earth hour */
+    static readonly SECONDS_PER_HOUR = 3600;
+
+    /**
+     * Calculates orbital angle.
+     */
+    static getRealisticOrbitalAngle(
+        simTime: number,
+        orbitalPeriodDays: number,
+        initialAngle: number = 0,
+        eccentricity: number = 0
+    ): number {
+        const periodSeconds = orbitalPeriodDays * this.SECONDS_PER_DAY;
+        return trueAnomaly(initialAngle + (simTime / periodSeconds) * 2 * Math.PI, eccentricity);
+    }
+
+    /**
+     * Calculates rotation angle.
+     */
+    static getRealisticRotation(
+        simTime: number,
+        rotationPeriodHours: number
+    ): number {
+        const periodSeconds = Math.abs(rotationPeriodHours) * this.SECONDS_PER_HOUR;
+        const direction = rotationPeriodHours < 0 ? -1 : 1;
+        return direction * (simTime / periodSeconds) * 2 * Math.PI;
+    }
+
+    /**
+     * Calculates realistic orbital position.
+     */
+    static getRealisticOrbitalPosition(
+        simTime: number,
+        orbitalPeriodDays: number,
+        distanceAU: number,
+        initialAngle: number = 0
+    ): { x: number; z: number } {
+        const theta = this.getRealisticOrbitalAngle(simTime, orbitalPeriodDays, initialAngle);
+        const simDistance = distanceAU * this.UNITS.AU;
+        return {
+            x: Math.cos(theta) * simDistance,
+            z: Math.sin(theta) * simDistance,
+        };
+    }
+
+    /**
+     * Calculates elliptical orbit distance.
+     */
+    static getEllipticalDistance(
+        semiMajorAxis: number,
+        eccentricity: number,
+        trueAnomaly: number
+    ): number {
+        return semiMajorAxis * (1 - eccentricity * eccentricity) /
+            (1 + eccentricity * Math.cos(trueAnomaly));
+    }
+
+    /**
+     * Calculates 3D elliptical position.
+     */
+    static getEllipticalOrbitalPosition(
+        semiMajorAxis: number,
+        eccentricity: number,
+        inclination: number,
+        trueAnomaly: number
+    ): { x: number; y: number; z: number } {
+        const r = this.getEllipticalDistance(semiMajorAxis, eccentricity, trueAnomaly);
+        const incRad = inclination * Math.PI / 180;
+
+        return {
+            x: Math.cos(trueAnomaly) * r,
+            z: Math.sin(trueAnomaly) * r * Math.cos(incRad),
+            y: Math.sin(trueAnomaly) * r * Math.sin(incRad),
+        };
+    }
+
+    /**
+     * Scales real radius to simulation units.
+     */
+    static getSimRadius(radiusEarth: number): number {
+        return kmToUnits(radiusEarth * 6371);
+    }
+}

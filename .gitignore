@@ -1,0 +1,118 @@
+# ========================================
+# COSMOS PROJECT .GITIGNORE
+# React/TypeScript + Vite + Node
+# ========================================
+
+# ===== Environment & Secrets =====
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+*.pem
+*.key
+secrets/
+credentials/
+
+# ===== Node.js / npm =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/
+.pnp.*
+
+# ===== React / Vite / Frontend =====
+dist/
+build/
+.cache/
+*.tsbuildinfo
+
+# ===== TypeScript =====
+*.tsbuildinfo
+typings/
+
+# ===== Testing & Coverage =====
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+*.lcov
+
+# ===== Logs =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ===== IDE & Editors =====
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains (WebStorm)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ===== OS Generated =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+
+# ===== Build & Compiled =====
+*.o
+*.obj
+*.dll
+*.dylib
+*.so
+*.class
+
+# ===== Misc =====
+*.bak
+*.tmp
+*.temp
+*.orig
+*.patch
+.parcel-cache/
+.turbo/
+
+# ===== AI/Agent =====
+.gemini/
+temp/
+
+# ===== Project Specific =====
+# Add project-specific ignores below
+
