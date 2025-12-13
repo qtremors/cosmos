@@ -4,6 +4,8 @@ import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Stars } from './objects/Stars';
 import { SceneAssets } from './core/SceneAssets';
 import { startAnimationLoop, disposeObject3D } from './core/SceneLifecycle';
+import { Sun } from './objects/solar/Sun';
+import { Earth } from './objects/solar/Earth';
 
 /** Small viewer used while the astronomical and destination modules are introduced. */
 export default function App() {
@@ -23,7 +25,9 @@ export default function App() {
         const ambient = new THREE.AmbientLight(0xffffff, 0.15), sunlight = new THREE.PointLight(0xffffff, 200000, 0, 2);
         const solar: THREE.Object3D[] = [sunlight, ambient], space: THREE.Object3D[] = [stars], quantumObjects: THREE.Object3D[] = [];
         const targets: { label: string; mesh: THREE.Object3D; radius: number }[] = [];
-        
+        const sun = new Sun(undefined, assets), earth = new Earth(assets);
+        solar.push(sun, earth);
+        targets.push({ label: 'Sun', mesh: sun, radius: sun.radius * 4 }, { label: 'Earth', mesh: earth, radius: earth.radius }, { label: 'Moon', mesh: earth.moon, radius: earth.moon.radius });
         scene.add(...solar, ...space, ...quantumObjects);
         
         select.replaceChildren(new Option('Overview', ''));
@@ -60,8 +64,8 @@ export default function App() {
         window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup); window.addEventListener('blur', blur); window.addEventListener('resize', resize);
         const epoch = Date.now() / 1000;
         const stop = startAnimationLoop(delta => {
-            elapsed += delta; void epoch;
-            
+            elapsed += delta; const time = epoch + elapsed;
+            sun.update(time, camera, elapsed); earth.update(time, camera);
             if (selected) {
                 selected.mesh.getWorldPosition(targetPosition);
                 camera.position.copy(targetPosition).add(new THREE.Vector3(Math.sin(theta) * Math.cos(phi), Math.sin(phi), Math.cos(theta) * Math.cos(phi)).multiplyScalar(distance));

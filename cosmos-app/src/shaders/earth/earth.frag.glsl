@@ -1,0 +1,50 @@
+#include <common>
+#include <logdepthbuf_pars_fragment>
+
+uniform vec3 uSunPos;
+uniform float uFill;
+uniform sampler2D uDayTexture;
+uniform sampler2D uNightTexture;
+varying vec2 vUv;
+varying vec3 vNormal;
+varying vec3 vPosition;
+varying vec3 vWorldPosition;
+
+void main() {
+    #include <logdepthbuf_fragment>
+    
+
+    vec3 dayColor = texture2D(uDayTexture, vUv).rgb;
+    vec3 nightColor = texture2D(uNightTexture, vUv).rgb;
+    
+
+    vec3 lightDir = normalize(uSunPos - vWorldPosition);
+    vec3 normal = normalize(vNormal);
+    float signedLight = dot(normal, lightDir);
+    float diff = max(signedLight, 0.0);
+    
+
+    float nightBlend = 1.0 - smoothstep(-0.05, 0.05, signedLight);
+    
+
+    vec3 col = mix(dayColor * diff, nightColor * 1.5, nightBlend);
+    
+
+    col += dayColor * uFill * 0.2;
+
+    vec3 reflectDir = reflect(-lightDir, normal);
+    float spec = pow(max(dot(normalize(cameraPosition - vWorldPosition), reflectDir), 0.0), 32.0);
+
+    float waterMask = 1.0 - smoothstep(0.1, 0.4, length(dayColor));
+    col += vec3(spec) * waterMask * 0.5 * diff;
+    
+
+    float rim = 1.0 - dot(normal, normalize(cameraPosition - vWorldPosition));
+    rim = clamp(pow(rim, 4.0), 0.0, 1.0);
+    vec3 cAtmo = vec3(0.2, 0.4, 0.8);
+    col += cAtmo * rim * 0.5 * max(diff, 0.1);
+
+    gl_FragColor = vec4(col, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+}
