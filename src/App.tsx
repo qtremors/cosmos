@@ -349,20 +349,22 @@ export default function App() {
                 statsFrameCount.current = 0;
 
                 const AU = Cosmos.UNITS.AU; // 200 sim units = 1 AU
+                const KM_PER_AU = 150000000; // 150 million km per AU
 
-                // Calculate camera speed (in AU/s)
+                // Calculate camera speed (in km/s)
                 const speedRaw = camera.position.distanceTo(lastCameraPos.current) / (delta * 10);
-                const speedAU = speedRaw / AU;
+                const speedKmS = (speedRaw / AU) * (KM_PER_AU / 1000); // Convert to thousands of km/s for readability
                 lastCameraPos.current.copy(camera.position);
-                setCameraSpeed(Math.round(speedAU * 1000) / 1000); // 3 decimal places
+                setCameraSpeed(Math.round(speedKmS));
 
                 // Update locked object info
                 if (lockRef.current?.mesh) {
                     const targetPos = new THREE.Vector3();
                     lockRef.current.mesh.getWorldPosition(targetPos);
 
-                    // Distance from Sun in AU
+                    // Distance from Sun in AU then convert to millions of km
                     const sunDistAU = targetPos.length() / AU;
+                    const sunDistMillionKm = sunDistAU * 150; // 1 AU = 150 million km
 
                     // Calculate orbital speed (approximation based on distance - Kepler's law)
                     // v = sqrt(GM/r) simplified as v proportional to 1/sqrt(r)
@@ -374,7 +376,7 @@ export default function App() {
                     setLockedInfo({
                         name: entity?.label || 'Unknown',
                         orbitalSpeed: Math.round(orbitalSpeedKmS * 10) / 10,
-                        sunDist: Math.round(sunDistAU * 100) / 100
+                        sunDist: Math.round(sunDistMillionKm)
                     });
                 } else {
                     setLockedInfo(null);
@@ -526,14 +528,14 @@ export default function App() {
                 <div className="stats-hud">
                     {lockedInfo ? (
                         <>
-                            <div className="stats-hud-title">🎯 Locked: {lockedInfo.name}</div>
+                            <div className="stats-hud-title">Locked: {lockedInfo.name}</div>
                             <div className="stats-hud-row">
                                 <span className="stats-hud-label">Orbital Speed:</span>
                                 <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
                             </div>
                             <div className="stats-hud-row">
                                 <span className="stats-hud-label">From Sun:</span>
-                                <span className="stats-hud-value">{lockedInfo.sunDist} AU</span>
+                                <span className="stats-hud-value">{lockedInfo.sunDist}M km</span>
                             </div>
                         </>
                     ) : (
@@ -541,7 +543,7 @@ export default function App() {
                             <div className="stats-hud-title">🚀 Free Flight</div>
                             <div className="stats-hud-row">
                                 <span className="stats-hud-label">Speed:</span>
-                                <span className="stats-hud-value">{cameraSpeed} AU/s</span>
+                                <span className="stats-hud-value">{cameraSpeed} km/s</span>
                             </div>
                         </>
                     )}
