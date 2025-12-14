@@ -43,6 +43,7 @@ export interface PlanetsConfig {
     SATURN: PlanetConfig & { MOON: MoonConfig; RING: RingConfig };
     URANUS: PlanetConfig;
     NEPTUNE: PlanetConfig;
+    PLUTO: PlanetConfig & { MOON: MoonConfig };  // Dwarf planet with Charon
 }
 
 export interface UnitsConfig {
@@ -78,6 +79,7 @@ export interface RadarColors {
     SATURN: string;
     URANUS: string;
     NEPTUNE: string;
+    PLUTO: string;
 }
 
 export interface RadarConfig {
@@ -119,6 +121,7 @@ const PLANET_COLORS = {
     SATURN: new THREE.Color(0xeead6b),
     URANUS: new THREE.Color(0x73d7ee),
     NEPTUNE: new THREE.Color(0x3e54e8),
+    PLUTO: new THREE.Color(0xc2b8a3),
 } as const;
 
 // =============================================================================
@@ -208,6 +211,17 @@ export class Cosmos {
             DISTANCE: 1600.0,
             SPEED: 0.05,
             COLOR: PLANET_COLORS.NEPTUNE,
+        },
+        PLUTO: {
+            RADIUS: 0.6,
+            DISTANCE: 2000.0,
+            SPEED: 0.04,
+            COLOR: PLANET_COLORS.PLUTO,
+            MOON: {  // Charon
+                RADIUS: 0.4,
+                DISTANCE: 8.0,
+                SPEED: 3.0,
+            }
         }
     };
 
@@ -253,6 +267,7 @@ export class Cosmos {
             SATURN: '#eead6b',
             URANUS: '#73d7ee',
             NEPTUNE: '#3e54e8',
+            PLUTO: '#c2b8a3',
         }
     };
 

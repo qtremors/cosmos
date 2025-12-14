@@ -13,6 +13,7 @@ import { Uranus } from './objects/Uranus';
 import { Neptune } from './objects/Neptune';
 import { AsteroidBelt } from './objects/AsteroidBelt';
 import { OrbitPath } from './objects/OrbitPath';
+import { Pluto } from './objects/Pluto';
 import { Cosmos } from './core/SDK';
 import {
     InputState,
@@ -193,6 +194,8 @@ export default function App() {
         scene.add(uranus);
         const neptune = new Neptune();
         scene.add(neptune);
+        const pluto = new Pluto();
+        scene.add(pluto);
 
         // ORBIT PATHS
         const orbitPaths = [
@@ -204,6 +207,7 @@ export default function App() {
             new OrbitPath(Cosmos.PLANETS.SATURN.DISTANCE, Cosmos.RADAR.COLORS.SATURN),
             new OrbitPath(Cosmos.PLANETS.URANUS.DISTANCE, Cosmos.RADAR.COLORS.URANUS),
             new OrbitPath(Cosmos.PLANETS.NEPTUNE.DISTANCE, Cosmos.RADAR.COLORS.NEPTUNE),
+            new OrbitPath(Cosmos.PLANETS.PLUTO.DISTANCE, Cosmos.RADAR.COLORS.PLUTO),
         ];
         orbitPaths.forEach(path => scene.add(path));
 
@@ -220,6 +224,8 @@ export default function App() {
             { mesh: saturn.titan, id: 'titan-blip', color: '#e6d4be', label: 'Titan', radius: 6 },
             { mesh: uranus, id: 'uranus-blip', color: Cosmos.RADAR.COLORS.URANUS, label: 'Uranus', radius: 25 },
             { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25 },
+            { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8 },
+            { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4 },
         ];
 
         // RADAR INIT - Cache DOM references
@@ -305,6 +311,7 @@ export default function App() {
             saturn.update(time, camera);
             uranus.update(time, camera);
             neptune.update(time, camera);
+            pluto.update(time, camera);
 
             // 2. INPUT PROCESSING
             const pad = pollGamepad();
