@@ -39,9 +39,9 @@
 - **Fix:** Add Ganymede, Callisto, Io for Jupiter; Enceladus for Saturn
 - **Files:** `src/objects/Jupiter.ts`, `src/objects/Saturn.ts`, `src/core/SDK.ts`
 
-### [ ] Extract Input Handler
+### [x] Extract Input Handler - 2025-12-14
 - **Problem:** Input handling code (150+ lines) embedded in App.tsx
-- **Fix:** Create separate `InputHandler.ts` module for cleaner architecture
+- **Fix:** Created separate `InputHandler.ts` module, refactored App.tsx to import and use it
 - **Files:** `src/core/InputHandler.ts`, `src/App.tsx`
 
 ### [ ] Move Shaders to External Files

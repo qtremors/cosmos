@@ -14,6 +14,14 @@ import { Neptune } from './objects/Neptune';
 import { AsteroidBelt } from './objects/AsteroidBelt';
 import { OrbitPath } from './objects/OrbitPath';
 import { Cosmos } from './core/SDK';
+import {
+    InputState,
+    LockTarget,
+    createInputState,
+    updateInputKey,
+    pollGamepad,
+    applyInputToCamera
+} from './core/InputHandler';
 
 // =============================================================================
 // TYPES
@@ -25,28 +33,6 @@ interface EntityInfo {
     color: string;
     label: string;
     radius: number;
-}
-
-interface LockTarget {
-    mesh: THREE.Object3D;
-    distance: number;
-    isTop: boolean;
-}
-
-interface InputState {
-    forward: boolean;
-    back: boolean;
-    left: boolean;
-    right: boolean;
-    up: boolean;
-    down: boolean;
-    rollLeft: boolean;
-    rollRight: boolean;
-    boost: boolean;
-    pitchUp: boolean;
-    pitchDown: boolean;
-    yawLeft: boolean;
-    yawRight: boolean;
 }
 
 // =============================================================================
@@ -63,14 +49,11 @@ export default function App() {
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const entitiesRef = useRef<EntityInfo[]>([]);
     const radarBlipsRef = useRef<Map<string, HTMLElement>>(new Map());
+    const showLabelsRef = useRef(showLabels);
 
     // Logic refs
     const lockRef = useRef<LockTarget | null>(null);
-    const inputRef = useRef<InputState>({
-        forward: false, back: false, left: false, right: false,
-        up: false, down: false, rollLeft: false, rollRight: false,
-        boost: false, pitchUp: false, pitchDown: false, yawLeft: false, yawRight: false
-    });
+    const inputRef = useRef<InputState>(createInputState());
     const zoomVelocity = useRef(0);
     const isDragging = useRef(false);
     const lastMouse = useRef({ x: 0, y: 0 });
@@ -81,7 +64,9 @@ export default function App() {
         lockRef.current = {
             mesh,
             distance: radius * Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER,
-            isTop: false
+            isTop: false,
+            theta: Math.PI / 4,  // Start at 45° horizontal
+            phi: 0.3            // Start slightly above horizon
         };
         setShowRadarList(false);
     });
@@ -103,30 +88,15 @@ export default function App() {
         }
     });
 
+    // Keep ref in sync with state for use in animate loop
+    useEffect(() => {
+        showLabelsRef.current = showLabels;
+    }, [showLabels]);
+
     useEffect(() => {
         // --- KEYBOARD HANDLERS ---
-        const updateInputKey = (code: string, pressed: boolean) => {
-            const s = inputRef.current;
-            switch (code) {
-                case 'KeyW': s.forward = pressed; break;
-                case 'KeyS': s.back = pressed; break;
-                case 'KeyA': s.left = pressed; break;
-                case 'KeyD': s.right = pressed; break;
-                case 'ArrowUp': s.pitchUp = pressed; break;
-                case 'ArrowDown': s.pitchDown = pressed; break;
-                case 'ArrowLeft': s.yawLeft = pressed; break;
-                case 'ArrowRight': s.yawRight = pressed; break;
-                case 'KeyR': s.up = pressed; break;
-                case 'KeyF': s.down = pressed; break;
-                case 'KeyQ': s.rollLeft = pressed; break;
-                case 'KeyE': s.rollRight = pressed; break;
-                case 'ShiftLeft':
-                case 'ShiftRight': s.boost = pressed; break;
-            }
-        };
-
         const handleKeyDown = (e: KeyboardEvent) => {
-            updateInputKey(e.code, true);
+            updateInputKey(inputRef.current, e.code, true);
 
             if (e.repeat) return;
             if (e.key.toLowerCase() === 'l') setShowLabels(prev => !prev);
@@ -140,7 +110,7 @@ export default function App() {
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
-            updateInputKey(e.code, false);
+            updateInputKey(inputRef.current, e.code, false);
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -154,12 +124,6 @@ export default function App() {
             zoomVelocity.current += dir * force;
         };
         window.addEventListener('wheel', handleWheel, { passive: false });
-
-        // --- GAMEPAD POLLING ---
-        const pollGamepad = (): Gamepad | null => {
-            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-            return gamepads[0] ?? null;
-        };
 
         // --- ENGINE INIT ---
         const scene = new THREE.Scene();
@@ -343,126 +307,27 @@ export default function App() {
             neptune.update(time, camera);
 
             // 2. INPUT PROCESSING
-            const input = inputRef.current;
             const pad = pollGamepad();
-            const deadzone = 0.15;
-
-            let moveFwd = input.forward;
-            let moveBack = input.back;
-            let moveLeft = input.left;
-            let moveRight = input.right;
-            let moveUp = input.up;
-            let moveDown = input.down;
-            let rollL = input.rollLeft;
-            let rollR = input.rollRight;
-            let doBoost = input.boost;
-
-            // Mouse Look
-            if (mouseDelta.current.x !== 0 || mouseDelta.current.y !== 0) {
-                const SENSITIVITY = 0.002;
-                camera.rotateY(-mouseDelta.current.x * SENSITIVITY);
-                camera.rotateX(-mouseDelta.current.y * SENSITIVITY);
-                mouseDelta.current.x = 0;
-                mouseDelta.current.y = 0;
-            }
-
-            // Gamepad input
-            if (pad) {
-                const ax0 = pad.axes[0];
-                const ax1 = pad.axes[1];
-                const ax2 = pad.axes[2];
-                const ax3 = pad.axes[3];
-
-                if (ax1 < -deadzone) moveFwd = true;
-                if (ax1 > deadzone) moveBack = true;
-                if (ax0 < -deadzone) moveLeft = true;
-                if (ax0 > deadzone) moveRight = true;
-
-                if (pad.buttons[0]?.pressed) moveUp = true;
-                if (pad.buttons[1]?.pressed) {
-                    if (lockRef.current) {
-                        unlockCamera.current();
-                    } else {
-                        moveDown = true;
-                    }
-                }
-
-                const RS_SENS = 2.0 * delta;
-                if (Math.abs(ax3) > deadzone) camera.rotateX(-ax3 * RS_SENS);
-                if (Math.abs(ax2) > deadzone) camera.rotateY(-ax2 * RS_SENS);
-
-                if (pad.buttons[4]?.pressed) rollL = true;
-                if (pad.buttons[5]?.pressed) rollR = true;
-                if (pad.buttons[7]?.value > 0.5) doBoost = true;
-
-                if (pad.buttons[12]?.pressed) zoomVelocity.current -= 1.0;
-                if (pad.buttons[13]?.pressed) zoomVelocity.current += 1.0;
-            }
+            const isMoving = applyInputToCamera(
+                camera,
+                inputRef.current,
+                delta,
+                mouseDelta.current,
+                zoomVelocity,
+                lockRef.current,
+                pad
+            );
 
             // Auto-Unlock on Move
-            if ((moveFwd || moveBack || moveLeft || moveRight || moveUp || moveDown) && lockRef.current) {
+            if (isMoving && lockRef.current) {
                 unlockCamera.current();
-            }
-
-            // APPLY TO CAMERA
-            if (!lockRef.current) {
-                const speed = (doBoost ? Cosmos.CONTROLS.FLY_SPEED * Cosmos.CONTROLS.BOOST_MULTIPLIER : Cosmos.CONTROLS.FLY_SPEED) * delta;
-                const rotSpeed = Cosmos.CONTROLS.ROLL_SPEED * delta;
-
-                if (moveFwd) camera.translateZ(-speed);
-                if (moveBack) camera.translateZ(speed);
-                if (moveLeft) camera.translateX(-speed);
-                if (moveRight) camera.translateX(speed);
-                if (moveUp) camera.translateY(speed);
-                if (moveDown) camera.translateY(-speed);
-
-                const lookSpeed = rotSpeed * 0.5;
-                if (input.pitchUp) camera.rotateX(lookSpeed);
-                if (input.pitchDown) camera.rotateX(-lookSpeed);
-                if (input.yawLeft) camera.rotateY(lookSpeed);
-                if (input.yawRight) camera.rotateY(-lookSpeed);
-
-                if (rollL) camera.rotateZ(rotSpeed);
-                if (rollR) camera.rotateZ(-rotSpeed);
-
-                if (Math.abs(zoomVelocity.current) > 0.01) {
-                    camera.translateZ(zoomVelocity.current * delta * 10.0);
-                    zoomVelocity.current *= 0.9;
-                }
-
-            } else if (lockRef.current.mesh) {
-                const target = lockRef.current.mesh;
-                const targetPos = new THREE.Vector3();
-                target.getWorldPosition(targetPos);
-
-                lockRef.current.distance += zoomVelocity.current * delta * 50;
-                zoomVelocity.current *= 0.9;
-
-                const minD = Cosmos.getObjectRadius(target) * 1.5;
-                lockRef.current.distance = Math.max(minD, lockRef.current.distance);
-
-                const dist = lockRef.current.distance;
-                const offset = new THREE.Vector3();
-
-                if (lockRef.current.isTop) {
-                    offset.set(0, dist, 0);
-                    camera.up.set(0, 0, -1);
-                } else {
-                    const c = Cosmos.CAMERA.CHASE_OFFSET;
-                    offset.set(dist * c.X, dist * c.Y, dist * c.Z);
-                    camera.up.set(0, 1, 0);
-                }
-
-                const desiredPos = targetPos.clone().add(offset);
-                camera.position.lerp(desiredPos, Cosmos.CAMERA.LERP_FACTOR);
-                camera.lookAt(targetPos);
             }
 
             renderer.render(scene, camera);
 
             // Toggle labels visibility
             if (labelRendererRef.current) {
-                labelRendererRef.current.domElement.style.display = showLabels ? 'block' : 'none';
+                labelRendererRef.current.domElement.style.display = showLabelsRef.current ? 'block' : 'none';
             }
             labelRenderer.render(scene, camera);
 
@@ -528,38 +393,40 @@ export default function App() {
                 </span>
             </div>
 
-            {showUI && (
-                <>
-                    <div
-                        id="radar-container"
-                        className="radar-container"
-                        style={{ cursor: 'pointer', pointerEvents: 'auto', zIndex: 1000 }}
-                        onClick={() => setShowRadarList(prev => !prev)}
-                        title="Click to Open/Close Object List"
-                    >
-                        <div className="radar-center"></div>
-                    </div>
-
-                    {showRadarList && (
-                        <div className="radar-list" style={{ zIndex: 1001 }}>
-                            <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>LOCK ON:</div>
-                            {entitiesRef.current.map((ent) => (
-                                <div
-                                    key={ent.id}
-                                    className="radar-item"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        lockOnTarget.current(ent.mesh, ent.radius);
-                                    }}
-                                    style={{ borderLeft: `3px solid ${ent.color}` }}
-                                >
-                                    {ent.label}
-                                </div>
-                            ))}
+            {showUI && showRadarList && (
+                <div className="radar-list" style={{ zIndex: 1001 }}>
+                    <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>LOCK ON:</div>
+                    {entitiesRef.current.map((ent) => (
+                        <div
+                            key={ent.id}
+                            className="radar-item"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                lockOnTarget.current(ent.mesh, ent.radius);
+                            }}
+                            style={{ borderLeft: `3px solid ${ent.color}` }}
+                        >
+                            {ent.label}
                         </div>
-                    )}
-                </>
+                    ))}
+                </div>
             )}
+
+            {/* Radar always rendered but visibility controlled to preserve DOM refs */}
+            <div
+                id="radar-container"
+                className="radar-container"
+                style={{
+                    cursor: 'pointer',
+                    pointerEvents: showUI ? 'auto' : 'none',
+                    zIndex: 1000,
+                    visibility: showUI ? 'visible' : 'hidden'
+                }}
+                onClick={() => setShowRadarList(prev => !prev)}
+                title="Click to Open/Close Object List"
+            >
+                <div className="radar-center"></div>
+            </div>
         </div>
     );
 }

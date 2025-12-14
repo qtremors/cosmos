@@ -25,6 +25,8 @@ export interface LockTarget {
     mesh: THREE.Object3D;
     distance: number;
     isTop: boolean;
+    theta: number;  // Horizontal orbit angle (radians)
+    phi: number;    // Vertical orbit angle (radians)
 }
 
 // =============================================================================
@@ -89,10 +91,18 @@ export function applyInputToCamera(
     let rollR = input.rollRight;
     let doBoost = input.boost;
 
-    // Mouse Look
+    // Mouse Look / Orbit (only apply in free flight, not in lock mode - handled separately)
+    let orbitX = 0;
+    let orbitY = 0;
     if (mouseDelta.x !== 0 || mouseDelta.y !== 0) {
-        camera.rotateY(-mouseDelta.x * SENSITIVITY);
-        camera.rotateX(-mouseDelta.y * SENSITIVITY);
+        if (!lockTarget) {
+            camera.rotateY(-mouseDelta.x * SENSITIVITY);
+            camera.rotateX(-mouseDelta.y * SENSITIVITY);
+        } else {
+            // Store for orbit control
+            orbitX = mouseDelta.x * SENSITIVITY;
+            orbitY = mouseDelta.y * SENSITIVITY;
+        }
         mouseDelta.x = 0;
         mouseDelta.y = 0;
     }
@@ -153,15 +163,37 @@ export function applyInputToCamera(
             zoomVelocity.current *= 0.9;
         }
     } else if (lockTarget.mesh) {
-        // Lock-on mode
+        // Lock-on mode with orbital camera
         const targetPos = new THREE.Vector3();
         lockTarget.mesh.getWorldPosition(targetPos);
 
+        // Apply zoom
         lockTarget.distance += zoomVelocity.current * delta * 50;
         zoomVelocity.current *= 0.9;
 
         const minD = Cosmos.getObjectRadius(lockTarget.mesh) * 1.5;
         lockTarget.distance = Math.max(minD, lockTarget.distance);
+
+        // Apply orbital rotation from mouse/keyboard
+        const orbitSpeed = 2.0 * delta;
+        if (input.yawLeft) lockTarget.theta += orbitSpeed;
+        if (input.yawRight) lockTarget.theta -= orbitSpeed;
+        if (input.pitchUp) lockTarget.phi = Math.min(Math.PI / 2 - 0.1, lockTarget.phi + orbitSpeed);
+        if (input.pitchDown) lockTarget.phi = Math.max(-Math.PI / 2 + 0.1, lockTarget.phi - orbitSpeed);
+
+        // Apply mouse orbit
+        lockTarget.theta -= orbitX * 2.0;
+        lockTarget.phi = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, lockTarget.phi + orbitY * 2.0));
+
+        // Apply gamepad right stick for orbit
+        if (gamepad) {
+            const ax2 = gamepad.axes[2];
+            const ax3 = gamepad.axes[3];
+            if (Math.abs(ax2) > DEADZONE) lockTarget.theta -= ax2 * 2.0 * delta;
+            if (Math.abs(ax3) > DEADZONE) {
+                lockTarget.phi = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, lockTarget.phi + ax3 * 2.0 * delta));
+            }
+        }
 
         const dist = lockTarget.distance;
         const offset = new THREE.Vector3();
@@ -170,13 +202,19 @@ export function applyInputToCamera(
             offset.set(0, dist, 0);
             camera.up.set(0, 0, -1);
         } else {
-            const c = Cosmos.CAMERA.CHASE_OFFSET;
-            offset.set(dist * c.X, dist * c.Y, dist * c.Z);
+            // Spherical coordinates for orbital camera
+            offset.set(
+                dist * Math.cos(lockTarget.phi) * Math.sin(lockTarget.theta),
+                dist * Math.sin(lockTarget.phi),
+                dist * Math.cos(lockTarget.phi) * Math.cos(lockTarget.theta)
+            );
             camera.up.set(0, 1, 0);
         }
 
         const desiredPos = targetPos.clone().add(offset);
         camera.position.lerp(desiredPos, Cosmos.CAMERA.LERP_FACTOR);
+
+        // Instant lookAt keeps locked target stable on screen
         camera.lookAt(targetPos);
     }
 
