@@ -91,7 +91,7 @@ The goal of Cosmos is to build a "Virtual Solar System" that scientifically and 
 ```bash
 # Clone the repository
 git clone https://github.com/qtremors/cosmos.git
-cd cosmos
+cd cosmos/cosmos-app
 
 # Install dependencies
 npm install
@@ -105,8 +105,9 @@ The simulation will be available at `http://localhost:5173`
 ### Production Build
 
 ```bash
-npm run build    # Build for production
-npm run preview  # Preview production build
+cd cosmos-app      # If not already in the app directory
+npm run build      # Build for production
+npm run preview    # Preview production build
 ```
 
 ---
@@ -198,29 +199,30 @@ All simulation parameters are centralized in `src/core/SDK.ts`:
 
 ```
 cosmos/
-├── src/
-│   ├── App.tsx              # Main scene and input handling
-│   ├── main.tsx             # React entry point
-│   ├── index.css            # Global styles and HUD
-│   ├── core/
-│   │   ├── SDK.ts           # Physics engine and constants
-│   │   └── InputHandler.ts  # Input processing and camera control
-│   ├── objects/
-│   │   ├── Sun.ts           # Star with granulation/corona
-│   │   ├── Earth.ts         # Planet with Moon + orbit path
-│   │   ├── Jupiter.ts       # Gas giant with Europa + orbit path
-│   │   ├── Saturn.ts        # Ringed planet with Titan + orbit path
-│   │   ├── Uranus.ts        # Ice giant (97° tilt)
-│   │   ├── Neptune.ts       # Ice giant with storms
-│   │   ├── Pluto.ts         # Dwarf planet with Charon
-│   │   ├── AsteroidBelt.ts  # 4000 instanced asteroids
-│   │   └── ...              # Mercury, Venus, Mars, Stars, OrbitPath
-│   └── materials/
-│       └── Noise.ts         # Shared GLSL noise functions
-├── public/                  # Static assets
-├── package.json
-├── tsconfig.json
-└── vite.config.js
+├── .gitignore                 # Git ignore rules
+├── README.md                  # Project documentation
+├── CHANGELOG.md               # Version history
+├── ARCHITECTURE.md            # Technical architecture
+├── TASKS.md                   # Development tasks
+├── AGENTS.md                  # AI assistant guidelines
+├── PRIVACY.md                 # Privacy policy
+│
+└── cosmos-app/                # Application code
+    ├── src/
+    │   ├── App.tsx            # Main scene and input handling
+    │   ├── main.tsx           # React entry point
+    │   ├── index.css          # Global styles and HUD
+    │   ├── core/
+    │   │   ├── SDK.ts         # Physics engine and constants
+    │   │   └── InputHandler.ts # Input processing
+    │   ├── objects/           # All celestial bodies
+    │   │   └── ...            # Sun, Planets, Moons, etc.
+    │   └── materials/
+    │       └── Noise.ts       # Shared GLSL noise
+    ├── public/                # Static assets
+    ├── package.json
+    ├── tsconfig.json
+    └── vite.config.js
 ```
 
 ---

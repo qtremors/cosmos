@@ -96,39 +96,48 @@ Each planet has unique procedural shaders:
 
 ```
 cosmos/
-├── src/
-│   ├── App.tsx              # [555 lines] Main component
-│   │                        # Scene setup, input handling, radar HUD
-│   │
-│   ├── core/
-│   │   ├── SDK.ts           # [425 lines] Physics engine
-│   │   │                    # Constants, utilities, type definitions
-│   │   └── InputHandler.ts  # [223 lines] Input processing
-│   │                        # Keyboard, mouse, gamepad, camera control
-│   │
-│   ├── objects/
-│   │   ├── Sun.ts           # Star with granulation/corona shaders
-│   │   ├── Mercury.ts       # Rocky planet with crater noise
-│   │   ├── Venus.ts         # Thick atmosphere with cloud animation
-│   │   ├── Earth.ts         # Blue planet + Moon with orbit path
-│   │   ├── Mars.ts          # Red planet with thin atmosphere
-│   │   ├── Jupiter.ts       # Gas giant + Europa moon + orbit path
-│   │   ├── Saturn.ts        # Ringed planet + Titan moon + orbit path
-│   │   ├── Uranus.ts        # Ice giant with 97° axial tilt
-│   │   ├── Neptune.ts       # Ice giant with storm dynamics
-│   │   ├── Pluto.ts         # Dwarf planet + Charon moon + inclined orbit
-│   │   ├── AsteroidBelt.ts  # 4000 instanced asteroids
-│   │   ├── Stars.ts         # Background starfield
-│   │   ├── Atmosphere.ts    # Reusable atmosphere component
-│   │   └── OrbitPath.ts     # Orbital path visualization
-│   │
-│   └── materials/
-│       └── Noise.ts         # Shared Simplex noise GLSL functions
+├── .gitignore               # Git ignore rules
+├── README.md                # Project overview
+├── CHANGELOG.md             # Version history
+├── ARCHITECTURE.md          # This file
+├── TASKS.md                 # Development tasks
+├── AGENTS.md                # AI assistant guidelines
+├── PRIVACY.md               # Privacy policy
 │
-├── index.html               # Vite entry point
-├── package.json             # Dependencies
-├── tsconfig.json            # TypeScript config (strict mode)
-└── vite.config.js           # Vite configuration
+└── cosmos-app/              # Application code
+    ├── src/
+    │   ├── App.tsx              # [555 lines] Main component
+    │   │                        # Scene setup, input handling, radar HUD
+    │   │
+    │   ├── core/
+    │   │   ├── SDK.ts           # [425 lines] Physics engine
+    │   │   │                    # Constants, utilities, type definitions
+    │   │   └── InputHandler.ts  # [223 lines] Input processing
+    │   │                        # Keyboard, mouse, gamepad, camera control
+    │   │
+    │   ├── objects/
+    │   │   ├── Sun.ts           # Star with granulation/corona shaders
+    │   │   ├── Mercury.ts       # Rocky planet with crater noise
+    │   │   ├── Venus.ts         # Thick atmosphere with cloud animation
+    │   │   ├── Earth.ts         # Blue planet + Moon with orbit path
+    │   │   ├── Mars.ts          # Red planet with thin atmosphere
+    │   │   ├── Jupiter.ts       # Gas giant + Europa moon + orbit path
+    │   │   ├── Saturn.ts        # Ringed planet + Titan moon + orbit path
+    │   │   ├── Uranus.ts        # Ice giant with 97° axial tilt
+    │   │   ├── Neptune.ts       # Ice giant with storm dynamics
+    │   │   ├── Pluto.ts         # Dwarf planet + Charon moon + inclined orbit
+    │   │   ├── AsteroidBelt.ts  # 4000 instanced asteroids
+    │   │   ├── Stars.ts         # Background starfield
+    │   │   ├── Atmosphere.ts    # Reusable atmosphere component
+    │   │   └── OrbitPath.ts     # Orbital path visualization
+    │   │
+    │   └── materials/
+    │       └── Noise.ts         # Shared Simplex noise GLSL functions
+    │
+    ├── index.html               # Vite entry point
+    ├── package.json             # Dependencies
+    ├── tsconfig.json            # TypeScript config (strict mode)
+    └── vite.config.js           # Vite configuration
 ```
 
 ---
