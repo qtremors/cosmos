@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 
+/**
+ * Background starfield using point particles
+ */
 export class Stars extends THREE.Points {
-    constructor(count = 2000, radius = 800) {
+    constructor(count: number = 2000, radius: number = 800) {
         const geo = new THREE.BufferGeometry();
         const pos = new Float32Array(count * 3);
 
@@ -16,7 +19,7 @@ export class Stars extends THREE.Points {
             size: 0.8,
             transparent: true,
             opacity: 0.8,
-            sizeAttenuation: true // Stars get smaller when far away
+            sizeAttenuation: true,
         });
 
         super(geo, mat);
