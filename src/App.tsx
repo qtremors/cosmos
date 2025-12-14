@@ -12,6 +12,7 @@ import { Saturn } from './objects/Saturn';
 import { Uranus } from './objects/Uranus';
 import { Neptune } from './objects/Neptune';
 import { AsteroidBelt } from './objects/AsteroidBelt';
+import { OrbitPath } from './objects/OrbitPath';
 import { Cosmos } from './core/SDK';
 
 // =============================================================================
@@ -228,6 +229,19 @@ export default function App() {
         scene.add(uranus);
         const neptune = new Neptune();
         scene.add(neptune);
+
+        // ORBIT PATHS
+        const orbitPaths = [
+            new OrbitPath(Cosmos.PLANETS.MERCURY.DISTANCE, Cosmos.RADAR.COLORS.MERCURY),
+            new OrbitPath(Cosmos.PLANETS.VENUS.DISTANCE, Cosmos.RADAR.COLORS.VENUS),
+            new OrbitPath(Cosmos.PLANETS.EARTH.DISTANCE, Cosmos.RADAR.COLORS.EARTH),
+            new OrbitPath(Cosmos.PLANETS.MARS.DISTANCE, Cosmos.RADAR.COLORS.MARS),
+            new OrbitPath(Cosmos.PLANETS.JUPITER.DISTANCE, Cosmos.RADAR.COLORS.JUPITER),
+            new OrbitPath(Cosmos.PLANETS.SATURN.DISTANCE, Cosmos.RADAR.COLORS.SATURN),
+            new OrbitPath(Cosmos.PLANETS.URANUS.DISTANCE, Cosmos.RADAR.COLORS.URANUS),
+            new OrbitPath(Cosmos.PLANETS.NEPTUNE.DISTANCE, Cosmos.RADAR.COLORS.NEPTUNE),
+        ];
+        orbitPaths.forEach(path => scene.add(path));
 
         entitiesRef.current = [
             { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4 },
