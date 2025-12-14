@@ -45,6 +45,8 @@ export default function App() {
     const [showLabels, setShowLabels] = useState(true);
     const [showUI, setShowUI] = useState(true);
     const [showRadarList, setShowRadarList] = useState(false);
+    const [cameraSpeed, setCameraSpeed] = useState(0);
+    const [lockedInfo, setLockedInfo] = useState<{ name: string; distance: number; sunDist: number } | null>(null);
 
     const labelRendererRef = useRef<CSS2DRenderer | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -59,6 +61,8 @@ export default function App() {
     const isDragging = useRef(false);
     const lastMouse = useRef({ x: 0, y: 0 });
     const mouseDelta = useRef({ x: 0, y: 0 });
+    const lastCameraPos = useRef(new THREE.Vector3());
+    const statsFrameCount = useRef(0);
 
     // Lock functions exposed via refs instead of window globals
     const lockOnTarget = useRef((mesh: THREE.Object3D, radius: number) => {
@@ -218,6 +222,7 @@ export default function App() {
             { mesh: earth, id: 'earth-blip', color: Cosmos.RADAR.COLORS.EARTH, label: 'Earth', radius: 15 },
             { mesh: earth.moon, id: 'moon-blip', color: Cosmos.RADAR.COLORS.MOON, label: 'Moon', radius: 5 },
             { mesh: mars, id: 'mars-blip', color: Cosmos.RADAR.COLORS.MARS, label: 'Mars', radius: 12 },
+            { mesh: belt, id: 'belt-blip', color: '#888888', label: 'Asteroid Belt', radius: 100 },
             { mesh: jupiter, id: 'jupiter-blip', color: Cosmos.RADAR.COLORS.JUPITER, label: 'Jupiter', radius: 40 },
             { mesh: jupiter.europa, id: 'europa-blip', color: '#fff', label: 'Europa', radius: 5 },
             { mesh: saturn, id: 'saturn-blip', color: Cosmos.RADAR.COLORS.SATURN, label: 'Saturn', radius: 35 },
@@ -338,6 +343,35 @@ export default function App() {
             }
             labelRenderer.render(scene, camera);
 
+            // STATS HUD UPDATE (throttled to avoid excessive re-renders)
+            statsFrameCount.current++;
+            if (statsFrameCount.current >= 10) {
+                statsFrameCount.current = 0;
+
+                // Calculate camera speed
+                const speed = camera.position.distanceTo(lastCameraPos.current) / (delta * 10);
+                lastCameraPos.current.copy(camera.position);
+                setCameraSpeed(Math.round(speed * 10) / 10);
+
+                // Update locked object info
+                if (lockRef.current?.mesh) {
+                    const targetPos = new THREE.Vector3();
+                    lockRef.current.mesh.getWorldPosition(targetPos);
+                    const sunDist = targetPos.length();
+                    const camDist = camera.position.distanceTo(targetPos);
+
+                    // Find entity label
+                    const entity = entitiesRef.current.find(e => e.mesh === lockRef.current?.mesh);
+                    setLockedInfo({
+                        name: entity?.label || 'Unknown',
+                        distance: Math.round(camDist * 10) / 10,
+                        sunDist: Math.round(sunDist * 10) / 10
+                    });
+                } else {
+                    setLockedInfo(null);
+                }
+            }
+
             // RADAR UPDATE (using cached DOM refs)
             const range = Cosmos.RADAR.RANGE;
             const radius = Cosmos.RADAR.RADIUS;
@@ -402,17 +436,60 @@ export default function App() {
 
             {showUI && showRadarList && (
                 <div className="radar-list" style={{ zIndex: 1001 }}>
-                    <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>LOCK ON:</div>
-                    {entitiesRef.current.map((ent) => (
+                    {/* Stars */}
+                    <div className="radar-category">Star</div>
+                    {entitiesRef.current.filter(e => e.label === 'Sun').map(ent => (
                         <div
                             key={ent.id}
                             className="radar-item"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                lockOnTarget.current(ent.mesh, ent.radius);
-                            }}
-                            style={{ borderLeft: `3px solid ${ent.color}` }}
+                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
                         >
+                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                            {ent.label}
+                        </div>
+                    ))}
+
+                    {/* Planets */}
+                    <div className="radar-category">Planets</div>
+                    {entitiesRef.current.filter(e =>
+                        ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(e.label)
+                    ).map(ent => (
+                        <div
+                            key={ent.id}
+                            className="radar-item"
+                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                        >
+                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                            {ent.label}
+                        </div>
+                    ))}
+
+                    {/* Moons */}
+                    <div className="radar-category">Moons</div>
+                    {entitiesRef.current.filter(e =>
+                        ['Moon', 'Europa', 'Titan', 'Charon'].includes(e.label)
+                    ).map(ent => (
+                        <div
+                            key={ent.id}
+                            className="radar-item"
+                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                        >
+                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                            {ent.label}
+                        </div>
+                    ))}
+
+                    {/* Other */}
+                    <div className="radar-category">Other</div>
+                    {entitiesRef.current.filter(e =>
+                        e.label === 'Asteroid Belt'
+                    ).map(ent => (
+                        <div
+                            key={ent.id}
+                            className="radar-item"
+                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                        >
+                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
                             {ent.label}
                         </div>
                     ))}
@@ -434,6 +511,33 @@ export default function App() {
             >
                 <div className="radar-center"></div>
             </div>
+
+            {/* Stats HUD */}
+            {showUI && (
+                <div className="stats-hud">
+                    {lockedInfo ? (
+                        <>
+                            <div className="stats-hud-title">🎯 Locked: {lockedInfo.name}</div>
+                            <div className="stats-hud-row">
+                                <span className="stats-hud-label">Distance:</span>
+                                <span className="stats-hud-value">{lockedInfo.distance} u</span>
+                            </div>
+                            <div className="stats-hud-row">
+                                <span className="stats-hud-label">From Sun:</span>
+                                <span className="stats-hud-value">{lockedInfo.sunDist} u</span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="stats-hud-title">🚀 Free Flight</div>
+                            <div className="stats-hud-row">
+                                <span className="stats-hud-label">Speed:</span>
+                                <span className="stats-hud-value">{cameraSpeed} u/s</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
