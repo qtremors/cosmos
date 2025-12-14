@@ -203,16 +203,18 @@ cosmos/
 │   ├── main.tsx             # React entry point
 │   ├── index.css            # Global styles and HUD
 │   ├── core/
-│   │   └── SDK.ts           # Physics engine and constants
+│   │   ├── SDK.ts           # Physics engine and constants
+│   │   └── InputHandler.ts  # Input processing and camera control
 │   ├── objects/
 │   │   ├── Sun.ts           # Star with granulation/corona
-│   │   ├── Earth.ts         # Planet with Moon
-│   │   ├── Jupiter.ts       # Gas giant with Europa
-│   │   ├── Saturn.ts        # Ringed planet with Titan
+│   │   ├── Earth.ts         # Planet with Moon + orbit path
+│   │   ├── Jupiter.ts       # Gas giant with Europa + orbit path
+│   │   ├── Saturn.ts        # Ringed planet with Titan + orbit path
 │   │   ├── Uranus.ts        # Ice giant (97° tilt)
 │   │   ├── Neptune.ts       # Ice giant with storms
+│   │   ├── Pluto.ts         # Dwarf planet with Charon
 │   │   ├── AsteroidBelt.ts  # 4000 instanced asteroids
-│   │   └── ...              # Mercury, Venus, Mars, Stars
+│   │   └── ...              # Mercury, Venus, Mars, Stars, OrbitPath
 │   └── materials/
 │       └── Noise.ts         # Shared GLSL noise functions
 ├── public/                  # Static assets
@@ -225,10 +227,10 @@ cosmos/
 
 ## 🗺️ Roadmap
 
-- [ ] **Orbit Paths:** Visual orbit lines for planets
+- [x] **Orbit Paths:** Visual orbit lines for planets and moons ✅
 - [ ] **Time Controls:** Speed up/slow down simulation
 - [ ] **More Moons:** Add Ganymede, Callisto, and other major moons
-- [ ] **Dwarf Planets:** Pluto, Ceres, Eris
+- [x] **Dwarf Planets:** Pluto with Charon ✅
 - [ ] **Comet Simulation:** Elliptical orbits with tails
 - [ ] **VR Support:** WebXR integration
 
@@ -239,9 +241,8 @@ cosmos/
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Recent Updates
-- **v1.2.0** - TypeScript migration, Uranus/Neptune, additional moons
-- **v1.1.0** - Gamepad support, physics-based zoom
-- **v1.0.0** - Initial modular architecture
+- **v1.1.0** - Pluto, orbital camera, Stats HUD, moon orbit paths, radar overhaul
+- **v1.0.0** - Initial release with 8 planets, gamepad support, modular architecture
 
 ---
 

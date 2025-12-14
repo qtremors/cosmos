@@ -103,7 +103,7 @@
 ## 📋 Backlog / Future Ideas
 
 - [ ] **VR Support:** WebXR integration for immersive exploration
-- [ ] **Dwarf Planets:** Add Pluto, Ceres, Eris, Makemake, Haumea
+- [ ] **More Dwarf Planets:** Add Ceres, Eris, Makemake, Haumea
 - [ ] **Comet Simulation:** Elliptical orbits with procedural tails
 - [ ] **Texture Loading:** Optional high-res textures from NASA
 - [ ] **Sound Design:** Ambient space audio and UI feedback sounds
