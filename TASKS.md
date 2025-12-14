@@ -1,7 +1,7 @@
 # Tasks
 
 > **Project:** Cosmos  
-> **Version:** v1.2.0  
+> **Version:** v1.1.0  
 > **Last Updated:** 2025-12-14
 
 ---
@@ -20,10 +20,10 @@
 
 ## 🟡 Medium Priority
 
-### [ ] Add Orbit Path Visualization
+### [x] Add Orbit Path Visualization - 2025-12-14
 - **Problem:** Users have no visual reference for planetary orbits
-- **Fix:** Create `OrbitPath.ts` component with configurable line/dotted styles
-- **Files:** `src/objects/OrbitPath.ts`, `src/App.tsx`
+- **Fix:** Created `OrbitPath.ts` component and moon orbit paths
+- **Files:** `src/objects/OrbitPath.ts`, `src/objects/Earth.ts`, `Jupiter.ts`, `Saturn.ts`, `Pluto.ts`
 
 ### [ ] Implement Time Controls
 - **Problem:** Simulation runs at fixed speed with no pause
@@ -77,6 +77,26 @@
 - **Problem:** Orbital calculations duplicated across planet files
 - **Fix:** Created `Cosmos.getOrbitalPosition()` and other utilities
 - **Files:** `src/core/SDK.ts`
+
+### [x] Add Pluto & Charon - 2025-12-14
+- **Problem:** Solar system missing dwarf planet
+- **Fix:** Created Pluto with inclined orbit and Charon moon
+- **Files:** `src/objects/Pluto.ts`, `src/core/SDK.ts`
+
+### [x] Implement Orbital Camera Control - 2025-12-14
+- **Problem:** Cannot change viewing angle while locked on target
+- **Fix:** Added spherical coordinate orbital control via mouse/keyboard/gamepad
+- **Files:** `src/core/InputHandler.ts`
+
+### [x] Add Stats HUD - 2025-12-14
+- **Problem:** No feedback on camera speed or object info
+- **Fix:** Added top-right HUD with speed (km/s) and distance (M km)
+- **Files:** `src/App.tsx`, `src/index.css`
+
+### [x] Overhaul Radar Menu - 2025-12-14
+- **Problem:** Growing entity list needs organization
+- **Fix:** Categorized menu (Star, Planets, Moons, Other) with scrollable list
+- **Files:** `src/App.tsx`, `src/index.css`
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Experience the infinite.** A modular, high-performance 3D solar system simulation running directly in your browser.
 
-Explore a procedurally generated solar system with 8 planets, custom GLSL shaders, realistic orbital mechanics, and a cinematic camera system with gamepad support.
+Explore a procedurally generated solar system with 9 planets (including Pluto), custom GLSL shaders, realistic orbital mechanics, and a cinematic camera system with gamepad support.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
@@ -42,8 +42,8 @@ The goal of Cosmos is to build a "Virtual Solar System" that scientifically and 
 ## ✨ Features
 
 ### 🌍 Complete Solar System
-- **8 Planets:** Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune
-- **3 Moons:** Moon (Earth), Europa (Jupiter), Titan (Saturn)
+- **9 Planets:** Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto
+- **4 Moons:** Moon (Earth), Europa (Jupiter), Titan (Saturn), Charon (Pluto)
 - **Asteroid Belt:** 4000 instanced asteroids with orbital motion
 - **Starfield:** Background star system
 
@@ -57,12 +57,14 @@ The goal of Cosmos is to build a "Virtual Solar System" that scientifically and 
 - **6-DOF Fly Controls:** WASD movement, roll, pitch, yaw
 - **Gamepad Support:** Full controller support
 - **Camera Lock-On:** Click radar to follow any celestial body
+- **Orbital Camera:** Rotate around locked target with mouse/keyboard
 - **Momentum Zoom:** Smooth inertia-based zooming
 
 ### 🗺️ Navigation HUD
 - **Radar Map:** Directionally-aware, rotates with camera
 - **Smart Labels:** Google Earth-style fade based on distance
 - **Top-Down View:** Toggle satellite perspective
+- **Stats HUD:** Shows camera speed or locked object info (orbital speed, distance)
 
 ---
 
@@ -170,7 +172,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation.
    ┌────────────────────────────────────────────────────────┐
    │                   objects/*.ts                          │
    │   Sun • Mercury • Venus • Earth • Mars • Jupiter       │
-   │          Saturn • Uranus • Neptune • AsteroidBelt      │
+   │   Saturn • Uranus • Neptune • Pluto • AsteroidBelt     │
    └────────────────────────────────────────────────────────┘
 ```
 

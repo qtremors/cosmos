@@ -24,7 +24,7 @@ Cosmos is a modular 3D solar system simulation built with React and Three.js. Th
 │  │                    Three.js Scene                    │   │
 │  │  ┌────────────────────────▼────────────────────────┐│   │
 │  │  │              Celestial Objects                  ││   │
-│  │  │   Sun • Planets (8) • Moons (3) • Asteroids    ││   │
+│  │  │   Sun • Planets (9) • Moons (4) • Asteroids    ││   │
 │  │  └─────────────────────────────────────────────────┘│   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
@@ -97,23 +97,26 @@ Each planet has unique procedural shaders:
 ```
 cosmos/
 ├── src/
-│   ├── App.tsx              # [552 lines] Main component
+│   ├── App.tsx              # [555 lines] Main component
 │   │                        # Scene setup, input handling, radar HUD
 │   │
 │   ├── core/
-│   │   └── SDK.ts           # [410 lines] Physics engine
-│   │                        # Constants, utilities, type definitions
+│   │   ├── SDK.ts           # [425 lines] Physics engine
+│   │   │                    # Constants, utilities, type definitions
+│   │   └── InputHandler.ts  # [223 lines] Input processing
+│   │                        # Keyboard, mouse, gamepad, camera control
 │   │
 │   ├── objects/
 │   │   ├── Sun.ts           # Star with granulation/corona shaders
 │   │   ├── Mercury.ts       # Rocky planet with crater noise
 │   │   ├── Venus.ts         # Thick atmosphere with cloud animation
-│   │   ├── Earth.ts         # Blue planet + Moon with phases
+│   │   ├── Earth.ts         # Blue planet + Moon with orbit path
 │   │   ├── Mars.ts          # Red planet with thin atmosphere
-│   │   ├── Jupiter.ts       # Gas giant + Europa moon
-│   │   ├── Saturn.ts        # Ringed planet + Titan moon
+│   │   ├── Jupiter.ts       # Gas giant + Europa moon + orbit path
+│   │   ├── Saturn.ts        # Ringed planet + Titan moon + orbit path
 │   │   ├── Uranus.ts        # Ice giant with 97° axial tilt
 │   │   ├── Neptune.ts       # Ice giant with storm dynamics
+│   │   ├── Pluto.ts         # Dwarf planet + Charon moon + inclined orbit
 │   │   ├── AsteroidBelt.ts  # 4000 instanced asteroids
 │   │   ├── Stars.ts         # Background starfield
 │   │   ├── Atmosphere.ts    # Reusable atmosphere component
@@ -232,7 +235,7 @@ NEWPLANET: {
 
 ## Future Considerations
 
-- [ ] Extract input handling to separate module
+- [x] Extract input handling to separate module *(Done in v1.1.0)*
 - [ ] Move shaders to `.glsl` files with Vite imports
 - [ ] Add unit tests for SDK utility functions
 - [ ] Consider Web Workers for asteroid calculations
