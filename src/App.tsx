@@ -46,7 +46,7 @@ export default function App() {
     const [showUI, setShowUI] = useState(true);
     const [showRadarList, setShowRadarList] = useState(false);
     const [cameraSpeed, setCameraSpeed] = useState(0);
-    const [lockedInfo, setLockedInfo] = useState<{ name: string; distance: number; sunDist: number } | null>(null);
+    const [lockedInfo, setLockedInfo] = useState<{ name: string; orbitalSpeed: number; sunDist: number } | null>(null);
 
     const labelRendererRef = useRef<CSS2DRenderer | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -348,24 +348,33 @@ export default function App() {
             if (statsFrameCount.current >= 10) {
                 statsFrameCount.current = 0;
 
-                // Calculate camera speed
-                const speed = camera.position.distanceTo(lastCameraPos.current) / (delta * 10);
+                const AU = Cosmos.UNITS.AU; // 200 sim units = 1 AU
+
+                // Calculate camera speed (in AU/s)
+                const speedRaw = camera.position.distanceTo(lastCameraPos.current) / (delta * 10);
+                const speedAU = speedRaw / AU;
                 lastCameraPos.current.copy(camera.position);
-                setCameraSpeed(Math.round(speed * 10) / 10);
+                setCameraSpeed(Math.round(speedAU * 1000) / 1000); // 3 decimal places
 
                 // Update locked object info
                 if (lockRef.current?.mesh) {
                     const targetPos = new THREE.Vector3();
                     lockRef.current.mesh.getWorldPosition(targetPos);
-                    const sunDist = targetPos.length();
-                    const camDist = camera.position.distanceTo(targetPos);
+
+                    // Distance from Sun in AU
+                    const sunDistAU = targetPos.length() / AU;
+
+                    // Calculate orbital speed (approximation based on distance - Kepler's law)
+                    // v = sqrt(GM/r) simplified as v proportional to 1/sqrt(r)
+                    // Using Earth as reference (1 AU = 30 km/s orbital speed)
+                    const orbitalSpeedKmS = sunDistAU > 0.1 ? 30 / Math.sqrt(sunDistAU) : 0;
 
                     // Find entity label
                     const entity = entitiesRef.current.find(e => e.mesh === lockRef.current?.mesh);
                     setLockedInfo({
                         name: entity?.label || 'Unknown',
-                        distance: Math.round(camDist * 10) / 10,
-                        sunDist: Math.round(sunDist * 10) / 10
+                        orbitalSpeed: Math.round(orbitalSpeedKmS * 10) / 10,
+                        sunDist: Math.round(sunDistAU * 100) / 100
                     });
                 } else {
                     setLockedInfo(null);
@@ -519,12 +528,12 @@ export default function App() {
                         <>
                             <div className="stats-hud-title">🎯 Locked: {lockedInfo.name}</div>
                             <div className="stats-hud-row">
-                                <span className="stats-hud-label">Distance:</span>
-                                <span className="stats-hud-value">{lockedInfo.distance} u</span>
+                                <span className="stats-hud-label">Orbital Speed:</span>
+                                <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
                             </div>
                             <div className="stats-hud-row">
                                 <span className="stats-hud-label">From Sun:</span>
-                                <span className="stats-hud-value">{lockedInfo.sunDist} u</span>
+                                <span className="stats-hud-value">{lockedInfo.sunDist} AU</span>
                             </div>
                         </>
                     ) : (
@@ -532,7 +541,7 @@ export default function App() {
                             <div className="stats-hud-title">🚀 Free Flight</div>
                             <div className="stats-hud-row">
                                 <span className="stats-hud-label">Speed:</span>
-                                <span className="stats-hud-value">{cameraSpeed} u/s</span>
+                                <span className="stats-hud-value">{cameraSpeed} AU/s</span>
                             </div>
                         </>
                     )}
