@@ -6,6 +6,17 @@ import { SceneAssets } from './core/SceneAssets';
 import { startAnimationLoop, disposeObject3D } from './core/SceneLifecycle';
 import { Sun } from './objects/solar/Sun';
 import { Earth } from './objects/solar/Earth';
+import { Mercury } from './objects/solar/Mercury';
+import { Venus } from './objects/solar/Venus';
+import { Mars } from './objects/solar/Mars';
+import { Jupiter } from './objects/solar/Jupiter';
+import { Saturn } from './objects/solar/Saturn';
+import { Uranus } from './objects/solar/Uranus';
+import { Neptune } from './objects/solar/Neptune';
+import { Pluto } from './objects/solar/Pluto';
+import { DwarfPlanet } from './objects/solar/DwarfPlanet';
+import { AsteroidBelt } from './objects/solar/AsteroidBelt';
+import { OrbitPath } from './objects/common/OrbitPath';
 
 /** Small viewer used while the astronomical and destination modules are introduced. */
 export default function App() {
@@ -28,6 +39,13 @@ export default function App() {
         const sun = new Sun(undefined, assets), earth = new Earth(assets);
         solar.push(sun, earth);
         targets.push({ label: 'Sun', mesh: sun, radius: sun.radius * 4 }, { label: 'Earth', mesh: earth, radius: earth.radius }, { label: 'Moon', mesh: earth.moon, radius: earth.moon.radius });
+        const planets = [new Mercury(assets), new Venus(assets), new Mars(assets), new Jupiter(assets), new Saturn(assets), new Uranus(assets), new Neptune(assets), new Pluto(assets)];
+        const names = ['Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+        planets.forEach((planet, i) => { solar.push(planet); targets.push({ label: names[i], mesh: planet, radius: names[i] === 'Saturn' ? planet.radius * 2.4 : planet.radius }); });
+        const dwarfs = ['Ceres', 'Eris', 'Haumea', 'Makemake', 'Halley'].map(name => new DwarfPlanet(name, 0xaaa099));
+        dwarfs.forEach(dwarf => { solar.push(dwarf); targets.push({ label: dwarf.name, mesh: dwarf, radius: dwarf.radius }); });
+        const orbits = [...names, 'Earth', ...dwarfs.map(dwarf => dwarf.name)].map(name => new OrbitPath(name)); solar.push(...orbits);
+        const belt = new AsteroidBelt(420, 660, 1000), kuiper = new AsteroidBelt(6000, 10000, 250, 50); solar.push(belt, kuiper);
         scene.add(...solar, ...space, ...quantumObjects);
         
         select.replaceChildren(new Option('Overview', ''));
@@ -66,6 +84,7 @@ export default function App() {
         const stop = startAnimationLoop(delta => {
             elapsed += delta; const time = epoch + elapsed;
             sun.update(time, camera, elapsed); earth.update(time, camera);
+            planets.forEach(planet => planet.update(time, camera)); dwarfs.forEach(dwarf => dwarf.update(time)); orbits.forEach(orbit => orbit.update(time)); belt.update(time); kuiper.update(time);
             if (selected) {
                 selected.mesh.getWorldPosition(targetPosition);
                 camera.position.copy(targetPosition).add(new THREE.Vector3(Math.sin(theta) * Math.cos(phi), Math.sin(phi), Math.cos(theta) * Math.cos(phi)).multiplyScalar(distance));

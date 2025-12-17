@@ -1,12 +1,16 @@
 # Cosmos Changelog
 
 > **Project:** Cosmos  
-> **Version:** 0.0.2  
-> **Last Updated:** 2025-12-13
+> **Version:** 0.0.3  
+> **Last Updated:** 2025-12-17
 
 ---
 
 ## [Unreleased]
+
+## [0.0.3] - 2025-12-17
+
+- Add the remaining planets, major moons, rings, dwarf planets, Halley, orbit guides, and visible asteroid and Kuiper belts.
 
 ## [0.0.2] - 2025-12-13
 
