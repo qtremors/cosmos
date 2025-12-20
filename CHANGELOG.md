@@ -1,12 +1,16 @@
 # Cosmos Changelog
 
 > **Project:** Cosmos  
-> **Version:** 0.0.3  
-> **Last Updated:** 2025-12-17
+> **Version:** 0.0.4  
+> **Last Updated:** 2025-12-20
 
 ---
 
 ## [Unreleased]
+
+## [0.0.4] - 2025-12-20
+
+- Add Alien X and the black hole beyond the Solar region, preserve their relative placement, and introduce system navigation boundaries.
 
 ## [0.0.3] - 2025-12-17
 

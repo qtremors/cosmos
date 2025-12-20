@@ -2,7 +2,7 @@
 
 A 3D space exploration simulator built with React, TypeScript, and Three.js.
 
-Version: 0.0.3
+Version: 0.0.4
 
 ## Run locally
 
@@ -21,5 +21,6 @@ Open http://localhost:5173/. Drag to look or orbit, scroll to zoom, and use the 
 - Establish the React and Three.js viewer, common physical scale, dated orbital calculations, and owned scene resources.
 - Render the Sun, Earth, and Moon with surface textures, atmospheric glow, dated orientation, and selectable close-ups.
 - Add the remaining planets, major moons, rings, dwarf planets, Halley, orbit guides, and visible asteroid and Kuiper belts.
+- Add Alien X and the black hole beyond the Solar region, preserve their relative placement, and introduce system navigation boundaries.
 
 See LICENSE.md for usage and attribution terms.

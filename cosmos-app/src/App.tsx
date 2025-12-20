@@ -17,6 +17,10 @@ import { Pluto } from './objects/solar/Pluto';
 import { DwarfPlanet } from './objects/solar/DwarfPlanet';
 import { AsteroidBelt } from './objects/solar/AsteroidBelt';
 import { OrbitPath } from './objects/common/OrbitPath';
+import { AlienX } from './objects/AlienX';
+import { BlackHole } from './objects/BlackHole';
+import { placeInterstellarPair } from './core/InterstellarLayout';
+import { SystemManager } from './core/SystemManager';
 
 /** Small viewer used while the astronomical and destination modules are introduced. */
 export default function App() {
@@ -46,6 +50,8 @@ export default function App() {
         dwarfs.forEach(dwarf => { solar.push(dwarf); targets.push({ label: dwarf.name, mesh: dwarf, radius: dwarf.radius }); });
         const orbits = [...names, 'Earth', ...dwarfs.map(dwarf => dwarf.name)].map(name => new OrbitPath(name)); solar.push(...orbits);
         const belt = new AsteroidBelt(420, 660, 1000), kuiper = new AsteroidBelt(6000, 10000, 250, 50); solar.push(belt, kuiper);
+        const alien = new AlienX(assets), blackHole = new BlackHole(); placeInterstellarPair(alien, blackHole); space.push(alien, blackHole);
+        targets.push({ label: 'Alien X', mesh: alien, radius: 10 }, { label: 'Black Hole', mesh: blackHole, radius: 100 });
         scene.add(...solar, ...space, ...quantumObjects);
         
         select.replaceChildren(new Option('Overview', ''));
@@ -85,6 +91,7 @@ export default function App() {
             elapsed += delta; const time = epoch + elapsed;
             sun.update(time, camera, elapsed); earth.update(time, camera);
             planets.forEach(planet => planet.update(time, camera)); dwarfs.forEach(dwarf => dwarf.update(time)); orbits.forEach(orbit => orbit.update(time)); belt.update(time); kuiper.update(time);
+            SystemManager.getInstance().updateCurrentSystem(camera.position); alien.update(time, camera, elapsed); blackHole.update(time, camera, elapsed);
             if (selected) {
                 selected.mesh.getWorldPosition(targetPosition);
                 camera.position.copy(targetPosition).add(new THREE.Vector3(Math.sin(theta) * Math.cos(phi), Math.sin(phi), Math.cos(theta) * Math.cos(phi)).multiplyScalar(distance));
