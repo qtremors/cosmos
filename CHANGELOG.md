@@ -1,12 +1,16 @@
 # Cosmos Changelog
 
 > **Project:** Cosmos  
-> **Version:** 0.0.4  
-> **Last Updated:** 2025-12-20
+> **Version:** 0.0.5  
+> **Last Updated:** 2025-12-25
 
 ---
 
 ## [Unreleased]
+
+## [0.0.5] - 2025-12-25
+
+- Add Quantumania terrain, structures, ships, and inhabitants with deferred loading, retries, and model eviction.
 
 ## [0.0.4] - 2025-12-20
 

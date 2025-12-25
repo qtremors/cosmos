@@ -21,6 +21,7 @@ import { AlienX } from './objects/AlienX';
 import { BlackHole } from './objects/BlackHole';
 import { placeInterstellarPair } from './core/InterstellarLayout';
 import { SystemManager } from './core/SystemManager';
+import { QuantumaniaSystem } from './objects/quantumania/QuantumaniaSystem';
 
 /** Small viewer used while the astronomical and destination modules are introduced. */
 export default function App() {
@@ -52,6 +53,8 @@ export default function App() {
         const belt = new AsteroidBelt(420, 660, 1000), kuiper = new AsteroidBelt(6000, 10000, 250, 50); solar.push(belt, kuiper);
         const alien = new AlienX(assets), blackHole = new BlackHole(); placeInterstellarPair(alien, blackHole); space.push(alien, blackHole);
         targets.push({ label: 'Alien X', mesh: alien, radius: 10 }, { label: 'Black Hole', mesh: blackHole, radius: 100 });
+        const quantum = new QuantumaniaSystem(assets); quantumObjects.push(quantum);
+        targets.push(...quantum.getEntities().map(entity => ({ label: entity.label, mesh: entity.mesh, radius: entity.radius })));
         scene.add(...solar, ...space, ...quantumObjects);
         
         select.replaceChildren(new Option('Overview', ''));
@@ -92,6 +95,7 @@ export default function App() {
             sun.update(time, camera, elapsed); earth.update(time, camera);
             planets.forEach(planet => planet.update(time, camera)); dwarfs.forEach(dwarf => dwarf.update(time)); orbits.forEach(orbit => orbit.update(time)); belt.update(time); kuiper.update(time);
             SystemManager.getInstance().updateCurrentSystem(camera.position); alien.update(time, camera, elapsed); blackHole.update(time, camera, elapsed);
+            quantum.setVisible(camera.position.distanceTo(SystemManager.QUANTUMANIA_CENTER) < 2500); quantum.update(time, camera, elapsed); quantum.updateResidency(delta);
             if (selected) {
                 selected.mesh.getWorldPosition(targetPosition);
                 camera.position.copy(targetPosition).add(new THREE.Vector3(Math.sin(theta) * Math.cos(phi), Math.sin(phi), Math.cos(theta) * Math.cos(phi)).multiplyScalar(distance));
@@ -105,7 +109,7 @@ export default function App() {
             renderer.render(scene, camera); labels.render(scene, camera);
         });
         return () => {
-            stop();  assets.dispose(); disposeObject3D(scene); renderer.dispose(); mount.replaceChildren(); select.onchange = null;
+            stop(); quantum.dispose(); assets.dispose(); disposeObject3D(scene); renderer.dispose(); mount.replaceChildren(); select.onchange = null;
             window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', blur); window.removeEventListener('resize', resize);
         };
     }, []);
