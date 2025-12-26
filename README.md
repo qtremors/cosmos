@@ -2,7 +2,7 @@
 
 A 3D space exploration simulator built with React, TypeScript, and Three.js.
 
-Version: 0.0.5
+Version: 0.0.6
 
 ## Run locally
 
@@ -23,5 +23,6 @@ Open http://localhost:5173/. Drag to look or orbit, scroll to zoom, and use the 
 - Add the remaining planets, major moons, rings, dwarf planets, Halley, orbit guides, and visible asteroid and Kuiper belts.
 - Add Alien X and the black hole beyond the Solar region, preserve their relative placement, and introduce system navigation boundaries.
 - Add Quantumania terrain, structures, ships, and inhabitants with deferred loading, retries, and model eviction.
+- Add Arishem and his interior models with dedicated lighting, Explorer, The Kyln, and a steady distant Sun marker.
 
 See LICENSE.md for usage and attribution terms.

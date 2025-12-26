@@ -1,12 +1,16 @@
 # Cosmos Changelog
 
 > **Project:** Cosmos  
-> **Version:** 0.0.5  
-> **Last Updated:** 2025-12-25
+> **Version:** 0.0.6  
+> **Last Updated:** 2025-12-26
 
 ---
 
 ## [Unreleased]
+
+## [0.0.6] - 2025-12-26
+
+- Add Arishem and his interior models with dedicated lighting, Explorer, The Kyln, and a steady distant Sun marker.
 
 ## [0.0.5] - 2025-12-25
 

@@ -22,6 +22,11 @@ import { BlackHole } from './objects/BlackHole';
 import { placeInterstellarPair } from './core/InterstellarLayout';
 import { SystemManager } from './core/SystemManager';
 import { QuantumaniaSystem } from './objects/quantumania/QuantumaniaSystem';
+import { CosmicEntity } from './objects/CosmicEntity';
+import { Explorer } from './objects/solar/Explorer';
+import { TheKyln } from './objects/solar/TheKyln';
+import { SunBeacon } from './objects/solar/SunBeacon';
+import { SystemRenderer } from './core/SystemRenderer';
 
 /** Small viewer used while the astronomical and destination modules are introduced. */
 export default function App() {
@@ -55,8 +60,11 @@ export default function App() {
         targets.push({ label: 'Alien X', mesh: alien, radius: 10 }, { label: 'Black Hole', mesh: blackHole, radius: 100 });
         const quantum = new QuantumaniaSystem(assets); quantumObjects.push(quantum);
         targets.push(...quantum.getEntities().map(entity => ({ label: entity.label, mesh: entity.mesh, radius: entity.radius })));
+        const cosmic = new CosmicEntity(assets), explorer = new Explorer(), kyln = new TheKyln('The Kyln'), beacon = new SunBeacon();
+        solar.push(explorer, kyln); space.push(beacon);
+        targets.push({ label: 'Arishem', mesh: cosmic.head, radius: 1500 }, { label: 'Explorer', mesh: explorer, radius: 5 }, { label: 'The Kyln', mesh: kyln, radius: 8 });
         scene.add(...solar, ...space, ...quantumObjects);
-        
+        const passes = new SystemRenderer(scene, solar, quantumObjects, space, [cosmic]); passes.fill.intensity = 0.15;
         select.replaceChildren(new Option('Overview', ''));
         targets.forEach((target, index) => select.add(new Option(target.label, String(index))));
         let selected: typeof targets[number] | null = null, distance = 900, theta = 0, phi = 0.4;
@@ -96,6 +104,7 @@ export default function App() {
             planets.forEach(planet => planet.update(time, camera)); dwarfs.forEach(dwarf => dwarf.update(time)); orbits.forEach(orbit => orbit.update(time)); belt.update(time); kuiper.update(time);
             SystemManager.getInstance().updateCurrentSystem(camera.position); alien.update(time, camera, elapsed); blackHole.update(time, camera, elapsed);
             quantum.setVisible(camera.position.distanceTo(SystemManager.QUANTUMANIA_CENTER) < 2500); quantum.update(time, camera, elapsed); quantum.updateResidency(delta);
+            cosmic.update(time, camera, elapsed, delta); cosmic.updateResidency(delta); explorer.update(time, camera, delta); kyln.update(time, camera, delta, elapsed); beacon.update(camera.position);
             if (selected) {
                 selected.mesh.getWorldPosition(targetPosition);
                 camera.position.copy(targetPosition).add(new THREE.Vector3(Math.sin(theta) * Math.cos(phi), Math.sin(phi), Math.cos(theta) * Math.cos(phi)).multiplyScalar(distance));
@@ -106,10 +115,10 @@ export default function App() {
                 if (keys.has('KeyA')) camera.translateX(-speed); if (keys.has('KeyD')) camera.translateX(speed);
             }
             stars.position.copy(camera.position);
-            renderer.render(scene, camera); labels.render(scene, camera);
+            passes.render(renderer, camera, true, true); labels.render(scene, camera);
         });
         return () => {
-            stop(); quantum.dispose(); assets.dispose(); disposeObject3D(scene); renderer.dispose(); mount.replaceChildren(); select.onchange = null;
+            stop(); quantum.dispose(); cosmic.dispose(); assets.dispose(); disposeObject3D(scene); renderer.dispose(); mount.replaceChildren(); select.onchange = null;
             window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', blur); window.removeEventListener('resize', resize);
         };
     }, []);

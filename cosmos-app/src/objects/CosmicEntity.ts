@@ -1,0 +1,248 @@
+import * as THREE from 'three';
+import { SceneAssets } from '../core/SceneAssets';
+import { disposeObject3D } from '../core/SceneLifecycle';
+import { SystemManager, SystemId } from '../core/SystemManager';
+
+export class CosmicEntity extends THREE.Group {
+    public head: THREE.Group;
+    private alienGroup: THREE.Group;
+    private disposed = false;
+    private queue: Promise<void> | null = null;
+    private loadedModels = new Set<string>();
+    private failedModels = new Set<string>();
+    private shouldLoad = false;
+    private loadingComplete = false;
+    private generation = 0;
+    private hiddenSeconds = 0;
+    private evicted = false;
+    private mixer: THREE.AnimationMixer | undefined;
+
+    constructor(private assets = new SceneAssets()) {
+        super();
+        this.name = 'CosmicEntity';
+
+        this.alienGroup = new THREE.Group();
+        this.alienGroup.frustumCulled = false;
+        this.frustumCulled = false;
+        this.add(this.alienGroup);
+
+        this.head = new THREE.Group();
+        this.head.name = 'CameraTargetHead';
+        this.alienGroup.add(this.head);
+        this.head.position.set(0, 3000, 0);
+
+        this.position.set(0, 0, -100000);
+
+
+    }
+
+    private loadModel(scale: number): Promise<void> {
+        const generation = this.generation;
+        return this.assets.loadModel('/models/Arishem.glb').then(gltf => {
+            const model = gltf.scene;
+            if (this.disposed || generation !== this.generation) { disposeObject3D(model); return; }
+            model.scale.setScalar(scale);
+
+            model.traverse((child) => {
+                child.frustumCulled = false;
+                child.layers.set(0);
+
+                if ((child as THREE.Mesh).isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+
+                    const m = child as THREE.Mesh;
+                    m.frustumCulled = false;
+                    if (m.material) {
+                         const materials = Array.isArray(m.material) ? m.material : [m.material];
+                         materials.forEach(mat => {
+                            if (mat instanceof THREE.MeshStandardMaterial) {
+                                mat.roughness = Math.max(mat.roughness, 0.55);
+                                mat.metalness = Math.min(mat.metalness, 0.25);
+                                mat.side = THREE.DoubleSide;
+                            }
+                         });
+                    }
+                }
+            });
+
+            this.alienGroup.add(model);
+
+            const ambientLight = new THREE.AmbientLight(0xc9d3e6, 0.8);
+            ambientLight.name = 'ArishemAmbientLight';
+            model.add(ambientLight);
+
+            const lightTarget = new THREE.Object3D();
+            lightTarget.position.set(0, 0.15, 0);
+            model.add(lightTarget);
+            const keyLight = new THREE.DirectionalLight(0xffe2c4, 4);
+            keyLight.name = 'ArishemKeyLight';
+            keyLight.position.set(0.8, 0.7, 1.2);
+            keyLight.target = lightTarget;
+            const fillLight = new THREE.DirectionalLight(0xb3d4ff, 2);
+            fillLight.name = 'ArishemFillLight';
+            fillLight.position.set(-0.8, 0.3, -0.8);
+            fillLight.target = lightTarget;
+            model.add(keyLight, fillLight);
+
+            // Point-light intensity must account for the model's 10,000x world scale.
+            const accentIntensity = scale * scale * 0.002;
+            const headLight = new THREE.PointLight(0xffaa00, accentIntensity, scale * 0.5);
+            headLight.position.set(0, 0.45, 0.05);
+            model.add(headLight);
+
+            const chestLight = new THREE.PointLight(0x00aaff, accentIntensity, scale * 0.5);
+            chestLight.position.set(0, 0.30, 0.05);
+            model.add(chestLight);
+
+            if (gltf.animations && gltf.animations.length > 0) {
+                this.mixer = new THREE.AnimationMixer(model);
+                const action = this.mixer.clipAction(gltf.animations[0]);
+                action.play();
+            }
+
+            const headBone = model.getObjectByName('Head') ||
+                             model.getObjectByName('mixamorigHead') ||
+                             model.getObjectByName('v_Head');
+
+            if (headBone) {
+                headBone.add(this.head);
+                this.head.position.set(0, 0, 0);
+            } else {
+                this.head.position.set(0, 0.300 * scale, 0);
+            }
+
+        });
+    }
+
+    public update(_time: number, camera: THREE.Camera, independentTime: number, delta: number): void {
+        this.mixer?.update(delta);
+        this.alienGroup.position.y = Math.sin(independentTime * 0.5) * 50;
+        const currentSys = SystemManager.getInstance().currentSystem;
+        this.visible = currentSys === SystemId.INTERSTELLAR;
+        this.shouldLoad = camera.position.distanceTo(this.position) < 10000;
+        if (this.shouldLoad) { this.hiddenSeconds = 0; this.evicted = false; }
+        this.startLoading();
+    }
+
+    suspend(): void { this.shouldLoad = false; this.visible = false; }
+
+    private startLoading(): void {
+        if (this.disposed || !this.shouldLoad || this.queue || this.loadingComplete) return;
+        this.queue = this.loadModelsSequentially().finally(() => {
+            this.queue = null;
+            this.loadingComplete = this.loadedModels.size + this.failedModels.size === 7;
+        });
+    }
+
+    private async loadModelsSequentially(): Promise<void> {
+        const tasks = [
+            { name: 'Arishem', load: () => this.loadModel(10000) },
+            ...['Figure1', 'Figure2', 'Figure3', 'Figure4', 'Figure5'].map((name, index) => ({
+                name, load: () => this.loadFigure(name, index, 10000),
+            })),
+            { name: 'Robot', load: () => this.loadRobot(10000) },
+        ];
+        const generation = this.generation;
+        for (const task of tasks) {
+            if (this.disposed || !this.shouldLoad || generation !== this.generation) return;
+            if (this.loadedModels.has(task.name) || this.failedModels.has(task.name)) continue;
+            try { await task.load(); if (generation === this.generation) this.loadedModels.add(task.name); }
+            catch { if (!this.disposed && generation === this.generation) this.failedModels.add(task.name); }
+        }
+    }
+
+    get residentModelCount(): number { return this.loadedModels.size; }
+
+    retryFailedModels(): void {
+        this.failedModels.clear();
+        this.loadingComplete = false;
+        this.startLoading();
+    }
+
+    updateResidency(delta: number): void {
+        if (this.shouldLoad || this.disposed || this.evicted) return;
+        this.hiddenSeconds += delta;
+        if (this.hiddenSeconds >= 30) { this.unloadModels(); this.evicted = true; }
+    }
+
+    private unloadModels(): void {
+        this.generation++;
+        if (this.mixer) {
+            this.mixer.stopAllAction();
+            this.mixer.uncacheRoot(this.mixer.getRoot());
+            this.mixer = undefined;
+        }
+        // Keep the navigation target alive when its loaded parent is evicted.
+        this.alienGroup.add(this.head);
+        this.head.position.set(0, 3000, 0);
+        for (const child of [...this.alienGroup.children]) {
+            if (child === this.head) continue;
+            this.alienGroup.remove(child);
+            disposeObject3D(child);
+        }
+        this.loadedModels.clear();
+        this.failedModels.clear();
+        this.loadingComplete = false;
+    }
+
+    dispose(): void {
+        this.disposed = true;
+        this.unloadModels();
+    }
+
+    private loadFigure(name: string, index: number, parentScale: number): Promise<void> {
+        const chestY = 0.300 * parentScale;
+        const chestZ = 0;
+        const radius = 0.05 * parentScale;
+        const generation = this.generation;
+        return this.assets.loadModel(`/models/${name}.glb`).then(gltf => {
+            const model = gltf.scene;
+            if (this.disposed || generation !== this.generation) { disposeObject3D(model); return; }
+            model.scale.setScalar(100);
+
+            const angle = (index / 4) * Math.PI - (Math.PI / 2);
+            const x = Math.sin(angle) * radius * 0.5;
+            const z = Math.cos(angle) * radius * 0.2 + chestZ;
+
+            model.position.set(x, chestY, z);
+            model.rotation.y = angle;
+
+            model.traverse((child) => {
+                child.frustumCulled = false;
+                child.layers.set(0);
+                if ((child as THREE.Mesh).isMesh) {
+                    const m = child as THREE.Mesh;
+                    m.castShadow = true;
+                    m.receiveShadow = true;
+                }
+            });
+
+            this.alienGroup.add(model);
+        });
+    }
+
+    private loadRobot(parentScale: number): Promise<void> {
+        const headY = 0.45 * parentScale;
+
+        const generation = this.generation;
+        return this.assets.loadModel('/models/Robot.glb').then(gltf => {
+            const model = gltf.scene;
+            if (this.disposed || generation !== this.generation) { disposeObject3D(model); return; }
+            model.scale.setScalar(120);
+            model.position.set(0, headY, 0.040 * parentScale);
+
+            model.traverse((child) => {
+                child.frustumCulled = false;
+                child.layers.set(0);
+                if ((child as THREE.Mesh).isMesh) {
+                    const m = child as THREE.Mesh;
+                    m.castShadow = true;
+                    m.receiveShadow = true;
+                }
+            });
+
+            this.alienGroup.add(model);
+        });
+    }
+}
