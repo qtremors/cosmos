@@ -1,12 +1,16 @@
 # Cosmos Changelog
 
 > **Project:** Cosmos  
-> **Version:** 0.0.6  
-> **Last Updated:** 2025-12-26
+> **Version:** 0.0.7  
+> **Last Updated:** 2025-12-27
 
 ---
 
 ## [Unreleased]
+
+## [0.0.7] - 2025-12-27
+
+- Integrate the scene controller, adaptive flight and tracking, independent lighting, automatic exposure, and analytic solar eclipses.
 
 ## [0.0.6] - 2025-12-26
 
