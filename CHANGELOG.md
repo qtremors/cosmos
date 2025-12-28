@@ -1,12 +1,16 @@
 # Cosmos Changelog
 
 > **Project:** Cosmos  
-> **Version:** 0.0.7  
-> **Last Updated:** 2025-12-27
+> **Version:** 0.0.8  
+> **Last Updated:** 2025-12-28
 
 ---
 
 ## [Unreleased]
+
+## [0.0.8] - 2025-12-28
+
+- Add searchable object navigation, keyboard and touch controls, responsive panels, date and quality settings, and performance readouts.
 
 ## [0.0.7] - 2025-12-27
 

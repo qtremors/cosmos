@@ -2,7 +2,7 @@
 
 A 3D space exploration simulator built with React, TypeScript, and Three.js.
 
-Version: 0.0.7
+Version: 0.0.8
 
 ## Run locally
 
@@ -16,6 +16,8 @@ npm run dev
 
 Open http://localhost:5173/. Drag to look or orbit, scroll to zoom, and use the destination selector for close-ups.
 
+Open the radar for searchable destinations and settings. Use N to cycle objects, Tab to navigate the interface, and Home to reset the view.
+
 ## Available in this version
 
 - Establish the React and Three.js viewer, common physical scale, dated orbital calculations, and owned scene resources.
@@ -25,5 +27,6 @@ Open http://localhost:5173/. Drag to look or orbit, scroll to zoom, and use the 
 - Add Quantumania terrain, structures, ships, and inhabitants with deferred loading, retries, and model eviction.
 - Add Arishem and his interior models with dedicated lighting, Explorer, The Kyln, and a steady distant Sun marker.
 - Integrate the scene controller, adaptive flight and tracking, independent lighting, automatic exposure, and analytic solar eclipses.
+- Add searchable object navigation, keyboard and touch controls, responsive panels, date and quality settings, and performance readouts.
 
 See LICENSE.md for usage and attribution terms.
