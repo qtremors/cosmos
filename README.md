@@ -2,7 +2,7 @@
 
 A 3D space exploration simulator built with React, TypeScript, and Three.js.
 
-Version: 0.0.8
+Version: 0.0.9
 
 ## Run locally
 
@@ -28,5 +28,6 @@ Open the radar for searchable destinations and settings. Use N to cycle objects,
 - Add Arishem and his interior models with dedicated lighting, Explorer, The Kyln, and a steady distant Sun marker.
 - Integrate the scene controller, adaptive flight and tracking, independent lighting, automatic exposure, and analytic solar eclipses.
 - Add searchable object navigation, keyboard and touch controls, responsive panels, date and quality settings, and performance readouts.
+- Add astronomical reference checks, runtime and input regressions, browser test scenarios, and local profiling tools.
 
 See LICENSE.md for usage and attribution terms.

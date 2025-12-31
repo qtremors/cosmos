@@ -1,12 +1,16 @@
 # Cosmos Changelog
 
 > **Project:** Cosmos  
-> **Version:** 0.0.8  
-> **Last Updated:** 2025-12-28
+> **Version:** 0.0.9  
+> **Last Updated:** 2025-12-31
 
 ---
 
 ## [Unreleased]
+
+## [0.0.9] - 2025-12-31
+
+- Add astronomical reference checks, runtime and input regressions, browser test scenarios, and local profiling tools.
 
 ## [0.0.8] - 2025-12-28
 
