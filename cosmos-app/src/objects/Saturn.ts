@@ -98,6 +98,25 @@ export class Saturn extends THREE.Group {
         this.titan = new Titan(config.MOON!);
         this.add(this.titan);
 
+        // Titan Orbit Path
+        const titanOrbitCurve = new THREE.EllipseCurve(
+            0, 0,
+            config.MOON!.DISTANCE, config.MOON!.DISTANCE,
+            0, 2 * Math.PI,
+            false, 0
+        );
+        const titanOrbitPoints = titanOrbitCurve.getPoints(64);
+        const titanOrbitGeo = new THREE.BufferGeometry().setFromPoints(titanOrbitPoints);
+        titanOrbitGeo.rotateX(-Math.PI / 2);
+        const titanOrbitMat = new THREE.LineBasicMaterial({
+            color: 0xe6d4be,
+            transparent: true,
+            opacity: 0.1,
+            depthWrite: false,
+        });
+        const titanOrbitLine = new THREE.LineLoop(titanOrbitGeo, titanOrbitMat);
+        this.add(titanOrbitLine);
+
         // Label
         const div = document.createElement('div');
         div.className = 'label';

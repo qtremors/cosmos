@@ -2,9 +2,10 @@
 
 > **Experience the infinite.** A modular, high-performance 3D solar system simulation running directly in your browser.
 
-Explore a procedurally generated solar system with 8 planets, custom GLSL shaders, realistic orbital mechanics, and a cinematic camera system with gamepad support.
+Explore a procedurally generated solar system with 9 planets (including Pluto), custom GLSL shaders, realistic orbital mechanics, and a cinematic camera system with gamepad support.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.2.0-green.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
 ![React](https://img.shields.io/badge/React-19.2-61dafb.svg)
 ![Three.js](https://img.shields.io/badge/Three.js-0.182-black.svg)
@@ -42,8 +43,8 @@ The goal of Cosmos is to build a "Virtual Solar System" that scientifically and 
 ## ✨ Features
 
 ### 🌍 Complete Solar System
-- **8 Planets:** Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune
-- **3 Moons:** Moon (Earth), Europa (Jupiter), Titan (Saturn)
+- **9 Planets:** Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto
+- **4 Moons:** Moon (Earth), Europa (Jupiter), Titan (Saturn), Charon (Pluto)
 - **Asteroid Belt:** 4000 instanced asteroids with orbital motion
 - **Starfield:** Background star system
 
@@ -57,12 +58,14 @@ The goal of Cosmos is to build a "Virtual Solar System" that scientifically and 
 - **6-DOF Fly Controls:** WASD movement, roll, pitch, yaw
 - **Gamepad Support:** Full controller support
 - **Camera Lock-On:** Click radar to follow any celestial body
+- **Orbital Camera:** Rotate around locked target with mouse/keyboard
 - **Momentum Zoom:** Smooth inertia-based zooming
 
 ### 🗺️ Navigation HUD
 - **Radar Map:** Directionally-aware, rotates with camera
 - **Smart Labels:** Google Earth-style fade based on distance
 - **Top-Down View:** Toggle satellite perspective
+- **Stats HUD:** Shows camera speed or locked object info (orbital speed, distance)
 
 ---
 
@@ -89,7 +92,7 @@ The goal of Cosmos is to build a "Virtual Solar System" that scientifically and 
 ```bash
 # Clone the repository
 git clone https://github.com/qtremors/cosmos.git
-cd cosmos
+cd cosmos/cosmos-app
 
 # Install dependencies
 npm install
@@ -103,9 +106,28 @@ The simulation will be available at `http://localhost:5173`
 ### Production Build
 
 ```bash
-npm run build    # Build for production
-npm run preview  # Preview production build
+cd cosmos-app      # If not already in the app directory
+npm run build      # Build for production
+npm run preview    # Preview production build
 ```
+
+### Deploy to Vercel
+
+This project is optimized for **Vercel Hobby plan** (free tier):
+
+1. **Via CLI:**
+   ```bash
+   cd cosmos-app
+   npx vercel
+   ```
+
+2. **Via Dashboard:**
+   - Import your GitHub repository at [vercel.com/new](https://vercel.com/new)
+   - Set **Root Directory** to `cosmos-app`
+   - Framework will auto-detect as Vite
+   - Click Deploy
+
+> **Note:** No serverless functions or databases required - it's a fully static site.
 
 ---
 
@@ -170,7 +192,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation.
    ┌────────────────────────────────────────────────────────┐
    │                   objects/*.ts                          │
    │   Sun • Mercury • Venus • Earth • Mars • Jupiter       │
-   │          Saturn • Uranus • Neptune • AsteroidBelt      │
+   │   Saturn • Uranus • Neptune • Pluto • AsteroidBelt     │
    └────────────────────────────────────────────────────────┘
 ```
 
@@ -196,37 +218,40 @@ All simulation parameters are centralized in `src/core/SDK.ts`:
 
 ```
 cosmos/
-├── src/
-│   ├── App.tsx              # Main scene and input handling
-│   ├── main.tsx             # React entry point
-│   ├── index.css            # Global styles and HUD
-│   ├── core/
-│   │   └── SDK.ts           # Physics engine and constants
-│   ├── objects/
-│   │   ├── Sun.ts           # Star with granulation/corona
-│   │   ├── Earth.ts         # Planet with Moon
-│   │   ├── Jupiter.ts       # Gas giant with Europa
-│   │   ├── Saturn.ts        # Ringed planet with Titan
-│   │   ├── Uranus.ts        # Ice giant (97° tilt)
-│   │   ├── Neptune.ts       # Ice giant with storms
-│   │   ├── AsteroidBelt.ts  # 4000 instanced asteroids
-│   │   └── ...              # Mercury, Venus, Mars, Stars
-│   └── materials/
-│       └── Noise.ts         # Shared GLSL noise functions
-├── public/                  # Static assets
-├── package.json
-├── tsconfig.json
-└── vite.config.js
+├── .gitignore                 # Git ignore rules
+├── README.md                  # Project documentation
+├── CHANGELOG.md               # Version history
+├── ARCHITECTURE.md            # Technical architecture
+├── TASKS.md                   # Development tasks
+├── AGENTS.md                  # AI assistant guidelines
+├── PRIVACY.md                 # Privacy policy
+│
+└── cosmos-app/                # Application code
+    ├── src/
+    │   ├── App.tsx            # Main scene and input handling
+    │   ├── main.tsx           # React entry point
+    │   ├── index.css          # Global styles and HUD
+    │   ├── core/
+    │   │   ├── SDK.ts         # Physics engine and constants
+    │   │   └── InputHandler.ts # Input processing
+    │   ├── objects/           # All celestial bodies
+    │   │   └── ...            # Sun, Planets, Moons, etc.
+    │   └── materials/
+    │       └── Noise.ts       # Shared GLSL noise
+    ├── public/                # Static assets
+    ├── package.json
+    ├── tsconfig.json
+    └── vite.config.js
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] **Orbit Paths:** Visual orbit lines for planets
+- [x] **Orbit Paths:** Visual orbit lines for planets and moons ✅
 - [ ] **Time Controls:** Speed up/slow down simulation
 - [ ] **More Moons:** Add Ganymede, Callisto, and other major moons
-- [ ] **Dwarf Planets:** Pluto, Ceres, Eris
+- [x] **Dwarf Planets:** Pluto with Charon ✅
 - [ ] **Comet Simulation:** Elliptical orbits with tails
 - [ ] **VR Support:** WebXR integration
 
@@ -237,9 +262,9 @@ cosmos/
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Recent Updates
-- **v1.2.0** - TypeScript migration, Uranus/Neptune, additional moons
-- **v1.1.0** - Gamepad support, physics-based zoom
-- **v1.0.0** - Initial modular architecture
+- **v1.2.0** - Vercel deployment ready, custom favicon, SEO meta tags
+- **v1.1.0** - Pluto, orbital camera, Stats HUD, moon orbit paths, radar overhaul
+- **v1.0.0** - Initial release with 8 planets, gamepad support, modular architecture
 
 ---
 

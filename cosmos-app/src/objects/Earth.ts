@@ -156,6 +156,25 @@ export class Earth extends THREE.Group {
         this.moonLabel.position.set(0, data.MOON.RADIUS * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
         this.moon.add(this.moonLabel);
 
+        // --- MOON ORBIT PATH ---
+        const moonOrbitCurve = new THREE.EllipseCurve(
+            0, 0,
+            data.MOON.DISTANCE, data.MOON.DISTANCE,
+            0, 2 * Math.PI,
+            false, 0
+        );
+        const moonOrbitPoints = moonOrbitCurve.getPoints(64);
+        const moonOrbitGeo = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
+        moonOrbitGeo.rotateX(-Math.PI / 2);
+        const moonOrbitMat = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.1,
+            depthWrite: false,
+        });
+        const moonOrbitLine = new THREE.LineLoop(moonOrbitGeo, moonOrbitMat);
+        this.add(moonOrbitLine);
+
         // --- EARTH LABEL ---
         const div = document.createElement('div');
         div.className = 'label';

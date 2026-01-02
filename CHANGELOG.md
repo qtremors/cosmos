@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-01-02
+
+### Added
+
+#### 🚀 Deployment Ready
+- **Vercel Deployment:** Project configured for Vercel Hobby plan deployment
+- **Custom Favicon:** Cosmos logo as favicon and apple-touch-icon
+- **SEO Meta Tags:** Added description, theme-color, and Open Graph tags for social sharing
+
+### Changed
+- Updated page title to "Cosmos | 3D Solar System"
+- Improved `index.html` structure with proper meta tag ordering
+
+### Removed
+- Removed unused `vite.svg` default favicon
+
+---
+
+## [1.1.0] - 2025-12-14
+
+### Added
+
+#### 🪐 Pluto & Charon
+- **Pluto** dwarf planet with inclined orbit (oscillates above/below ecliptic)
+- **Charon** moon with orbit path visualization
+- Added to radar menu and lock-on system
+
+#### 🎯 Orbital Camera Control
+- Orbit around locked targets using mouse drag, arrow keys, or gamepad
+- Spherical coordinate system for smooth orbital movement
+- Preserves lock while changing viewing angle
+
+#### 📊 Stats HUD
+- Top-right display panel with transparent blur styling
+- **Free Flight:** Shows camera speed in km/s
+- **Locked Mode:** Shows orbital speed (km/s) and distance from Sun (M km)
+
+#### 🛸 Moon Orbit Paths
+- Visual orbit rings for Moon, Europa, Titan, and Charon
+- Subtle transparent lines around parent planets
+
+#### 📡 Radar Menu Overhaul
+- Organized into categories: Star, Planets, Moons, Other
+- Colored dots for each entity
+- Scrollable with custom scrollbar
+- Asteroid Belt now lockable
+
+### Changed
+- Extracted `InputHandler.ts` module from App.tsx (~120 lines)
+- Improved camera lock stability (position lerp + instant lookAt)
+
+### Fixed
+- Radar DOM refs preserved when HUD toggled off/on
+- Labels toggle now works correctly (ref instead of closure)
+
+---
+
 ## [1.0.0] - 2025-12-14
 
 ### 🎉 Initial Release
@@ -57,4 +114,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.2.0]: https://github.com/qtremors/cosmos/releases/tag/v1.2.0
+[1.1.0]: https://github.com/qtremors/cosmos/releases/tag/v1.1.0
 [1.0.0]: https://github.com/qtremors/cosmos/releases/tag/v1.0.0
