@@ -1,8 +1,8 @@
 # Tasks
 
 > **Project:** Cosmos  
-> **Version:** v1.1.0  
-> **Last Updated:** 2025-12-18
+> **Version:** v1.2.0  
+> **Last Updated:** 2026-01-02
 
 ---
 

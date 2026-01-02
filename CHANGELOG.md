@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-01-02
+
+### Added
+
+#### 🚀 Deployment Ready
+- **Vercel Deployment:** Project configured for Vercel Hobby plan deployment
+- **Custom Favicon:** Cosmos logo as favicon and apple-touch-icon
+- **SEO Meta Tags:** Added description, theme-color, and Open Graph tags for social sharing
+
+### Changed
+- Updated page title to "Cosmos | 3D Solar System"
+- Improved `index.html` structure with proper meta tag ordering
+
+### Removed
+- Removed unused `vite.svg` default favicon
+
+---
+
 ## [1.1.0] - 2025-12-14
 
 ### Added
@@ -96,4 +114,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.2.0]: https://github.com/qtremors/cosmos/releases/tag/v1.2.0
+[1.1.0]: https://github.com/qtremors/cosmos/releases/tag/v1.1.0
 [1.0.0]: https://github.com/qtremors/cosmos/releases/tag/v1.0.0

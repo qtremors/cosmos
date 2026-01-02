@@ -5,6 +5,7 @@
 Explore a procedurally generated solar system with 9 planets (including Pluto), custom GLSL shaders, realistic orbital mechanics, and a cinematic camera system with gamepad support.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.2.0-green.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
 ![React](https://img.shields.io/badge/React-19.2-61dafb.svg)
 ![Three.js](https://img.shields.io/badge/Three.js-0.182-black.svg)
@@ -109,6 +110,24 @@ cd cosmos-app      # If not already in the app directory
 npm run build      # Build for production
 npm run preview    # Preview production build
 ```
+
+### Deploy to Vercel
+
+This project is optimized for **Vercel Hobby plan** (free tier):
+
+1. **Via CLI:**
+   ```bash
+   cd cosmos-app
+   npx vercel
+   ```
+
+2. **Via Dashboard:**
+   - Import your GitHub repository at [vercel.com/new](https://vercel.com/new)
+   - Set **Root Directory** to `cosmos-app`
+   - Framework will auto-detect as Vite
+   - Click Deploy
+
+> **Note:** No serverless functions or databases required - it's a fully static site.
 
 ---
 
@@ -243,6 +262,7 @@ cosmos/
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Recent Updates
+- **v1.2.0** - Vercel deployment ready, custom favicon, SEO meta tags
 - **v1.1.0** - Pluto, orbital camera, Stats HUD, moon orbit paths, radar overhaul
 - **v1.0.0** - Initial release with 8 planets, gamepad support, modular architecture
 
