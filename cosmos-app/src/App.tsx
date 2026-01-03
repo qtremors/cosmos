@@ -14,6 +14,12 @@ import { Neptune } from './objects/Neptune';
 import { AsteroidBelt } from './objects/AsteroidBelt';
 import { OrbitPath } from './objects/OrbitPath';
 import { Pluto } from './objects/Pluto';
+import { Spaceship } from './objects/easter_eggs/Spaceship';
+import { SpaceStation } from './objects/easter_eggs/SpaceStation';
+import { SpecialAsteroid } from './objects/easter_eggs/SpecialAsteroid';
+import { EasterEggPlanet } from './objects/easter_eggs/EasterEggPlanet';
+import { AlienX } from './objects/easter_eggs/AlienX';
+import { SagittariusA } from './objects/easter_eggs/SagittariusA';
 import { Cosmos } from './core/SDK';
 import {
     InputState,
@@ -23,6 +29,7 @@ import {
     pollGamepad,
     applyInputToCamera
 } from './core/InputHandler';
+import { SettingsPanel } from './components/SettingsPanel';
 
 // =============================================================================
 // TYPES
@@ -47,6 +54,10 @@ export default function App() {
     const [showRadarList, setShowRadarList] = useState(false);
     const [cameraSpeed, setCameraSpeed] = useState(0);
     const [lockedInfo, setLockedInfo] = useState<{ name: string; orbitalSpeed: number; sunDist: number } | null>(null);
+    const [ambientIntensity, setAmbientIntensity] = useState(Cosmos.LIGHTING.AMBIENT_INTENSITY);
+    const [nearestObject, setNearestObject] = useState<{ name: string; distance: number } | null>(null);
+    const [timeScale, setTimeScale] = useState(Cosmos.DEFAULT_TIME_SCALE);
+    const [isPaused, setIsPaused] = useState(false);
 
     const labelRendererRef = useRef<CSS2DRenderer | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -63,14 +74,29 @@ export default function App() {
     const mouseDelta = useRef({ x: 0, y: 0 });
     const lastCameraPos = useRef(new THREE.Vector3());
     const statsFrameCount = useRef(0);
+    const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+    const timeScaleRef = useRef(timeScale);
+    const isPausedRef = useRef(isPaused);
 
     // Lock functions exposed via refs instead of window globals
     const lockOnTarget = useRef((mesh: THREE.Object3D, radius: number) => {
+        let initialTheta = Math.PI / 4;
+
+        // Special handling for Alien X to view Black Hole behind it
+        // Alien X is at 0.75 PI. Black Hole is at 0.75 PI (further out).
+        // We want Camera -> Alien X -> Black Hole.
+        // So Camera should be "Sun-side" of Alien X.
+        // Relative vector (Cam - AlienX) should point towards Sun (approx 1.75 PI).
+        const entity = entitiesRef.current.find(e => e.mesh === mesh);
+        if (entity?.label === 'Alien X') {
+            initialTheta = Math.PI * 0.75;
+        }
+
         lockRef.current = {
             mesh,
             distance: radius * Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER,
             isTop: false,
-            theta: Math.PI / 4,  // Start at 45° horizontal
+            theta: initialTheta,
             phi: 0.3            // Start slightly above horizon
         };
         setShowRadarList(false);
@@ -123,6 +149,12 @@ export default function App() {
 
         // --- MOUSE WHEEL (Momentum Zoom) ---
         const handleWheel = (e: WheelEvent) => {
+            // Don't capture wheel events inside radar panels (allow scrolling)
+            const target = e.target as HTMLElement;
+            if (target.closest('.radar-panels') || target.closest('.radar-list')) {
+                return; // Let the panel scroll naturally
+            }
+
             e.preventDefault();
             const dir = e.deltaY > 0 ? 1 : -1;
             const force = e.shiftKey ? 20.0 : 5.0;
@@ -135,7 +167,10 @@ export default function App() {
         scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000);
-        camera.position.set(0, 100, 300);
+        // Start in top-down view (T mode)
+        camera.position.set(0, 1000, 0);
+        camera.lookAt(0, 0, 0);
+        camera.rotation.z = 0;
         cameraRef.current = camera;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
@@ -159,6 +194,7 @@ export default function App() {
         scene.add(sunLight);
 
         const ambientLight = new THREE.AmbientLight(Cosmos.LIGHTING.AMBIENT_COLOR, Cosmos.LIGHTING.AMBIENT_INTENSITY);
+        ambientLightRef.current = ambientLight;
         scene.add(ambientLight);
 
         // LABELS
@@ -201,19 +237,34 @@ export default function App() {
         const pluto = new Pluto();
         scene.add(pluto);
 
-        // ORBIT PATHS
+        // ORBIT PATHS (with eccentricity and inclination)
         const orbitPaths = [
-            new OrbitPath(Cosmos.PLANETS.MERCURY.DISTANCE, Cosmos.RADAR.COLORS.MERCURY),
-            new OrbitPath(Cosmos.PLANETS.VENUS.DISTANCE, Cosmos.RADAR.COLORS.VENUS),
-            new OrbitPath(Cosmos.PLANETS.EARTH.DISTANCE, Cosmos.RADAR.COLORS.EARTH),
-            new OrbitPath(Cosmos.PLANETS.MARS.DISTANCE, Cosmos.RADAR.COLORS.MARS),
-            new OrbitPath(Cosmos.PLANETS.JUPITER.DISTANCE, Cosmos.RADAR.COLORS.JUPITER),
-            new OrbitPath(Cosmos.PLANETS.SATURN.DISTANCE, Cosmos.RADAR.COLORS.SATURN),
-            new OrbitPath(Cosmos.PLANETS.URANUS.DISTANCE, Cosmos.RADAR.COLORS.URANUS),
-            new OrbitPath(Cosmos.PLANETS.NEPTUNE.DISTANCE, Cosmos.RADAR.COLORS.NEPTUNE),
-            new OrbitPath(Cosmos.PLANETS.PLUTO.DISTANCE, Cosmos.RADAR.COLORS.PLUTO),
+            new OrbitPath(Cosmos.PLANETS.MERCURY.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.MERCURY, Cosmos.INCLINATION.MERCURY),
+            new OrbitPath(Cosmos.PLANETS.VENUS.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.VENUS, Cosmos.INCLINATION.VENUS),
+            new OrbitPath(Cosmos.PLANETS.EARTH.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.EARTH, Cosmos.INCLINATION.EARTH),
+            new OrbitPath(Cosmos.PLANETS.MARS.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.MARS, Cosmos.INCLINATION.MARS),
+            new OrbitPath(Cosmos.PLANETS.JUPITER.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.JUPITER, Cosmos.INCLINATION.JUPITER),
+            new OrbitPath(Cosmos.PLANETS.SATURN.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.SATURN, Cosmos.INCLINATION.SATURN),
+            new OrbitPath(Cosmos.PLANETS.URANUS.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.URANUS, Cosmos.INCLINATION.URANUS),
+            new OrbitPath(Cosmos.PLANETS.NEPTUNE.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.NEPTUNE, Cosmos.INCLINATION.NEPTUNE),
+            new OrbitPath(Cosmos.PLANETS.PLUTO.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.PLUTO, Cosmos.INCLINATION.PLUTO),
         ];
         orbitPaths.forEach(path => scene.add(path));
+
+        // EASTER EGGS
+        const spaceship = new Spaceship();
+        scene.add(spaceship);
+        const spaceStation = new SpaceStation();
+        spaceStation.setEarthReference(earth);
+        scene.add(spaceStation);
+        const specialAsteroid = new SpecialAsteroid('Quant');
+        scene.add(specialAsteroid);
+        const robonaut = new AlienX(); // This is now AlienXFinalForm
+        scene.add(robonaut);
+        const easterEggPlanet = new EasterEggPlanet();
+        scene.add(easterEggPlanet);
+        const sagittariusA = new SagittariusA();
+        scene.add(sagittariusA);
 
         entitiesRef.current = [
             { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4 },
@@ -231,12 +282,22 @@ export default function App() {
             { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25 },
             { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8 },
             { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4 },
+            // Easter Eggs
+            { mesh: spaceship, id: 'spaceship-blip', color: '#00aaff', label: 'Explorer-1', radius: 5 },
+            { mesh: spaceStation, id: 'iss-blip', color: '#ffffff', label: 'ISS', radius: 3 },
+            { mesh: specialAsteroid, id: 'special-blip', color: '#ffaa33', label: 'Quant', radius: 5 },
+            { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10 },
+            { mesh: easterEggPlanet, id: 'tremors-blip', color: '#ff66ff', label: 'Tremors', radius: 8 },
+            { mesh: sagittariusA, id: 'sagittariusa-blip', color: '#ff6600', label: 'Sagittarius A*', radius: 100 },
         ];
 
         // RADAR INIT - Cache DOM references
         const radarContainer = document.getElementById('radar-container');
         if (radarContainer) {
-            radarContainer.innerHTML = '<div class="radar-center"></div>';
+            // Clear only blips (not the radar-center which is in JSX)
+            const existingBlips = radarContainer.querySelectorAll('.radar-blip');
+            existingBlips.forEach(blip => blip.remove());
+
             entitiesRef.current.forEach(ent => {
                 if (!ent.mesh) return;
                 const b = document.createElement('div');
@@ -298,12 +359,18 @@ export default function App() {
 
         // LOOP
         const clock = new THREE.Clock();
+        let simTime = 0; // Accumulated simulation time
 
         const animate = () => {
             requestAnimationFrame(animate);
 
-            const time = performance.now() * 0.001;
             const delta = clock.getDelta();
+
+            // Apply time scale (only accumulate time when not paused)
+            if (!isPausedRef.current) {
+                simTime += delta * timeScaleRef.current;
+            }
+            const time = simTime;
 
             // 1. UPDATE OBJECTS
             sun.update(time, camera);
@@ -317,6 +384,20 @@ export default function App() {
             uranus.update(time, camera);
             neptune.update(time, camera);
             pluto.update(time, camera);
+
+            // Update planet positions for Explorer collision avoidance
+            Spaceship.updatePlanetPositions([
+                mercury.position, venus.position, earth.position, mars.position,
+                jupiter.position, saturn.position, uranus.position, neptune.position, pluto.position
+            ]);
+
+            // Easter Eggs
+            spaceship.update(time, camera);
+            spaceStation.update(time, camera);
+            specialAsteroid.update(time, camera);
+            robonaut.update(time, camera);
+            easterEggPlanet.update(time, camera);
+            sagittariusA.update(time, camera);
 
             // 2. INPUT PROCESSING
             const pad = pollGamepad();
@@ -378,8 +459,31 @@ export default function App() {
                         orbitalSpeed: Math.round(orbitalSpeedKmS * 10) / 10,
                         sunDist: Math.round(sunDistMillionKm)
                     });
+                    setNearestObject(null);
                 } else {
                     setLockedInfo(null);
+
+                    // Calculate nearest object for free flight mode
+                    let closest: { name: string; distance: number } | null = null;
+                    let minDist = Infinity;
+
+                    entitiesRef.current.forEach(ent => {
+                        if (ent.mesh) {
+                            const pos = new THREE.Vector3();
+                            ent.mesh.getWorldPosition(pos);
+                            const dist = camera.position.distanceTo(pos);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                // Convert to display units (thousands of km)
+                                const distKm = (dist / AU) * 150000; // Convert AU to km
+                                closest = {
+                                    name: ent.label,
+                                    distance: Math.round(distKm)
+                                };
+                            }
+                        }
+                    });
+                    setNearestObject(closest);
                 }
             }
 
@@ -431,8 +535,20 @@ export default function App() {
         };
     }, []);
 
+    // Update ambient light when intensity changes
+    useEffect(() => {
+        if (ambientLightRef.current) {
+            ambientLightRef.current.intensity = ambientIntensity;
+        }
+    }, [ambientIntensity]);
+
+    // Sync time control refs
+    useEffect(() => { timeScaleRef.current = timeScale; }, [timeScale]);
+    useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+
     return (
         <div className="container">
+
             <div ref={mountRef} className="canvas-container" style={{ position: 'relative' }} />
             <div className="overlay" style={{ opacity: showUI ? 1 : 0, transition: 'opacity 0.5s', pointerEvents: 'none' }}>
                 Cosmos<br />
@@ -445,65 +561,94 @@ export default function App() {
                 </span>
             </div>
 
-            {showUI && showRadarList && (
-                <div className="radar-list" style={{ zIndex: 1001 }}>
-                    {/* Stars */}
-                    <div className="radar-category">Star</div>
-                    {entitiesRef.current.filter(e => e.label === 'Sun').map(ent => (
-                        <div
-                            key={ent.id}
-                            className="radar-item"
-                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
-                        >
-                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                            {ent.label}
-                        </div>
-                    ))}
+            {showUI && showRadarList && entitiesRef.current.length > 0 && (
+                <div className="radar-panels" style={{ zIndex: 1001, display: 'flex', gap: '10px' }}>
+                    {/* Objects Panel */}
+                    <div className="radar-list">
+                        {/* Stars */}
+                        <div className="radar-category">Star</div>
+                        {entitiesRef.current.filter(e => e.label === 'Sun').map(ent => (
+                            <div
+                                key={ent.id}
+                                className="radar-item"
+                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                            >
+                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                {ent.label}
+                            </div>
+                        ))}
 
-                    {/* Planets */}
-                    <div className="radar-category">Planets</div>
-                    {entitiesRef.current.filter(e =>
-                        ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(e.label)
-                    ).map(ent => (
-                        <div
-                            key={ent.id}
-                            className="radar-item"
-                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
-                        >
-                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                            {ent.label}
-                        </div>
-                    ))}
+                        {/* Planets */}
+                        <div className="radar-category">Planets</div>
+                        {entitiesRef.current.filter(e =>
+                            ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(e.label)
+                        ).map(ent => (
+                            <div
+                                key={ent.id}
+                                className="radar-item"
+                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                            >
+                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                {ent.label}
+                            </div>
+                        ))}
 
-                    {/* Moons */}
-                    <div className="radar-category">Moons</div>
-                    {entitiesRef.current.filter(e =>
-                        ['Moon', 'Europa', 'Titan', 'Charon'].includes(e.label)
-                    ).map(ent => (
-                        <div
-                            key={ent.id}
-                            className="radar-item"
-                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
-                        >
-                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                            {ent.label}
-                        </div>
-                    ))}
+                        {/* Moons */}
+                        <div className="radar-category">Moons</div>
+                        {entitiesRef.current.filter(e =>
+                            ['Moon', 'Europa', 'Titan', 'Charon'].includes(e.label)
+                        ).map(ent => (
+                            <div
+                                key={ent.id}
+                                className="radar-item"
+                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                            >
+                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                {ent.label}
+                            </div>
+                        ))}
 
-                    {/* Other */}
-                    <div className="radar-category">Other</div>
-                    {entitiesRef.current.filter(e =>
-                        e.label === 'Asteroid Belt'
-                    ).map(ent => (
-                        <div
-                            key={ent.id}
-                            className="radar-item"
-                            onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
-                        >
-                            <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                            {ent.label}
-                        </div>
-                    ))}
+                        {/* Other */}
+                        <div className="radar-category">Other</div>
+                        {entitiesRef.current.filter(e =>
+                            e.label === 'Asteroid Belt'
+                        ).map(ent => (
+                            <div
+                                key={ent.id}
+                                className="radar-item"
+                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                            >
+                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                {ent.label}
+                            </div>
+                        ))}
+
+                        {/* Easter Eggs */}
+                        <div className="radar-category">Easter Eggs</div>
+                        {entitiesRef.current.filter(e =>
+                            ['Explorer-1', 'ISS', 'Quant', 'Alien X', 'Tremors', 'Sagittarius A*'].includes(e.label)
+                        ).map(ent => (
+                            <div
+                                key={ent.id}
+                                className="radar-item"
+                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                            >
+                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                {ent.label}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Settings Panel (beside objects panel) */}
+                    <SettingsPanel
+                        isOpen={true}
+                        ambientIntensity={ambientIntensity}
+                        onAmbientChange={setAmbientIntensity}
+                        timeScale={timeScale}
+                        onTimeScaleChange={setTimeScale}
+                        isPaused={isPaused}
+                        onPauseToggle={() => setIsPaused(p => !p)}
+                    />
                 </div>
             )}
 
@@ -517,7 +662,7 @@ export default function App() {
                     zIndex: 1000,
                     visibility: showUI ? 'visible' : 'hidden'
                 }}
-                onClick={() => setShowRadarList(prev => !prev)}
+                onClick={() => { if (entitiesRef.current.length > 0) setShowRadarList(prev => !prev); }}
                 title="Click to Open/Close Object List"
             >
                 <div className="radar-center"></div>
@@ -545,6 +690,18 @@ export default function App() {
                                 <span className="stats-hud-label">Speed:</span>
                                 <span className="stats-hud-value">{cameraSpeed} km/s</span>
                             </div>
+                            {nearestObject && (
+                                <>
+                                    <div className="stats-hud-row">
+                                        <span className="stats-hud-label">Nearest:</span>
+                                        <span className="stats-hud-value">{nearestObject.name}</span>
+                                    </div>
+                                    <div className="stats-hud-row">
+                                        <span className="stats-hud-label">Distance:</span>
+                                        <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
+                                    </div>
+                                </>
+                            )}
                         </>
                     )}
                 </div>

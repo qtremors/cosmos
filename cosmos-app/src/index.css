@@ -130,9 +130,9 @@ body {
 
 /* Radar Menu - Overhauled */
 .radar-list {
-  position: absolute;
-  top: 2rem;
-  left: 240px;
+  position: relative;
+  /* Changed from absolute */
+  /* Top/Left removed, handled by parent container */
   width: 180px;
   max-height: calc(100vh - 6rem);
   background: rgba(0, 10, 30, 0.95);
@@ -146,6 +146,7 @@ body {
   z-index: 30;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .radar-list::-webkit-scrollbar {
@@ -242,4 +243,486 @@ body {
 .stats-hud-value {
   color: #fff;
   font-weight: 500;
+}
+
+/* Settings Panel */
+.settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.settings-panel {
+  background: rgba(10, 15, 30, 0.95);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.3s ease-out;
+  /* Remove overflow here */
+}
+
+/* Inline settings panel (beside objects panel) */
+.settings-panel-inline {
+  background: rgba(10, 15, 30, 0.95);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 8px;
+  width: 450px;
+  /* Widened for better layout */
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.settings-panel-inline .settings-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+.settings-panel-inline .settings-header h2 {
+  font-size: 16px;
+}
+
+.settings-panel-inline .settings-content {
+  padding: 12px 16px;
+}
+
+.settings-panel-inline .settings-section {
+  margin-bottom: 16px;
+}
+
+.settings-panel-inline .settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.settings-panel-inline .settings-section h3 {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.settings-panel-inline .settings-row {
+  margin-bottom: 10px;
+}
+
+.settings-panel-inline .preset-buttons {
+  gap: 4px;
+}
+
+.settings-panel-inline .preset-button {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+.settings-panel-inline .controls-grid {
+  gap: 8px;
+}
+
+.settings-panel-inline .control-group h4 {
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.settings-panel-inline .control-item {
+  font-size: 9px;
+  margin-bottom: 2px;
+}
+
+.settings-panel-inline kbd {
+  padding: 1px 4px;
+  font-size: 8px;
+}
+
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+.settings-header h2 {
+  margin: 0;
+  color: #f97316;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+
+.settings-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s;
+}
+
+.settings-close:hover {
+  color: #f97316;
+}
+
+.settings-content {
+  padding: 24px;
+}
+
+.settings-section {
+  margin-bottom: 28px;
+}
+
+.settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.settings-section h3 {
+  margin: 0 0 16px 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.settings-row {
+  margin-bottom: 16px;
+}
+
+.settings-row label {
+  display: block;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 10;
+}
+
+.slider-container input[type="range"] {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  outline: none;
+  position: relative;
+  z-index: 11;
+  cursor: pointer;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #f97316;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+  position: relative;
+  z-index: 12;
+}
+
+.slider-container input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #f97316;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+}
+
+.slider-value {
+  color: #f97316;
+  font-family: monospace;
+  font-size: 14px;
+  min-width: 40px;
+}
+
+.setting-hint {
+  margin: 8px 0 0 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.control-group h4 {
+  margin: 0 0 10px 0;
+  color: #f97316;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.control-item {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.control-item kbd {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Settings Button */
+.settings-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 10, 30, 0.8);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-button:hover {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: #f97316;
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .controls-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Time Controls */
+.time-controls-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pause-button {
+  background: rgba(249, 115, 22, 0.2);
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  border-radius: 6px;
+  color: #f97316;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+.pause-button:hover {
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+}
+
+.pause-button.paused {
+  background: rgba(74, 222, 128, 0.2);
+  border-color: rgba(74, 222, 128, 0.4);
+  color: #4ade80;
+}
+
+.pause-button.paused:hover {
+  background: rgba(74, 222, 128, 0.3);
+  border-color: #4ade80;
+}
+
+.slider-container input[type="range"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Time Preset Buttons */
+.preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.preset-button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-button:hover {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.4);
+  color: #fff;
+}
+
+.preset-button.active {
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.preset-label {
+  color: #f97316;
+  font-weight: 500;
+}
+
+/* ============================================================
+   INLINE SETTINGS PANEL (Side-by-side with objects)
+   ============================================================ */
+
+.radar-panels {
+  position: absolute;
+  top: 2rem;
+  /* Aligned with radar top */
+  left: 240px;
+  /* To right of radar */
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  /* Enforce equal height */
+}
+
+.settings-inline {
+  min-width: 160px;
+}
+
+.inline-setting {
+  padding: 8px 12px;
+}
+
+.inline-setting label {
+  display: block;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.inline-setting input[type="range"] {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.inline-setting input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #f97316;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pause-btn {
+  width: 100%;
+  padding: 8px;
+  background: rgba(249, 115, 22, 0.2);
+  border: 1px solid #f97316;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pause-btn:hover {
+  background: rgba(249, 115, 22, 0.4);
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.preset-btn {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-btn:hover {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.preset-btn.active {
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #f97316;
 }

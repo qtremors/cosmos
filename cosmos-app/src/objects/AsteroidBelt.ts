@@ -86,18 +86,28 @@ export class AsteroidBelt extends THREE.Group {
         for (let i = 0; i < this.asteroids.length; i++) {
             const data = this.asteroids[i];
 
-            // Orbital motion using SDK approach (time-based for consistency)
-            const theta = data.initialAngle + time * data.speed * Cosmos.CONTROLS.ORBIT_SPEED_SCALE * 0.5;
+            // Kepler's 3rd Law: Period^2 proportional to Radius^3
+            // Reference: Earth at R=30 has P=1 year
+            // Period (years) = (Radius / 30)^1.5
+            const earthDistance = Cosmos.PLANETS.EARTH.DISTANCE; // should be ~30
+            const periodYears = Math.pow(data.radius / earthDistance, 1.5);
+            // 1 Year in seconds = 365.25 days * 86400 seconds/day
+            const periodSeconds = periodYears * 365.25 * 86400;
+
+            // Orbital angle
+            const theta = data.initialAngle + (time / periodSeconds) * 2 * Math.PI;
+
             const x = Math.cos(theta) * data.radius;
             const z = Math.sin(theta) * data.radius;
 
             this.dummy.position.set(x, data.y, z);
 
-            // Self rotation
-            data.currentRot.x += data.rotationSpeed.x * 0.1;
-            data.currentRot.y += data.rotationSpeed.y * 0.1;
-            data.currentRot.z += data.rotationSpeed.z * 0.1;
-            this.dummy.rotation.copy(data.currentRot);
+            // Self rotation based on simulation time (not frame-based)
+            this.dummy.rotation.set(
+                data.rotationSpeed.x * time * 0.5,
+                data.rotationSpeed.y * time * 0.5,
+                data.rotationSpeed.z * time * 0.5
+            );
 
             this.dummy.scale.set(data.scale, data.scale, data.scale);
 

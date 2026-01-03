@@ -29,6 +29,17 @@ export interface LockTarget {
     phi: number;    // Vertical orbit angle (radians)
 }
 
+// Progressive boost state
+interface BoostState {
+    holdTime: number;      // How long boost has been held (seconds)
+    lastUpdateTime: number; // Timestamp for tracking
+}
+
+const boostState: BoostState = {
+    holdTime: 0,
+    lastUpdateTime: 0,
+};
+
 // =============================================================================
 // INPUT HANDLER
 // =============================================================================
@@ -56,13 +67,41 @@ export function updateInputKey(state: InputState, code: string, pressed: boolean
         case 'KeyQ': state.rollLeft = pressed; break;
         case 'KeyE': state.rollRight = pressed; break;
         case 'ShiftLeft':
-        case 'ShiftRight': state.boost = pressed; break;
+        case 'ShiftRight':
+            state.boost = pressed;
+            if (!pressed) {
+                // Reset boost state when released
+                boostState.holdTime = 0;
+            }
+            break;
     }
 }
 
 export function pollGamepad(): Gamepad | null {
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
     return gamepads[0] ?? null;
+}
+
+/**
+ * Calculate current boost multiplier based on how long boost has been held.
+ * Starts at base multiplier (10x), increases by 10x every 2 seconds.
+ * Max: 100x
+ */
+function getProgressiveBoostMultiplier(delta: number, isBoosting: boolean): number {
+    if (!isBoosting) {
+        boostState.holdTime = 0;
+        return 1;
+    }
+
+    boostState.holdTime += delta;
+
+    // Every 2 seconds, increase multiplier by 10x
+    // 0-2s: 10x, 2-4s: 20x, 4-6s: 30x, ... max 100x
+    const baseMultiplier = Cosmos.CONTROLS.BOOST_MULTIPLIER; // 10x
+    const stages = Math.floor(boostState.holdTime / 2); // 0, 1, 2, 3... every 2 seconds
+    const progressiveMultiplier = baseMultiplier * (1 + stages);
+
+    return Math.min(progressiveMultiplier, 100); // Cap at 100x
 }
 
 // =============================================================================
@@ -137,9 +176,12 @@ export function applyInputToCamera(
     // Check if any movement key is pressed (for auto-unlock)
     const isMoving = moveFwd || moveBack || moveLeft || moveRight || moveUp || moveDown;
 
+    // Calculate progressive boost multiplier (increases every 2 seconds while held)
+    const boostMultiplier = getProgressiveBoostMultiplier(delta, doBoost);
+
     // Apply to camera (free flight mode)
     if (!lockTarget) {
-        const speed = (doBoost ? Cosmos.CONTROLS.FLY_SPEED * Cosmos.CONTROLS.BOOST_MULTIPLIER : Cosmos.CONTROLS.FLY_SPEED) * delta;
+        const speed = Cosmos.CONTROLS.FLY_SPEED * boostMultiplier * delta;
         const rotSpeed = Cosmos.CONTROLS.ROLL_SPEED * delta;
 
         if (moveFwd) camera.translateZ(-speed);

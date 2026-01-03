@@ -2,29 +2,36 @@ import * as THREE from 'three';
 import { Cosmos } from '../core/SDK';
 
 export class OrbitPath extends THREE.LineLoop {
-    constructor(distance: number, color: THREE.Color | string | number = 0xffffff) {
-        // Create an ellipse curve for the orbit
-        // 0, 0 is the center (Sun)
-        // xRadius = distance, yRadius = distance (circular orbit for now)
-        const curve = new THREE.EllipseCurve(
-            0, 0,            // ax, aY
-            distance, distance, // xRadius, yRadius
-            0, 2 * Math.PI,  // aStartAngle, aEndAngle
-            false,            // aClockwise
-            0                 // aRotation
-        );
+    constructor(
+        semiMajorAxis: number,        // Average distance (a)
+        color: THREE.Color | string | number = 0xffffff,
+        eccentricity: number = 0,     // Orbital eccentricity (0 = circle)
+        inclination: number = 0       // Inclination in degrees
+    ) {
+        const points: THREE.Vector3[] = [];
+        const segments = 128;
 
-        const points = curve.getPoints(128); // 128 segments for smoothness
+        for (let i = 0; i <= segments; i++) {
+            const angle = (i / segments) * Math.PI * 2;
+
+            // Use elliptical orbit formula: r = a(1-e²) / (1 + e*cos(θ))
+            const pos = Cosmos.getEllipticalOrbitalPosition(
+                semiMajorAxis,
+                eccentricity,
+                inclination,
+                angle
+            );
+
+            points.push(new THREE.Vector3(pos.x, pos.y, pos.z));
+        }
+
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
-        // Rotate geometry to lie on XZ plane
-        geometry.rotateX(-Math.PI / 2);
 
         const material = new THREE.LineBasicMaterial({
             color: color,
             transparent: true,
-            opacity: 0.15, // Subtle
-            depthWrite: false, // Don't block other objects
+            opacity: 0.15,
+            depthWrite: false,
         });
 
         super(geometry, material);

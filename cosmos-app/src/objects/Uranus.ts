@@ -1,132 +1,126 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { noiseFunctions } from '../materials/Noise';
 import { Cosmos } from '../core/SDK';
-
-// =============================================================================
-// SHADERS - Ice Giant atmosphere
-// =============================================================================
-
-const vertexShader = `
-  varying vec3 vNormal;
-  varying vec3 vPosition;
-  varying vec3 vWorldPosition;
-
-  void main() {
-    vNormal = normalize(normalMatrix * normal);
-    vPosition = position;
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    vWorldPosition = worldPos.xyz;
-    gl_Position = projectionMatrix * viewMatrix * worldPos;
-  }
-`;
-
-const fragmentShader = `
-  uniform vec3 uSunPos;
-  uniform float uTime;
-  uniform vec3 uColor;
-  varying vec3 vNormal;
-  varying vec3 vPosition;
-  varying vec3 vWorldPosition;
-
-  ${noiseFunctions}
-
-  void main() {
-    // Subtle atmospheric bands
-    float t = uTime * 0.02;
-    float n1 = snoise(vPosition * 2.0 + vec3(0.0, t, 0.0));
-    float n2 = snoise(vPosition * 5.0 - vec3(t * 0.5, 0.0, 0.0));
-    float bands = n1 * 0.3 + n2 * 0.1;
-    
-    // Base color with subtle variation
-    vec3 col = uColor * (0.9 + bands * 0.2);
-    
-    // Lighting
-    vec3 lightDir = normalize(uSunPos - vWorldPosition);
-    vec3 normal = normalize(vNormal);
-    float diff = max(dot(normal, lightDir), 0.0);
-    
-    // Atmosphere rim
-    float rim = 1.0 - abs(dot(normal, normalize(cameraPosition - vWorldPosition)));
-    rim = pow(rim, 3.0);
-    
-    vec3 finalColor = col * (diff + 0.08);
-    finalColor += uColor * rim * 0.4 * diff;
-
-    gl_FragColor = vec4(finalColor, 1.0);
-  }
-`;
 
 // =============================================================================
 // URANUS CLASS
 // =============================================================================
 
 export class Uranus extends THREE.Group {
-    public readonly radius: number;
+  public readonly radius: number;
 
-    private mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
-    private label: CSS2DObject;
-    private initialAngle: number;
+  private mesh: THREE.Mesh;
+  private rings: THREE.Mesh;
+  private label: CSS2DObject;
+  private initialAngle: number;
 
-    constructor() {
-        super();
+  constructor() {
+    super();
 
-        const config = Cosmos.PLANETS.URANUS;
-        this.radius = config.RADIUS;
-        this.initialAngle = Math.random() * Math.PI * 2;
+    const config = Cosmos.PLANETS.URANUS;
+    this.radius = config.RADIUS;
+    this.initialAngle = Math.random() * Math.PI * 2;
 
-        // Geometry
-        const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
+    // Load texture
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load('/textures/2k_uranus.jpg');
 
-        // Shader Material for proper ice giant appearance
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                uSunPos: { value: new THREE.Vector3(0, 0, 0) },
-                uTime: { value: 0 },
-                uColor: { value: config.COLOR },
-            },
-            vertexShader,
-            fragmentShader,
-        });
+    // Geometry
+    const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.castShadow = true;
-        this.mesh.receiveShadow = true;
-        this.add(this.mesh);
+    // Material with texture
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: 0.6,
+      metalness: 0.0,
+    });
 
-        // Label
-        const div = document.createElement('div');
-        div.className = 'label';
-        div.textContent = 'Uranus';
-        this.label = new CSS2DObject(div);
-        this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
-        this.add(this.label);
+    this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh.castShadow = true;
+    this.mesh.receiveShadow = true;
+    this.add(this.mesh);
 
-        // Tilt (Uranus rolls on its side)
-        this.rotation.z = Math.PI / 2;
-    }
+    // Rings (Uranus has narrow, dark rings)
+    this.rings = this.createRings();
+    this.add(this.rings);
 
-    update(time: number, camera: THREE.Camera): void {
-        const config = Cosmos.PLANETS.URANUS;
+    // Label
+    const div = document.createElement('div');
+    div.className = 'label';
+    div.textContent = 'Uranus';
+    this.label = new CSS2DObject(div);
+    this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
+    this.add(this.label);
 
-        // Orbit
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
-            time,
-            config.SPEED,
-            config.DISTANCE
-        );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
+    // Tilt (Uranus rolls on its side - 98°)
+    this.rotation.z = Math.PI / 2;
+  }
 
-        // Rotation (rolls)
-        this.mesh.rotation.x += 0.01;
+  private createRings(): THREE.Mesh {
+    // Uranus rings are narrow and dark
+    const innerRadius = this.radius * 1.6;
+    const outerRadius = this.radius * 2.0;
+    const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
 
-        // Shader time
-        this.mesh.material.uniforms.uTime.value = time;
+    // Dark, subtle ring texture
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
 
-        // Label
-        const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
-        this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
-    }
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const gradient = ctx.createRadialGradient(centerX, centerY, size / 5, centerX, centerY, size / 2);
+    gradient.addColorStop(0.0, 'rgba(0,0,0,0)');
+    gradient.addColorStop(0.3, 'rgba(80, 80, 90, 0.3)');
+    gradient.addColorStop(0.5, 'rgba(60, 60, 70, 0.2)');
+    gradient.addColorStop(0.7, 'rgba(80, 80, 90, 0.4)');
+    gradient.addColorStop(0.9, 'rgba(60, 60, 70, 0.2)');
+    gradient.addColorStop(1.0, 'rgba(0,0,0,0)');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    const tex = new THREE.CanvasTexture(canvas);
+
+    const material = new THREE.MeshBasicMaterial({
+      map: tex,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+    });
+
+    const rings = new THREE.Mesh(geometry, material);
+    rings.rotation.x = -Math.PI / 2;
+
+    return rings;
+  }
+
+  update(time: number, camera: THREE.Camera): void {
+    // Orbit (realistic period: 30687 days = ~84 years, elliptical e=0.047)
+    const theta = Cosmos.getRealisticOrbitalAngle(
+      time,
+      Cosmos.ORBITAL_PERIODS.URANUS,
+      this.initialAngle
+    );
+    const pos = Cosmos.getEllipticalOrbitalPosition(
+      Cosmos.PLANETS.URANUS.DISTANCE,
+      Cosmos.ECCENTRICITY.URANUS,
+      Cosmos.INCLINATION.URANUS,
+      theta
+    );
+    this.position.set(pos.x, pos.y, pos.z);
+
+    // Rotation (realistic: 17.24 hours retrograde, tilted 98° - rotates on its side!)
+    this.mesh.rotation.x = Cosmos.getRealisticRotation(
+      time,
+      Cosmos.ROTATION_PERIODS.URANUS
+    );
+
+    // Label
+    const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
+    this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
+  }
 }

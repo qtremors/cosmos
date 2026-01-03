@@ -141,6 +141,119 @@ export class Cosmos {
     };
 
     // -------------------------------------------------------------------------
+    // REAL ASTRONOMICAL DATA (NASA values)
+    // -------------------------------------------------------------------------
+
+    /** Orbital periods in Earth days */
+    static readonly ORBITAL_PERIODS = {
+        MERCURY: 87.97,
+        VENUS: 224.7,
+        EARTH: 365.25,
+        MARS: 687.0,
+        JUPITER: 4333.0,
+        SATURN: 10759.0,
+        URANUS: 30687.0,
+        NEPTUNE: 60190.0,
+        PLUTO: 90560.0,
+        // Moons (orbital period around parent)
+        MOON: 27.32,       // Earth's Moon
+        EUROPA: 3.55,      // Jupiter
+        TITAN: 15.95,      // Saturn
+        CHARON: 6.39,      // Pluto (tidally locked)
+    };
+
+    /** Rotation periods in Earth hours (negative = retrograde) */
+    static readonly ROTATION_PERIODS = {
+        SUN: 609.12,       // 25.38 days at equator
+        MERCURY: 1407.6,   // 58.65 days
+        VENUS: -5832.5,    // 243.02 days retrograde
+        EARTH: 23.93,      // 23h 56m (sidereal)
+        MARS: 24.62,
+        JUPITER: 9.93,     // Fastest rotating planet
+        SATURN: 10.66,
+        URANUS: -17.24,    // Retrograde, tilted 98°
+        NEPTUNE: 16.11,
+        PLUTO: -153.29,    // 6.39 days retrograde
+        MOON: 655.7,       // Tidally locked (same as orbital)
+    };
+
+    /** Real distances in AU (1 AU = Earth-Sun distance) */
+    static readonly DISTANCES_AU = {
+        MERCURY: 0.387,
+        VENUS: 0.723,
+        EARTH: 1.0,
+        MARS: 1.524,
+        JUPITER: 5.203,
+        SATURN: 9.537,
+        URANUS: 19.19,
+        NEPTUNE: 30.07,
+        PLUTO: 39.48,
+        // Moon distances from parent (in AU)
+        MOON: 0.00257,     // 384,400 km
+        EUROPA: 0.00449,   // 671,000 km from Jupiter
+        TITAN: 0.00816,    // 1.22M km from Saturn
+        CHARON: 0.000131,  // 19,570 km from Pluto
+    };
+
+    /** Orbital eccentricity (0 = circle, 1 = parabola) - NASA values */
+    static readonly ECCENTRICITY = {
+        MERCURY: 0.206,    // Most eccentric planet
+        VENUS: 0.007,      // Nearly circular
+        EARTH: 0.017,      // Nearly circular
+        MARS: 0.093,
+        JUPITER: 0.048,
+        SATURN: 0.054,
+        URANUS: 0.047,
+        NEPTUNE: 0.009,    // Nearly circular
+        PLUTO: 0.248,      // Very eccentric - crosses Neptune's orbit!
+    };
+
+    /** Orbital inclination in degrees (relative to ecliptic) */
+    static readonly INCLINATION = {
+        MERCURY: 7.0,
+        VENUS: 3.4,
+        EARTH: 0.0,        // Reference plane
+        MARS: 1.9,
+        JUPITER: 1.3,
+        SATURN: 2.5,
+        URANUS: 0.8,
+        NEPTUNE: 1.8,
+        PLUTO: 17.2,       // Highly inclined
+    };
+    static readonly RADII_EARTH = {
+        SUN: 109.2,
+        MERCURY: 0.383,
+        VENUS: 0.949,
+        EARTH: 1.0,
+        MARS: 0.532,
+        JUPITER: 11.21,
+        SATURN: 9.45,
+        URANUS: 4.01,
+        NEPTUNE: 3.88,
+        PLUTO: 0.186,
+        MOON: 0.273,
+        EUROPA: 0.245,
+        TITAN: 0.404,
+        CHARON: 0.095,
+    };
+
+    /** Time scale presets (seconds of simulation per real second) */
+    static readonly TIME_PRESETS = {
+        REALTIME: 1,
+        MIN_1: 60,
+        MIN_30: 1800,
+        HOUR_1: 3600,
+        HOUR_6: 21600,
+        HOUR_12: 43200,
+        HOUR_18: 64800,
+        DAY_1: 86400,
+        MAX_SPEED: 130406400, // Pluto (slowest) completes orbit in 1 min
+    };
+
+    /** Default time scale */
+    static readonly DEFAULT_TIME_SCALE = 86400; // 1 Day per second
+
+    // -------------------------------------------------------------------------
     // PLANET CONFIGURATIONS (using cached colors)
     // -------------------------------------------------------------------------
 
@@ -420,5 +533,125 @@ export class Cosmos {
         if (kelvin < 6000) return [1.0, 0.9, 0.7]; // Sun-like
         if (kelvin < 10000) return [0.8, 0.9, 1.0]; // Blue-white
         return [0.5, 0.5, 1.0]; // Blue
+    }
+
+    // =========================================================================
+    // REALISTIC ORBITAL MECHANICS
+    // =========================================================================
+
+    /** Seconds per Earth day */
+    static readonly SECONDS_PER_DAY = 86400;
+
+    /** Seconds per Earth hour */
+    static readonly SECONDS_PER_HOUR = 3600;
+
+    /**
+     * Calculate orbital angle based on real orbital period.
+     * 
+     * @param simTime - Simulation time in seconds (already scaled)
+     * @param orbitalPeriodDays - Real orbital period in Earth days
+     * @param initialAngle - Starting angle offset (radians)
+     * @returns Angle in radians
+     */
+    static getRealisticOrbitalAngle(
+        simTime: number,
+        orbitalPeriodDays: number,
+        initialAngle: number = 0
+    ): number {
+        const periodSeconds = orbitalPeriodDays * this.SECONDS_PER_DAY;
+        return initialAngle + (simTime / periodSeconds) * 2 * Math.PI;
+    }
+
+    /**
+     * Calculate rotation angle based on real rotation period.
+     * 
+     * @param simTime - Simulation time in seconds (already scaled)
+     * @param rotationPeriodHours - Real rotation period in hours (negative = retrograde)
+     * @returns Rotation angle in radians
+     */
+    static getRealisticRotation(
+        simTime: number,
+        rotationPeriodHours: number
+    ): number {
+        const periodSeconds = Math.abs(rotationPeriodHours) * this.SECONDS_PER_HOUR;
+        const direction = rotationPeriodHours < 0 ? -1 : 1;
+        return direction * (simTime / periodSeconds) * 2 * Math.PI;
+    }
+
+    /**
+     * Calculate realistic orbital position.
+     * 
+     * @param simTime - Simulation time in seconds
+     * @param orbitalPeriodDays - Real orbital period in Earth days
+     * @param distanceAU - Distance from parent in AU
+     * @param initialAngle - Starting angle offset
+     * @returns Position {x, z} in simulation units
+     */
+    static getRealisticOrbitalPosition(
+        simTime: number,
+        orbitalPeriodDays: number,
+        distanceAU: number,
+        initialAngle: number = 0
+    ): { x: number; z: number } {
+        const theta = this.getRealisticOrbitalAngle(simTime, orbitalPeriodDays, initialAngle);
+        const simDistance = distanceAU * this.UNITS.AU;
+        return {
+            x: Math.cos(theta) * simDistance,
+            z: Math.sin(theta) * simDistance,
+        };
+    }
+
+    /**
+     * Calculate distance from Sun on an elliptical orbit.
+     * Uses the polar equation of an ellipse: r = a(1-e²) / (1 + e*cos(θ))
+     * 
+     * @param semiMajorAxis - Semi-major axis (average distance)
+     * @param eccentricity - Orbital eccentricity (0-1)
+     * @param trueAnomaly - Angle from perihelion in radians
+     * @returns Distance from Sun
+     */
+    static getEllipticalDistance(
+        semiMajorAxis: number,
+        eccentricity: number,
+        trueAnomaly: number
+    ): number {
+        return semiMajorAxis * (1 - eccentricity * eccentricity) /
+            (1 + eccentricity * Math.cos(trueAnomaly));
+    }
+
+    /**
+     * Calculate 3D position on an elliptical, inclined orbit.
+     * 
+     * @param semiMajorAxis - Semi-major axis (sim units)
+     * @param eccentricity - Orbital eccentricity (0-1)
+     * @param inclination - Orbital inclination in degrees
+     * @param trueAnomaly - Current angle from perihelion (radians)
+     * @returns Position {x, y, z} in simulation units
+     */
+    static getEllipticalOrbitalPosition(
+        semiMajorAxis: number,
+        eccentricity: number,
+        inclination: number,
+        trueAnomaly: number
+    ): { x: number; y: number; z: number } {
+        const r = this.getEllipticalDistance(semiMajorAxis, eccentricity, trueAnomaly);
+        const incRad = inclination * Math.PI / 180;
+
+        return {
+            x: Math.cos(trueAnomaly) * r,
+            z: Math.sin(trueAnomaly) * r * Math.cos(incRad),
+            y: Math.sin(trueAnomaly) * r * Math.sin(incRad),
+        };
+    }
+
+    /**
+     * Convert Earth-relative radius to simulation units.
+     * 
+     * @param radiusEarth - Radius relative to Earth (Earth = 1.0)
+     * @returns Radius in simulation units
+     */
+    static getSimRadius(radiusEarth: number): number {
+        // Earth radius in sim units = 2.0 (from original config)
+        return radiusEarth * 2.0;
     }
 }

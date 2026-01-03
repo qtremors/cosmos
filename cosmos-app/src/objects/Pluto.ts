@@ -37,14 +37,15 @@ class Charon extends THREE.Mesh {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
+        // Charon orbit around Pluto (realistic: 6.39 days, tidally locked)
+        const angle = Cosmos.getRealisticOrbitalAngle(
             time,
-            this.config.SPEED,
-            this.config.DISTANCE
+            Cosmos.ORBITAL_PERIODS.CHARON,
+            this.initialAngle
         );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
+        const distance = this.config.DISTANCE; // Use original sim distance
+        this.position.x = Math.cos(angle) * distance;
+        this.position.z = Math.sin(angle) * distance;
 
         // Label opacity
         const worldPos = new THREE.Vector3();
@@ -73,12 +74,16 @@ export class Pluto extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
+        // Load texture
+        const loader = new THREE.TextureLoader();
+        const texture = loader.load('/textures/Pluto.jpg');
+
         // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 32, 32);
 
-        // Material - Brownish-gray dwarf planet
+        // Material with texture
         const material = new THREE.MeshStandardMaterial({
-            color: config.COLOR,
+            map: texture,
             roughness: 0.7,
             metalness: 0.0,
         });
@@ -121,21 +126,27 @@ export class Pluto extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        const config = Cosmos.PLANETS.PLUTO;
-
-        // Orbit - slightly inclined orbit (17 degrees)
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
+        // Orbit (realistic period: 90560 days = ~248 years, elliptical with e=0.248)
+        const orbitalAngle = Cosmos.getRealisticOrbitalAngle(
             time,
-            config.SPEED,
-            config.DISTANCE
+            Cosmos.ORBITAL_PERIODS.PLUTO,
+            this.initialAngle
         );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
-        this.position.y = Math.sin(this.initialAngle + time * config.SPEED * Cosmos.CONTROLS.ORBIT_SPEED_SCALE) * 100; // Inclined orbit
 
-        // Rotation
-        this.mesh.rotation.y += 0.002;
+        // Use elliptical orbit with eccentricity and inclination
+        const pos = Cosmos.getEllipticalOrbitalPosition(
+            Cosmos.PLANETS.PLUTO.DISTANCE,
+            Cosmos.ECCENTRICITY.PLUTO,
+            Cosmos.INCLINATION.PLUTO,
+            orbitalAngle
+        );
+        this.position.set(pos.x, pos.y, pos.z);
+
+        // Rotation (realistic: 153.29 hours = 6.39 days, retrograde)
+        this.mesh.rotation.y = Cosmos.getRealisticRotation(
+            time,
+            Cosmos.ROTATION_PERIODS.PLUTO
+        );
 
         // Moon
         this.charon.update(time, camera);

@@ -37,14 +37,15 @@ class Titan extends THREE.Mesh {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
+        // Titan orbit around Saturn (realistic: 15.95 days)
+        const angle = Cosmos.getRealisticOrbitalAngle(
             time,
-            this.config.SPEED,
-            this.config.DISTANCE
+            Cosmos.ORBITAL_PERIODS.TITAN,
+            this.initialAngle
         );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
+        const distance = this.config.DISTANCE; // Use original sim distance
+        this.position.x = Math.cos(angle) * distance;
+        this.position.z = Math.sin(angle) * distance;
 
         // Label opacity
         const worldPos = new THREE.Vector3();
@@ -74,11 +75,14 @@ export class Saturn extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
+        // Load textures
+        const loader = new THREE.TextureLoader();
+        const texture = loader.load('/textures/2k_saturn.jpg');
+
         // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
         // Material
-        const texture = this.createTexture();
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.5,
@@ -90,7 +94,7 @@ export class Saturn extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        // Rings
+        // Rings (procedural)
         this.rings = this.createRings(config.RING!);
         this.add(this.rings);
 
@@ -129,24 +133,6 @@ export class Saturn extends THREE.Group {
         this.mesh.rotation.x = Math.PI * 0.15;
         this.rings.rotation.x = Math.PI * 0.15;
         this.rotation.z = Math.PI * 0.15;
-    }
-
-    private createTexture(): THREE.CanvasTexture {
-        const size = 512;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d')!;
-
-        const gradient = ctx.createLinearGradient(0, 0, 0, size);
-        gradient.addColorStop(0.0, '#e0cda7');
-        gradient.addColorStop(0.5, '#c9b086');
-        gradient.addColorStop(1.0, '#decba5');
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, size, size);
-
-        return new THREE.CanvasTexture(canvas);
     }
 
     private createRings(config: RingConfig): THREE.Mesh {
@@ -191,20 +177,25 @@ export class Saturn extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        const config = Cosmos.PLANETS.SATURN;
-
-        // Orbit
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
+        // Orbit (realistic period: 10759 days = ~29 years, elliptical e=0.054)
+        const theta = Cosmos.getRealisticOrbitalAngle(
             time,
-            config.SPEED,
-            config.DISTANCE
+            Cosmos.ORBITAL_PERIODS.SATURN,
+            this.initialAngle
         );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
+        const pos = Cosmos.getEllipticalOrbitalPosition(
+            Cosmos.PLANETS.SATURN.DISTANCE,
+            Cosmos.ECCENTRICITY.SATURN,
+            Cosmos.INCLINATION.SATURN,
+            theta
+        );
+        this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation
-        this.mesh.rotation.y += 0.01;
+        // Rotation (realistic: 10.66 hours)
+        this.mesh.rotation.y = Cosmos.getRealisticRotation(
+            time,
+            Cosmos.ROTATION_PERIODS.SATURN
+        );
 
         // Moon
         this.titan.update(time, camera);
