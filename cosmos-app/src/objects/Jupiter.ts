@@ -37,14 +37,15 @@ class Europa extends THREE.Mesh {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
+        // Europa orbit around Jupiter (realistic: 3.55 days)
+        const angle = Cosmos.getRealisticOrbitalAngle(
             time,
-            this.config.SPEED,
-            this.config.DISTANCE
+            Cosmos.ORBITAL_PERIODS.EUROPA,
+            this.initialAngle
         );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
+        const distance = this.config.DISTANCE; // Use original sim distance
+        this.position.x = Math.cos(angle) * distance;
+        this.position.z = Math.sin(angle) * distance;
 
         // Label opacity
         const worldPos = new THREE.Vector3();
@@ -73,11 +74,14 @@ export class Jupiter extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
+        // Load texture
+        const loader = new THREE.TextureLoader();
+        const texture = loader.load('/textures/2k_jupiter.jpg');
+
         // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-        // Material - Procedural Striped Texture
-        const texture = this.createTexture();
+        // Material with texture
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.4,
@@ -121,62 +125,26 @@ export class Jupiter extends THREE.Group {
         this.add(this.label);
     }
 
-    private createTexture(): THREE.CanvasTexture {
-        const size = 1024;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d')!;
-
-        // Draw Bands
-        const gradient = ctx.createLinearGradient(0, 0, 0, size);
-        gradient.addColorStop(0.0, '#a38d77');
-        gradient.addColorStop(0.2, '#ceb99e');
-        gradient.addColorStop(0.4, '#a38d77');
-        gradient.addColorStop(0.5, '#8c7661');
-        gradient.addColorStop(0.6, '#ceb99e');
-        gradient.addColorStop(0.8, '#a38d77');
-        gradient.addColorStop(1.0, '#8c7661');
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, size, size);
-
-        // Add Storms / Turbulence
-        for (let i = 0; i < 200; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const w = Math.random() * 100 + 20;
-            const h = Math.random() * 20 + 5;
-            ctx.beginPath();
-            ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.1)';
-            ctx.fill();
-        }
-
-        // Great Red Spot
-        ctx.beginPath();
-        ctx.ellipse(size * 0.6, size * 0.65, 80, 50, 0.2, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(180, 50, 20, 0.4)';
-        ctx.fill();
-
-        return new THREE.CanvasTexture(canvas);
-    }
-
     update(time: number, camera: THREE.Camera): void {
-        const config = Cosmos.PLANETS.JUPITER;
-
-        // Orbit
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
+        // Orbit (realistic period: 4333 days = ~12 years, elliptical e=0.048)
+        const theta = Cosmos.getRealisticOrbitalAngle(
             time,
-            config.SPEED,
-            config.DISTANCE
+            Cosmos.ORBITAL_PERIODS.JUPITER,
+            this.initialAngle
         );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
+        const pos = Cosmos.getEllipticalOrbitalPosition(
+            Cosmos.PLANETS.JUPITER.DISTANCE,
+            Cosmos.ECCENTRICITY.JUPITER,
+            Cosmos.INCLINATION.JUPITER,
+            theta
+        );
+        this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation
-        this.mesh.rotation.y += 0.01;
+        // Rotation (realistic: 9.93 hours - fastest planet!)
+        this.mesh.rotation.y = Cosmos.getRealisticRotation(
+            time,
+            Cosmos.ROTATION_PERIODS.JUPITER
+        );
 
         // Moon Update
         this.europa.update(time, camera);

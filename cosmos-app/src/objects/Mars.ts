@@ -21,11 +21,14 @@ export class Mars extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
+        // Load texture
+        const loader = new THREE.TextureLoader();
+        const texture = loader.load('/textures/2k_mars.jpg');
+
         // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-        // Material - Procedural Texture
-        const texture = this.createTexture();
+        // Material with texture
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.8,
@@ -58,44 +61,26 @@ export class Mars extends THREE.Group {
         this.add(this.label);
     }
 
-    private createTexture(): THREE.CanvasTexture {
-        const size = 512;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d')!;
-        ctx.fillStyle = '#c1440e';
-        ctx.fillRect(0, 0, size, size);
-
-        // Simple noise simulation
-        for (let i = 0; i < 5000; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const r = Math.random() * 5 + 1;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fillStyle = Math.random() > 0.5 ? '#8c3108' : '#e06f3a';
-            ctx.fill();
-        }
-
-        return new THREE.CanvasTexture(canvas);
-    }
-
     update(time: number, camera: THREE.Camera): void {
-        const config = Cosmos.PLANETS.MARS;
-
-        // Orbit (unified calculation)
-        const pos = Cosmos.getOrbitalPosition(
-            this.initialAngle,
+        // Orbit (realistic period: 687 days, elliptical e=0.093)
+        const theta = Cosmos.getRealisticOrbitalAngle(
             time,
-            config.SPEED,
-            config.DISTANCE
+            Cosmos.ORBITAL_PERIODS.MARS,
+            this.initialAngle
         );
-        this.position.x = pos.x;
-        this.position.z = pos.z;
+        const pos = Cosmos.getEllipticalOrbitalPosition(
+            Cosmos.PLANETS.MARS.DISTANCE,
+            Cosmos.ECCENTRICITY.MARS,
+            Cosmos.INCLINATION.MARS,
+            theta
+        );
+        this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation
-        this.mesh.rotation.y += 0.005;
+        // Rotation (realistic: 24.62 hours - almost same as Earth!)
+        this.mesh.rotation.y = Cosmos.getRealisticRotation(
+            time,
+            Cosmos.ROTATION_PERIODS.MARS
+        );
 
         // Label
         const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));

@@ -115,3 +115,5 @@ temp/
 
 # ===== Project Specific =====
 # Add project-specific ignores below
+downloads/
+cosmos-app/public/models/
