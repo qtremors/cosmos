@@ -105,18 +105,7 @@ export class AlienX extends THREE.Group {
             uTexture: { value: texture }
         };
 
-        // Position - FAR outside the solar system (Original Alien X Location)
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 2000;
-        this.position.x = Math.cos(angle) * distance;
-        this.position.z = Math.sin(angle) * distance;
-        this.position.y = 500;
 
-        // Orient towards Sun on Y-axis only (prevent tilting/leaning forward)
-        // atan2(deltaX, deltaZ) gives the angle. Object is at (x, z), Sun is at (0, 0).
-        // To face 0,0 from x,z, we look at the vector -position.
-        const targetAngle = Math.atan2(-this.position.x, -this.position.z);
-        this.rotation.y = targetAngle;
 
         // Slight offset if desired, but user complained it wasn't looking at sun. 
         // Let's keep it direct for now to be safe, or extremely subtle.
@@ -204,10 +193,12 @@ export class AlienX extends THREE.Group {
             transparent: true,
             opacity: 0.9,
             blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: false, // Don't test depth - always render on top of what's behind
             toneMapped: false
         });
-        const glowL = new THREE.Sprite(spriteMat); glowL.scale.set(0.5, 0.5, 1); eyeL.add(glowL);
-        const glowR = new THREE.Sprite(spriteMat); glowR.scale.set(0.5, 0.5, 1); eyeR.add(glowR);
+        const glowL = new THREE.Sprite(spriteMat); glowL.scale.set(0.5, 0.5, 1); glowL.renderOrder = 200; eyeL.add(glowL);
+        const glowR = new THREE.Sprite(spriteMat); glowR.scale.set(0.5, 0.5, 1); glowR.renderOrder = 200; eyeR.add(glowR);
 
         this.alienGroup.add(headGrp);
 
@@ -370,8 +361,19 @@ export class AlienX extends THREE.Group {
         group.add(t1); group.add(t2);
 
         const glowTexture = this.createGlowTexture();
-        const spriteMat = new THREE.SpriteMaterial({ map: glowTexture, color: CONFIG.omnitrixColor, transparent: true, blending: THREE.AdditiveBlending, toneMapped: false });
-        const glow = new THREE.Sprite(spriteMat); glow.scale.set(0.6, 0.6, 1.0); group.add(glow);
+        const spriteMat = new THREE.SpriteMaterial({
+            map: glowTexture,
+            color: CONFIG.omnitrixColor,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: false,
+            toneMapped: false
+        });
+        const glow = new THREE.Sprite(spriteMat);
+        glow.scale.set(0.6, 0.6, 1.0);
+        glow.renderOrder = 200;
+        group.add(glow);
         group.userData = { glow };
         return group;
     }
@@ -380,11 +382,15 @@ export class AlienX extends THREE.Group {
         const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
         const ctx = canvas.getContext('2d');
         if (ctx) {
+            // Clear canvas to fully transparent first
+            ctx.clearRect(0, 0, 64, 64);
+
             const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-            // Convert hex to rgb style string for gradient if needed, but here simple white to transparent works for additive blending mostly,
-            // but the provided code used rgba.
-            g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+            g.addColorStop(0, 'rgba(255,255,255,1)');
+            g.addColorStop(0.3, 'rgba(255,255,255,0.5)');
+            g.addColorStop(1, 'rgba(255,255,255,0)'); // Use white with 0 alpha, not black
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, 64, 64);
         }
         return new THREE.CanvasTexture(canvas);
     }

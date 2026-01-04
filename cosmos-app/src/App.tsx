@@ -14,10 +14,9 @@ import { Neptune } from './objects/Neptune';
 import { AsteroidBelt } from './objects/AsteroidBelt';
 import { OrbitPath } from './objects/OrbitPath';
 import { Pluto } from './objects/Pluto';
+import { Heliosphere } from './objects/Heliosphere';
 import { Spaceship } from './objects/easter_eggs/Spaceship';
-import { SpaceStation } from './objects/easter_eggs/SpaceStation';
 import { SpecialAsteroid } from './objects/easter_eggs/SpecialAsteroid';
-import { EasterEggPlanet } from './objects/easter_eggs/EasterEggPlanet';
 import { AlienX } from './objects/easter_eggs/AlienX';
 import { SagittariusA } from './objects/easter_eggs/SagittariusA';
 import { Cosmos } from './core/SDK';
@@ -237,6 +236,10 @@ export default function App() {
         const pluto = new Pluto();
         scene.add(pluto);
 
+        // HELIOSPHERE - Solar System boundary bubble
+        const heliosphere = new Heliosphere(2500); // Radius ~ beyond Pluto's orbit
+        scene.add(heliosphere);
+
         // ORBIT PATHS (with eccentricity and inclination)
         const orbitPaths = [
             new OrbitPath(Cosmos.PLANETS.MERCURY.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.MERCURY, Cosmos.INCLINATION.MERCURY),
@@ -254,15 +257,10 @@ export default function App() {
         // EASTER EGGS
         const spaceship = new Spaceship();
         scene.add(spaceship);
-        const spaceStation = new SpaceStation();
-        spaceStation.setEarthReference(earth);
-        scene.add(spaceStation);
-        const specialAsteroid = new SpecialAsteroid('Quant');
-        scene.add(specialAsteroid);
+        const theKyln = new SpecialAsteroid('The Kyln');
+        scene.add(theKyln);
         const robonaut = new AlienX(); // This is now AlienXFinalForm
         scene.add(robonaut);
-        const easterEggPlanet = new EasterEggPlanet();
-        scene.add(easterEggPlanet);
         const sagittariusA = new SagittariusA();
         scene.add(sagittariusA);
 
@@ -284,10 +282,8 @@ export default function App() {
             { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4 },
             // Easter Eggs
             { mesh: spaceship, id: 'spaceship-blip', color: '#00aaff', label: 'Explorer-1', radius: 5 },
-            { mesh: spaceStation, id: 'iss-blip', color: '#ffffff', label: 'ISS', radius: 3 },
-            { mesh: specialAsteroid, id: 'special-blip', color: '#ffaa33', label: 'Quant', radius: 5 },
+            { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8 },
             { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10 },
-            { mesh: easterEggPlanet, id: 'tremors-blip', color: '#ff66ff', label: 'Tremors', radius: 8 },
             { mesh: sagittariusA, id: 'sagittariusa-blip', color: '#ff6600', label: 'Sagittarius A*', radius: 100 },
         ];
 
@@ -384,6 +380,7 @@ export default function App() {
             uranus.update(time, camera);
             neptune.update(time, camera);
             pluto.update(time, camera);
+            heliosphere.update(time, camera);
 
             // Update planet positions for Explorer collision avoidance
             Spaceship.updatePlanetPositions([
@@ -393,10 +390,8 @@ export default function App() {
 
             // Easter Eggs
             spaceship.update(time, camera);
-            spaceStation.update(time, camera);
-            specialAsteroid.update(time, camera);
+            theKyln.update(time, camera);
             robonaut.update(time, camera);
-            easterEggPlanet.update(time, camera);
             sagittariusA.update(time, camera);
 
             // 2. INPUT PROCESSING
@@ -626,7 +621,7 @@ export default function App() {
                         {/* Easter Eggs */}
                         <div className="radar-category">Easter Eggs</div>
                         {entitiesRef.current.filter(e =>
-                            ['Explorer-1', 'ISS', 'Quant', 'Alien X', 'Tremors', 'Sagittarius A*'].includes(e.label)
+                            ['Explorer-1', 'The Kyln', 'Alien X', 'Sagittarius A*'].includes(e.label)
                         ).map(ent => (
                             <div
                                 key={ent.id}

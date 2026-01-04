@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.5] - 2026-01-04
+
+### Added
+
+#### 🌐 Heliosphere Boundary
+- **Solar system boundary bubble** - Visual marker showing the extent of the solar system
+- **Smart visibility:** Invisible from inside (except near edge), always visible from outside
+- **Edge fade-in:** Gradually appears as you approach the boundary from within
+- **Distance scaling:** Appears as a glowing dot when viewed from very far away
+- **GLSL shader** with logarithmic depth buffer support for proper depth sorting
+
+#### 🏛️ The Kyln (New Easter Egg)
+- **The Kyln** - Massive Nova Corps prison from Guardians of the Galaxy
+- Industrial structure with tower spires, docking bays, and atmospheric glow
+- Red warning lights on top, blue docking lights around perimeter
+- Located in the asteroid belt, orbits with Keplerian physics
+
+### Changed
+- **Easter Eggs reorganized:**
+  - Removed: Tremors (hidden planet), ISS (space station)
+  - Replaced: "Quant" asteroid → The Kyln prison structure
+
+### Fixed
+- **Alien X glow rendering:** Fixed sprite depth testing that caused visible black boxes when heliosphere was in background
+
+---
+
 ## [1.5.0] - 2026-01-03
 
 ### Added

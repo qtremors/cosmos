@@ -8,7 +8,7 @@
 Explore the solar system with **2K NASA textures**, realistic orbital mechanics, and a cinematic camera system with gamepad support.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.5.0-green.svg)
+![Version](https://img.shields.io/badge/Version-1.5.5-green.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
 ![React](https://img.shields.io/badge/React-19.2-61dafb.svg)
 ![Three.js](https://img.shields.io/badge/Three.js-0.182-black.svg)
@@ -32,10 +32,8 @@ Explore the solar system with **2K NASA textures**, realistic orbital mechanics,
 
 ### 🥚 Easter Eggs
 - **Explorer-1:** Smart touring spaceship with collision avoidance
-- **ISS:** Space station orbiting Earth
-- **Quant:** Special golden asteroid in the belt
+- **The Kyln:** Massive Nova Corps prison from Guardians of the Galaxy
 - **Alien X:** Cosmic entity outside the solar system
-- **Tremors:** Hidden planet past Pluto
 - **Sagittarius A\*:** Supermassive black hole at the galactic center with raymarched accretion disk
 
 ### 🎮 Controls
@@ -142,9 +140,9 @@ See [TASKS.md](TASKS.md) for open issues.
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 **Recent:**
-- **v1.3.0** - 2K NASA textures, planet rings, Easter Eggs
-- **v1.2.0** - Elliptical orbits, time controls, Vercel deployment
-- **v1.1.0** - Pluto, orbital camera, Stats HUD
+- **v1.5.5** - Heliosphere boundary, The Kyln Easter egg, Easter egg cleanup
+- **v1.5.0** - Sagittarius A* black hole, settings panel, time controls
+- **v1.2.0** - Elliptical orbits, Vercel deployment
 
 ---
 

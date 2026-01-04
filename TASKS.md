@@ -1,8 +1,8 @@
 # Tasks
 
 > **Project:** Cosmos  
-> **Version:** v1.2.0  
-> **Last Updated:** 2026-01-02
+> **Version:** v1.5.5  
+> **Last Updated:** 2026-01-04
 
 ---
 
@@ -56,12 +56,19 @@
 
 ---
 
+## ✅ Completed (2026-01-04) - v1.5.5
+
+- **Heliosphere Boundary** - Solar system boundary bubble with smart visibility (invisible inside, visible outside)
+- **The Kyln** - New Easter egg: Guardians of the Galaxy prison structure in asteroid belt
+- **Easter Egg Cleanup** - Removed Tremors planet and ISS satellite
+- **Alien X Fix** - Fixed glow sprite depth rendering with heliosphere
+
 ## ✅ Completed (2026-01-03)
 
 - **High-res NASA Textures** - All planets now use 2K resolution texture maps
 - **Earth Day/Night System** - Smooth terminator transition with separate day/night textures + cloud layer
 - **Planet Rings** - Added rings to Uranus (dark, narrow) and Neptune (faint, bluish)
-- **Easter Eggs** - Added 5 hidden objects: Explorer-1 (touring spaceship), ISS, Quant (golden asteroid), Alien X (cosmic entity), Tremors (hidden planet)
+- **Easter Eggs** - Added hidden objects: Explorer-1 (touring spaceship), The Kyln (prison), Alien X (cosmic entity), Sagittarius A* (black hole)
 - **Elliptical Orbits** - All planets now use NASA eccentricity values. Pluto visibly crosses inside Neptune's orbit!
 - **Settings Panel** - Moved to radar menu (inline). Aligned height with objects panel. Widened for usability.
 - **Ambient Slider** - Fixed mouse capture issue (stopPropagation).
