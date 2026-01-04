@@ -8,7 +8,7 @@
 Explore the solar system with **2K NASA textures**, realistic orbital mechanics, and a cinematic camera system with gamepad support.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.5.5-green.svg)
+![Version](https://img.shields.io/badge/Version-1.6.0-green.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
 ![React](https://img.shields.io/badge/React-19.2-61dafb.svg)
 ![Three.js](https://img.shields.io/badge/Three.js-0.182-black.svg)
@@ -24,6 +24,13 @@ Explore the solar system with **2K NASA textures**, realistic orbital mechanics,
 - **Uranus & Neptune:** Subtle ring systems
 - **4 Moons:** Moon, Europa, Titan, Charon
 - **Asteroid Belt:** 4000 instanced asteroids
+
+### 🏔️ Quantumania System (NEW in v1.6.0)
+- **Floating mountains** - 11 unique mountains with distinct themes
+- **The Nexus** - Central hub of Quantumania
+- **Local lighting** - Volcanic glow, crystal lights, city lights
+- **Distant beacon** - Purple pulsing light visible from Solar System
+- **Teleportation** - Click radar tabs to travel between systems
 
 ### 🎨 Custom Shaders
 - **Sun:** Granulation + animated noise + corona

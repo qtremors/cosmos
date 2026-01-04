@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { SystemId } from '../core/SystemManager';
 
 /**
- * Heliosphere - A visual boundary bubble around the Solar System.
+ * Heliosphere - A visual boundary bubble around a star system.
  * 
  * Behavior:
  * - From INSIDE (far from edge): Invisible
@@ -32,6 +33,7 @@ const fragmentShader = `
     #include <logdepthbuf_pars_fragment>
     
     uniform vec3 uCameraPos;
+    uniform vec3 uCenter;  // System center position
     uniform float uRadius;
     uniform float uTime;
     uniform vec3 uColor;
@@ -42,8 +44,8 @@ const fragmentShader = `
     void main() {
         #include <logdepthbuf_fragment>
         
-        // Distance from camera to center of sphere (origin)
-        float camDistFromCenter = length(uCameraPos);
+        // Distance from camera to center of sphere
+        float camDistFromCenter = length(uCameraPos - uCenter);
         
         // Is camera inside the sphere?
         bool isInside = camDistFromCenter < uRadius;
@@ -53,7 +55,6 @@ const fragmentShader = `
         
         if (isInside) {
             // INSIDE: Only show when close to the boundary
-            // Distance from camera to nearest point on sphere surface
             float distToEdge = uRadius - camDistFromCenter;
             
             // Fade zone: start fading in when within 15% of radius from the edge
@@ -63,16 +64,14 @@ const fragmentShader = `
             opacity = 1.0 - smoothstep(0.0, fadeZone, distToEdge);
             opacity *= 0.25; // Max opacity when inside
             
-            // Only show the part of the sphere we're looking at (inner surface facing us)
+            // Only show the part of the sphere we're looking at
             vec3 viewDir = normalize(uCameraPos - vWorldPosition);
             float facing = dot(vNormal, viewDir);
-            // When inside, we see the back faces (normal pointing away from us)
             if (facing > 0.0) {
                 opacity = 0.0;
             }
         } else {
             // OUTSIDE: Always visible
-            // Fresnel effect - edges glow more
             vec3 viewDir = normalize(uCameraPos - vWorldPosition);
             float fresnel = 1.0 - abs(dot(vNormal, viewDir));
             fresnel = pow(fresnel, 2.0);
@@ -80,7 +79,7 @@ const fragmentShader = `
             // Base visibility + fresnel glow
             opacity = 0.06 + fresnel * 0.2;
             
-            // When very far, make it slightly brighter so it's still visible
+            // When very far, make it slightly brighter
             float distanceFactor = camDistFromCenter / uRadius;
             if (distanceFactor > 3.0) {
                 opacity += 0.08 * smoothstep(3.0, 10.0, distanceFactor);
@@ -92,7 +91,6 @@ const fragmentShader = `
                         sin(vWorldPosition.z * 0.01 - uTime * 0.3);
         shimmer = shimmer * 0.02 + 1.0;
         
-        // Final color with slight blue tint
         vec3 finalColor = uColor * shimmer;
         
         gl_FragColor = vec4(finalColor, opacity);
@@ -101,47 +99,56 @@ const fragmentShader = `
 
 export class Heliosphere extends THREE.Mesh {
     private shaderMat: THREE.ShaderMaterial;
+    public readonly systemId: SystemId;
+    private center: THREE.Vector3;
 
     /**
      * Create a heliosphere boundary bubble.
-     * @param radius - Radius of the solar system boundary (default: ~300 AU equivalent)
+     * @param radius - Radius of the system boundary
+     * @param color - Color of the heliosphere
+     * @param center - Center position of the system
+     * @param systemId - Identifier for which system this belongs to
      */
-    constructor(radius: number = 2500) {
-        // Create sphere geometry with high segments for smooth appearance
+    constructor(
+        radius: number = 2500,
+        color: THREE.Color = new THREE.Color(0x6699ff),
+        center: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
+        systemId: SystemId = SystemId.SOLAR_SYSTEM
+    ) {
         const geometry = new THREE.SphereGeometry(radius, 128, 64);
 
-        // Custom shader material
         const shaderMat = new THREE.ShaderMaterial({
             vertexShader,
             fragmentShader,
             uniforms: {
                 uCameraPos: { value: new THREE.Vector3() },
+                uCenter: { value: center.clone() },
                 uRadius: { value: radius },
                 uTime: { value: 0 },
-                uColor: { value: new THREE.Color(0x4488ff) }, // Soft blue
+                uColor: { value: color.clone() },
             },
             transparent: true,
             side: THREE.DoubleSide,
             depthWrite: false,
             depthTest: true,
-            blending: THREE.NormalBlending, // Normal blending to avoid affecting other transparent objects
+            blending: THREE.NormalBlending,
         });
 
         super(geometry, shaderMat);
         this.shaderMat = shaderMat;
+        this.systemId = systemId;
+        this.center = center.clone();
 
-        // Render very late but before the black hole's billboard (99/100)
-        // This ensures proper layering with most scene objects
+        // Position the heliosphere at its center
+        this.position.copy(center);
+
         this.renderOrder = 50;
     }
 
     /**
      * Update the heliosphere each frame.
-     * @param time - Current simulation time
-     * @param camera - The camera to track
      */
     update(time: number, camera: THREE.Camera): void {
-        // Update camera position uniform
         this.shaderMat.uniforms.uCameraPos.value.copy(camera.position);
         this.shaderMat.uniforms.uTime.value = time;
     }
@@ -151,5 +158,12 @@ export class Heliosphere extends THREE.Mesh {
      */
     setColor(color: THREE.Color): void {
         this.shaderMat.uniforms.uColor.value.copy(color);
+    }
+
+    /**
+     * Get the system center position.
+     */
+    getCenter(): THREE.Vector3 {
+        return this.center.clone();
     }
 }

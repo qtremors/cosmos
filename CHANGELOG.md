@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-01-04
+
+### Added
+
+#### 🏔️ Quantumania System (NEW!)
+- **Floating mountains system** at 18,000 units from Solar System
+- **11 unique mountains:** The Nexus (central hub), Forest Peak, Frost Summit, Cascade Falls, Sky Metropolis, Crystal Spire, Dune Summit, Ember Peak, Nimbus Haven, Ancient Remnant, Bloom Sanctuary
+- **Local lighting:** Mountains have their own PointLights (volcanic glow, crystal glow, city lights)
+- **Purple heliosphere** boundary with radius 2,000 units
+- **Distant beacon:** Visible as pulsing purple light when viewing from Solar System
+
+#### 🌌 Multi-System Architecture
+- **SystemManager singleton** for managing multiple star systems
+- **Visibility rules:** Systems hidden when inside another (performance optimization)
+- **Camera teleportation:** Click radar tabs to instantly travel between systems
+- **System-aware radar:** Shows only current system objects + distant system as single blip
+
+#### 🎛️ Radar Overhaul
+- **3 clickable tabs:** Solar, Deep Space, Quantum - click to teleport
+- **Current location indicator:** Green "● HERE" badge on active system
+- **Distant systems:** "🏔️ Quantumania" or "☀️ Solar System" shown as single radar blip
+- **Organized sections:** Planets, Moons, Other, Distant Systems
+
+### Changed
+- **Camera spawn:** Now starts at (0, 500, 800) in Solar System
+- **Mountain animations:** Removed bobbing (was causing vibration), kept slow rotation
+
+### Fixed
+- **Mountain vibration:** Disabled bobbing animation for stability
+- **Beacon visibility:** Now correctly shows when system is hidden
+
+---
+
 ## [1.5.5] - 2026-01-04
 
 ### Added

@@ -1,8 +1,22 @@
 # Tasks
 
 > **Project:** Cosmos  
-> **Version:** v1.5.5  
+> **Version:** v1.6.0  
 > **Last Updated:** 2026-01-04
+
+---
+
+## 🔴 High Priority
+
+### [ ] Complete System Independence
+- **Problem:** Solar System, Quantumania, and Interstellar share resources (lighting, time, scene)
+- **Goal:** Make all three regions completely independent
+- **Required Changes:**
+  - Separate lighting per system (Sun shouldn't affect Quantumania)
+  - Optional: Per-system time controls
+  - Separate ambient light settings per system
+  - Ensure no shared state affects other systems
+- **Files:** `App.tsx`, `SystemManager.ts`, `QuantumaniaSystem.ts`
 
 ---
 
@@ -56,14 +70,15 @@
 
 ---
 
+## ✅ Completed (2026-01-04) - v1.6.0
+
+- **Quantumania System** - New floating mountains system at 18,000 units with 11 unique mountains
+- **Multi-System Architecture** - SystemManager singleton, visibility rules, system-aware radar
+- **Radar Overhaul** - 3 clickable tabs for teleporting, distant system blips
+- **Distant Beacon** - Purple pulsing light visible from Solar System
+- **Mountain Animations** - Slow rotation only (removed bobbing to fix vibration)
+
 ## ✅ Completed (2026-01-04) - v1.5.5
-
-- **Heliosphere Boundary** - Solar system boundary bubble with smart visibility (invisible inside, visible outside)
-- **The Kyln** - New Easter egg: Guardians of the Galaxy prison structure in asteroid belt
-- **Easter Egg Cleanup** - Removed Tremors planet and ISS satellite
-- **Alien X Fix** - Fixed glow sprite depth rendering with heliosphere
-
-## ✅ Completed (2026-01-03)
 
 - **High-res NASA Textures** - All planets now use 2K resolution texture maps
 - **Earth Day/Night System** - Smooth terminator transition with separate day/night textures + cloud layer

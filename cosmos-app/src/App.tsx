@@ -20,6 +20,8 @@ import { SpecialAsteroid } from './objects/easter_eggs/SpecialAsteroid';
 import { AlienX } from './objects/easter_eggs/AlienX';
 import { SagittariusA } from './objects/easter_eggs/SagittariusA';
 import { Cosmos } from './core/SDK';
+import { SystemManager, SystemId } from './core/SystemManager';
+import { QuantumaniaSystem } from './objects/quantumania/QuantumaniaSystem';
 import {
     InputState,
     LockTarget,
@@ -40,6 +42,7 @@ interface EntityInfo {
     color: string;
     label: string;
     radius: number;
+    system?: SystemId; // Which system this entity belongs to
 }
 
 // =============================================================================
@@ -57,6 +60,7 @@ export default function App() {
     const [nearestObject, setNearestObject] = useState<{ name: string; distance: number } | null>(null);
     const [timeScale, setTimeScale] = useState(Cosmos.DEFAULT_TIME_SCALE);
     const [isPaused, setIsPaused] = useState(false);
+    const [currentSystem, setCurrentSystem] = useState<string>('Solar System');
 
     const labelRendererRef = useRef<CSS2DRenderer | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -166,8 +170,8 @@ export default function App() {
         scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000);
-        // Start in top-down view (T mode)
-        camera.position.set(0, 1000, 0);
+        // Start in Solar System with a good overview angle
+        camera.position.set(0, 500, 800);
         camera.lookAt(0, 0, 0);
         camera.rotation.z = 0;
         cameraRef.current = camera;
@@ -236,9 +240,18 @@ export default function App() {
         const pluto = new Pluto();
         scene.add(pluto);
 
-        // HELIOSPHERE - Solar System boundary bubble
-        const heliosphere = new Heliosphere(2500); // Radius ~ beyond Pluto's orbit
-        scene.add(heliosphere);
+        // HELIOSPHERE - Solar System boundary bubble (light blue)
+        const solarHeliosphere = new Heliosphere(
+            SystemManager.SOLAR_SYSTEM_RADIUS,
+            SystemManager.SOLAR_SYSTEM_COLOR,
+            SystemManager.SOLAR_SYSTEM_CENTER,
+            SystemId.SOLAR_SYSTEM
+        );
+        scene.add(solarHeliosphere);
+
+        // QUANTUMANIA SYSTEM - Floating mountains at distant location
+        const quantumania = new QuantumaniaSystem();
+        scene.add(quantumania);
 
         // ORBIT PATHS (with eccentricity and inclination)
         const orbitPaths = [
@@ -264,27 +277,42 @@ export default function App() {
         const sagittariusA = new SagittariusA();
         scene.add(sagittariusA);
 
+        // SOLAR SYSTEM ENTITIES
+        const solarSystemEntities: EntityInfo[] = [
+            { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4, system: SystemId.SOLAR_SYSTEM },
+            { mesh: mercury, id: 'mercury-blip', color: Cosmos.RADAR.COLORS.MERCURY, label: 'Mercury', radius: 10, system: SystemId.SOLAR_SYSTEM },
+            { mesh: venus, id: 'venus-blip', color: Cosmos.RADAR.COLORS.VENUS, label: 'Venus', radius: 15, system: SystemId.SOLAR_SYSTEM },
+            { mesh: earth, id: 'earth-blip', color: Cosmos.RADAR.COLORS.EARTH, label: 'Earth', radius: 15, system: SystemId.SOLAR_SYSTEM },
+            { mesh: earth.moon, id: 'moon-blip', color: Cosmos.RADAR.COLORS.MOON, label: 'Moon', radius: 5, system: SystemId.SOLAR_SYSTEM },
+            { mesh: mars, id: 'mars-blip', color: Cosmos.RADAR.COLORS.MARS, label: 'Mars', radius: 12, system: SystemId.SOLAR_SYSTEM },
+            { mesh: belt, id: 'belt-blip', color: '#888888', label: 'Asteroid Belt', radius: 100, system: SystemId.SOLAR_SYSTEM },
+            { mesh: jupiter, id: 'jupiter-blip', color: Cosmos.RADAR.COLORS.JUPITER, label: 'Jupiter', radius: 40, system: SystemId.SOLAR_SYSTEM },
+            { mesh: jupiter.europa, id: 'europa-blip', color: '#fff', label: 'Europa', radius: 5, system: SystemId.SOLAR_SYSTEM },
+            { mesh: saturn, id: 'saturn-blip', color: Cosmos.RADAR.COLORS.SATURN, label: 'Saturn', radius: 35, system: SystemId.SOLAR_SYSTEM },
+            { mesh: saturn.titan, id: 'titan-blip', color: '#e6d4be', label: 'Titan', radius: 6, system: SystemId.SOLAR_SYSTEM },
+            { mesh: uranus, id: 'uranus-blip', color: Cosmos.RADAR.COLORS.URANUS, label: 'Uranus', radius: 25, system: SystemId.SOLAR_SYSTEM },
+            { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25, system: SystemId.SOLAR_SYSTEM },
+            { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8, system: SystemId.SOLAR_SYSTEM },
+            { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4, system: SystemId.SOLAR_SYSTEM },
+            // Easter Eggs (Solar System)
+            { mesh: spaceship, id: 'spaceship-blip', color: '#00aaff', label: 'Explorer-1', radius: 5, system: SystemId.SOLAR_SYSTEM },
+            { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8, system: SystemId.SOLAR_SYSTEM },
+        ];
+
+        // INTERSTELLAR ENTITIES (visible from both systems)
+        const interstellarEntities: EntityInfo[] = [
+            { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR },
+            { mesh: sagittariusA, id: 'sagittariusa-blip', color: '#ff6600', label: 'Sagittarius A*', radius: 100, system: SystemId.INTERSTELLAR },
+        ];
+
+        // QUANTUMANIA ENTITIES
+        const quantumaniaEntities: EntityInfo[] = quantumania.getEntities();
+
+        // Combine all entities
         entitiesRef.current = [
-            { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4 },
-            { mesh: mercury, id: 'mercury-blip', color: Cosmos.RADAR.COLORS.MERCURY, label: 'Mercury', radius: 10 },
-            { mesh: venus, id: 'venus-blip', color: Cosmos.RADAR.COLORS.VENUS, label: 'Venus', radius: 15 },
-            { mesh: earth, id: 'earth-blip', color: Cosmos.RADAR.COLORS.EARTH, label: 'Earth', radius: 15 },
-            { mesh: earth.moon, id: 'moon-blip', color: Cosmos.RADAR.COLORS.MOON, label: 'Moon', radius: 5 },
-            { mesh: mars, id: 'mars-blip', color: Cosmos.RADAR.COLORS.MARS, label: 'Mars', radius: 12 },
-            { mesh: belt, id: 'belt-blip', color: '#888888', label: 'Asteroid Belt', radius: 100 },
-            { mesh: jupiter, id: 'jupiter-blip', color: Cosmos.RADAR.COLORS.JUPITER, label: 'Jupiter', radius: 40 },
-            { mesh: jupiter.europa, id: 'europa-blip', color: '#fff', label: 'Europa', radius: 5 },
-            { mesh: saturn, id: 'saturn-blip', color: Cosmos.RADAR.COLORS.SATURN, label: 'Saturn', radius: 35 },
-            { mesh: saturn.titan, id: 'titan-blip', color: '#e6d4be', label: 'Titan', radius: 6 },
-            { mesh: uranus, id: 'uranus-blip', color: Cosmos.RADAR.COLORS.URANUS, label: 'Uranus', radius: 25 },
-            { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25 },
-            { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8 },
-            { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4 },
-            // Easter Eggs
-            { mesh: spaceship, id: 'spaceship-blip', color: '#00aaff', label: 'Explorer-1', radius: 5 },
-            { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8 },
-            { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10 },
-            { mesh: sagittariusA, id: 'sagittariusa-blip', color: '#ff6600', label: 'Sagittarius A*', radius: 100 },
+            ...solarSystemEntities,
+            ...quantumaniaEntities,
+            ...interstellarEntities,
         ];
 
         // RADAR INIT - Cache DOM references
@@ -368,19 +396,67 @@ export default function App() {
             }
             const time = simTime;
 
-            // 1. UPDATE OBJECTS
-            sun.update(time, camera);
-            mercury.update(time, camera);
-            venus.update(time, camera);
-            earth.update(time, camera);
-            mars.update(time, camera);
-            belt.update(time);
-            jupiter.update(time, camera);
-            saturn.update(time, camera);
-            uranus.update(time, camera);
-            neptune.update(time, camera);
-            pluto.update(time, camera);
-            heliosphere.update(time, camera);
+            // Determine current location for visibility
+            const distToSolar = camera.position.distanceTo(SystemManager.SOLAR_SYSTEM_CENTER);
+            const distToQuantumania = camera.position.distanceTo(SystemManager.QUANTUMANIA_CENTER);
+            const solarRadius = SystemManager.SOLAR_SYSTEM_RADIUS;
+            const quantumRadius = SystemManager.QUANTUMANIA_RADIUS;
+
+            // Is camera inside a specific system?
+            const isInsideSolar = distToSolar < solarRadius;
+            const isInsideQuantumania = distToQuantumania < quantumRadius;
+            const isInInterstellar = !isInsideSolar && !isInsideQuantumania;
+
+            // Visibility rules:
+            // - Render Solar System if: inside Solar OR in interstellar (NOT in Quantumania)
+            // - Render Quantumania if: inside Quantumania OR in interstellar (NOT in Solar)
+            const showSolarSystem = isInsideSolar || isInInterstellar;
+            const showQuantumania = isInsideQuantumania || isInInterstellar;
+
+            // Toggle Solar System object visibility
+            sun.visible = showSolarSystem;
+            mercury.visible = showSolarSystem;
+            venus.visible = showSolarSystem;
+            earth.visible = showSolarSystem;
+            mars.visible = showSolarSystem;
+            belt.visible = showSolarSystem;
+            jupiter.visible = showSolarSystem;
+            saturn.visible = showSolarSystem;
+            uranus.visible = showSolarSystem;
+            neptune.visible = showSolarSystem;
+            pluto.visible = showSolarSystem;
+            orbitPaths.forEach(p => p.visible = showSolarSystem);
+            spaceship.visible = showSolarSystem;
+            theKyln.visible = showSolarSystem;
+
+            // 1. UPDATE OBJECTS (only if visible)
+            if (showSolarSystem) {
+                sun.update(time, camera);
+                mercury.update(time, camera);
+                venus.update(time, camera);
+                earth.update(time, camera);
+                mars.update(time, camera);
+                belt.update(time);
+                jupiter.update(time, camera);
+                saturn.update(time, camera);
+                uranus.update(time, camera);
+                neptune.update(time, camera);
+                pluto.update(time, camera);
+                spaceship.update(time, camera);
+                theKyln.update(time, camera);
+            }
+            solarHeliosphere.update(time, camera);
+
+            // Update Quantumania system (pass visibility flag)
+            quantumania.setVisible(showQuantumania);
+            quantumania.update(time, camera);
+
+            // Track current system based on camera position
+            const systemManager = SystemManager.getInstance();
+            if (systemManager.updateCurrentSystem(camera.position)) {
+                // System changed - update UI
+                setCurrentSystem(systemManager.getCurrentSystemName());
+            }
 
             // Update planet positions for Explorer collision avoidance
             Spaceship.updatePlanetPositions([
@@ -388,9 +464,7 @@ export default function App() {
                 jupiter.position, saturn.position, uranus.position, neptune.position, pluto.position
             ]);
 
-            // Easter Eggs
-            spaceship.update(time, camera);
-            theKyln.update(time, camera);
+            // Interstellar Easter Eggs (always visible/updated)
             robonaut.update(time, camera);
             sagittariusA.update(time, camera);
 
@@ -558,80 +632,186 @@ export default function App() {
 
             {showUI && showRadarList && entitiesRef.current.length > 0 && (
                 <div className="radar-panels" style={{ zIndex: 1001, display: 'flex', gap: '10px' }}>
-                    {/* Objects Panel */}
+                    {/* Navigation Panel */}
                     <div className="radar-list">
-                        {/* Stars */}
-                        <div className="radar-category">Star</div>
-                        {entitiesRef.current.filter(e => e.label === 'Sun').map(ent => (
+                        {/* System Tabs - Clickable for Teleport */}
+                        <div style={{
+                            display: 'flex',
+                            borderBottom: '1px solid rgba(255,255,255,0.2)',
+                            marginBottom: '10px'
+                        }}>
+                            {/* Solar System Tab */}
                             <div
-                                key={ent.id}
-                                className="radar-item"
-                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                                onClick={() => {
+                                    if (cameraRef.current) {
+                                        cameraRef.current.position.set(0, 500, 800);
+                                        cameraRef.current.lookAt(0, 0, 0);
+                                    }
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 8px',
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    background: currentSystem === 'Solar System' ? 'rgba(102, 153, 255, 0.3)' : 'transparent',
+                                    borderBottom: currentSystem === 'Solar System' ? '2px solid #6699ff' : '2px solid transparent',
+                                    transition: 'all 0.2s',
+                                    fontSize: '11px'
+                                }}
                             >
-                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                {ent.label}
+                                ☀️ Solar
+                                {currentSystem === 'Solar System' && <div style={{ fontSize: '8px', color: '#4f4' }}>● HERE</div>}
                             </div>
-                        ))}
 
-                        {/* Planets */}
-                        <div className="radar-category">Planets</div>
-                        {entitiesRef.current.filter(e =>
-                            ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(e.label)
-                        ).map(ent => (
+                            {/* Interstellar Tab */}
                             <div
-                                key={ent.id}
-                                className="radar-item"
-                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                                onClick={() => {
+                                    if (cameraRef.current) {
+                                        cameraRef.current.position.set(5000, 500, 0);
+                                        cameraRef.current.lookAt(0, 0, 0);
+                                    }
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 8px',
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    background: currentSystem === 'Interstellar Space' ? 'rgba(136, 136, 136, 0.3)' : 'transparent',
+                                    borderBottom: currentSystem === 'Interstellar Space' ? '2px solid #888' : '2px solid transparent',
+                                    transition: 'all 0.2s',
+                                    fontSize: '11px'
+                                }}
                             >
-                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                {ent.label}
+                                🌌 Deep
+                                {currentSystem === 'Interstellar Space' && <div style={{ fontSize: '8px', color: '#4f4' }}>● HERE</div>}
                             </div>
-                        ))}
 
-                        {/* Moons */}
-                        <div className="radar-category">Moons</div>
-                        {entitiesRef.current.filter(e =>
-                            ['Moon', 'Europa', 'Titan', 'Charon'].includes(e.label)
-                        ).map(ent => (
+                            {/* Quantumania Tab */}
                             <div
-                                key={ent.id}
-                                className="radar-item"
-                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
+                                onClick={() => {
+                                    if (cameraRef.current) {
+                                        cameraRef.current.position.set(18000, 500, 800);
+                                        cameraRef.current.lookAt(18000, 0, 0);
+                                    }
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 8px',
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    background: currentSystem === 'Quantumania' ? 'rgba(187, 136, 255, 0.3)' : 'transparent',
+                                    borderBottom: currentSystem === 'Quantumania' ? '2px solid #bb88ff' : '2px solid transparent',
+                                    transition: 'all 0.2s',
+                                    fontSize: '11px'
+                                }}
                             >
-                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                {ent.label}
+                                🏔️ Quantum
+                                {currentSystem === 'Quantumania' && <div style={{ fontSize: '8px', color: '#4f4' }}>● HERE</div>}
                             </div>
-                        ))}
+                        </div>
 
-                        {/* Other */}
-                        <div className="radar-category">Other</div>
-                        {entitiesRef.current.filter(e =>
-                            e.label === 'Asteroid Belt'
-                        ).map(ent => (
-                            <div
-                                key={ent.id}
-                                className="radar-item"
-                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
-                            >
-                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                {ent.label}
-                            </div>
-                        ))}
+                        {/* Current System Objects */}
+                        {currentSystem === 'Solar System' && (
+                            <>
+                                <div className="radar-category" style={{ color: '#6699ff' }}>☀️ Solar System</div>
+                                {entitiesRef.current.filter(e => e.label === 'Sun').map(ent => (
+                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
+                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                        {ent.label}
+                                    </div>
+                                ))}
+                                <div className="radar-category" style={{ fontSize: '10px' }}>Planets</div>
+                                {entitiesRef.current.filter(e =>
+                                    ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(e.label)
+                                ).map(ent => (
+                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
+                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                        {ent.label}
+                                    </div>
+                                ))}
+                                <div className="radar-category" style={{ fontSize: '10px' }}>Moons</div>
+                                {entitiesRef.current.filter(e =>
+                                    ['Moon', 'Europa', 'Titan', 'Charon'].includes(e.label)
+                                ).map(ent => (
+                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
+                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                        {ent.label}
+                                    </div>
+                                ))}
+                                <div className="radar-category" style={{ fontSize: '10px' }}>Other</div>
+                                {entitiesRef.current.filter(e =>
+                                    ['Asteroid Belt', 'Explorer-1', 'The Kyln'].includes(e.label)
+                                ).map(ent => (
+                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
+                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                        {ent.label}
+                                    </div>
+                                ))}
 
-                        {/* Easter Eggs */}
-                        <div className="radar-category">Easter Eggs</div>
-                        {entitiesRef.current.filter(e =>
-                            ['Explorer-1', 'The Kyln', 'Alien X', 'Sagittarius A*'].includes(e.label)
-                        ).map(ent => (
-                            <div
-                                key={ent.id}
-                                className="radar-item"
-                                onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}
-                            >
-                                <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                {ent.label}
-                            </div>
-                        ))}
+                                {/* Distant System - Quantumania as single blip */}
+                                <div className="radar-category" style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>Distant Systems</div>
+                                <div
+                                    className="radar-item"
+                                    style={{ opacity: 0.7 }}
+                                    onClick={() => {
+                                        if (cameraRef.current) {
+                                            cameraRef.current.position.set(18000, 500, 800);
+                                            cameraRef.current.lookAt(18000, 0, 0);
+                                        }
+                                    }}
+                                >
+                                    <div className="radar-item-dot" style={{ backgroundColor: '#bb88ff' }}></div>
+                                    🏔️ Quantumania
+                                </div>
+                            </>
+                        )}
+
+                        {currentSystem === 'Interstellar Space' && (
+                            <>
+                                <div className="radar-category" style={{ color: '#888' }}>🌌 Interstellar Space</div>
+                                <div style={{ padding: '5px 10px', fontSize: '10px', color: '#666', fontStyle: 'italic' }}>
+                                    You are between star systems
+                                </div>
+                                {entitiesRef.current.filter(e => e.system === SystemId.INTERSTELLAR).map(ent => (
+                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
+                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                        {ent.label}
+                                    </div>
+                                ))}
+                                <div style={{ padding: '10px', fontSize: '10px', color: '#555' }}>
+                                    💡 Click tabs above to travel
+                                </div>
+                            </>
+                        )}
+
+                        {currentSystem === 'Quantumania' && (
+                            <>
+                                <div className="radar-category" style={{ color: '#bb88ff' }}>🏔️ Quantumania</div>
+                                <div className="radar-category" style={{ fontSize: '10px' }}>Mountains</div>
+                                {entitiesRef.current.filter(e => e.system === SystemId.QUANTUMANIA).map(ent => (
+                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
+                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
+                                        {ent.label}
+                                    </div>
+                                ))}
+
+                                {/* Distant System - Solar System as single blip */}
+                                <div className="radar-category" style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>Distant Systems</div>
+                                <div
+                                    className="radar-item"
+                                    style={{ opacity: 0.7 }}
+                                    onClick={() => {
+                                        if (cameraRef.current) {
+                                            cameraRef.current.position.set(0, 500, 800);
+                                            cameraRef.current.lookAt(0, 0, 0);
+                                        }
+                                    }}
+                                >
+                                    <div className="radar-item-dot" style={{ backgroundColor: '#ffdd44' }}></div>
+                                    ☀️ Solar System
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Settings Panel (beside objects panel) */}
