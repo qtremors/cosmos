@@ -2,16 +2,7 @@ import * as THREE from 'three';
 import { SystemManager, SystemId } from '../../core/SystemManager';
 import { Heliosphere } from '../Heliosphere';
 import { NexusMountain } from './NexusMountain';
-import { ForestMountain } from './ForestMountain';
-import { IceMountain } from './IceMountain';
-import { WaterfallMountain } from './WaterfallMountain';
-import { CityMountain } from './CityMountain';
-import { CrystalMountain } from './CrystalMountain';
-import { DesertMountain } from './DesertMountain';
-import { VolcanicMountain } from './VolcanicMountain';
-import { CloudMountain } from './CloudMountain';
-import { RuinsMountain } from './RuinsMountain';
-import { GardenMountain } from './GardenMountain';
+import { GLBMountain } from './GLBMountain';
 
 /**
  * Entity info for radar tracking
@@ -34,6 +25,7 @@ export class QuantumaniaSystem extends THREE.Group {
     public readonly mountains: THREE.Group[];
     private distantBeacon: THREE.Sprite;
     private isExternallyVisible: boolean = true; // Controlled by App.tsx
+    private clock: THREE.Clock;
 
     private center: THREE.Vector3;
 
@@ -42,6 +34,7 @@ export class QuantumaniaSystem extends THREE.Group {
 
         this.center = SystemManager.QUANTUMANIA_CENTER.clone();
         this.mountains = [];
+        this.clock = new THREE.Clock();
 
         // Create Quantumania heliosphere (light purple)
         this.heliosphere = new Heliosphere(
@@ -57,66 +50,100 @@ export class QuantumaniaSystem extends THREE.Group {
         this.add(nexus);
         this.mountains.push(nexus);
 
-        // Create other mountains at various positions around the center
-        const mountainConfigs: { type: string; angle: number; distance: number; height: number }[] = [
-            { type: 'forest', angle: 0, distance: 400, height: 20 },
-            { type: 'ice', angle: Math.PI / 3, distance: 550, height: -30 },
-            { type: 'waterfall', angle: 2 * Math.PI / 3, distance: 450, height: 40 },
-            { type: 'city', angle: Math.PI, distance: 600, height: 10 },
-            { type: 'crystal', angle: 4 * Math.PI / 3, distance: 350, height: 60 },
-            { type: 'desert', angle: 5 * Math.PI / 3, distance: 500, height: -20 },
-            { type: 'volcanic', angle: Math.PI / 6, distance: 650, height: 30 },
-            { type: 'cloud', angle: Math.PI / 2, distance: 700, height: 80 },
-            { type: 'ruins', angle: 7 * Math.PI / 6, distance: 580, height: -10 },
-            { type: 'garden', angle: 11 * Math.PI / 6, distance: 480, height: 50 },
+        // Map categories to GLB files (from 'list_dir' output)
+        const mountainConfigs = [
+            { name: 'Forest Peak', file: '/models/MountForest.glb', angle: 0, distance: 400, color: '#4a8c3f', scale: 60 },
+            { name: 'Frost Summit', file: '/models/MountFrost.glb', angle: Math.PI / 3, distance: 550, color: '#aaddff', scale: 70 },
+            { name: 'Cascade Falls', file: '/models/MountLake.glb', angle: 2 * Math.PI / 3, distance: 450, color: '#66ccff', scale: 80 },
+            { name: 'Sky Metropolis', file: '/models/MountMonument.glb', angle: Math.PI, distance: 600, color: '#ffaa44', scale: 60 },
+            { name: 'Crystal Spire', file: '/models/PlaneCrystal.glb', angle: 4 * Math.PI / 3, distance: 350, color: '#cc88ff', scale: 50 },
+            { name: 'Dune Summit', file: '/models/MountRust.glb', angle: 5 * Math.PI / 3, distance: 500, color: '#e8d4a0', scale: 65 },
+            //{ name: 'Volcanic Ridge', file: '/models/Kyln.glb', angle: Math.PI / 6, distance: 650, color: '#ff6633', scale: 90 }, // Removed (Error)
+            { name: 'Nimbus Haven', file: '/models/Bridge.glb', angle: Math.PI / 2, distance: 700, color: '#aabbcc', scale: 100 }, // Large structure
+            { name: 'Ancient Remnant', file: '/models/PlaneDom.glb', angle: 7 * Math.PI / 6, distance: 580, color: '#a89880', scale: 55 },
+            { name: 'Bloom Sanctuary', file: '/models/Plates.glb', angle: 11 * Math.PI / 6, distance: 480, color: '#88cc66', scale: 60 },
         ];
 
         mountainConfigs.forEach(cfg => {
             const pos = new THREE.Vector3(
                 this.center.x + Math.cos(cfg.angle) * cfg.distance,
-                cfg.height,
+                (Math.random() * 100) - 50, // Initial random height
                 this.center.z + Math.sin(cfg.angle) * cfg.distance
             );
 
-            let mountain: THREE.Group;
-            switch (cfg.type) {
-                case 'forest':
-                    mountain = new ForestMountain(pos);
-                    break;
-                case 'ice':
-                    mountain = new IceMountain(pos);
-                    break;
-                case 'waterfall':
-                    mountain = new WaterfallMountain(pos);
-                    break;
-                case 'city':
-                    mountain = new CityMountain(pos);
-                    break;
-                case 'crystal':
-                    mountain = new CrystalMountain(pos);
-                    break;
-                case 'desert':
-                    mountain = new DesertMountain(pos);
-                    break;
-                case 'volcanic':
-                    mountain = new VolcanicMountain(pos);
-                    break;
-                case 'cloud':
-                    mountain = new CloudMountain(pos);
-                    break;
-                case 'ruins':
-                    mountain = new RuinsMountain(pos);
-                    break;
-                case 'garden':
-                    mountain = new GardenMountain(pos);
-                    break;
-                default:
-                    return;
-            }
-
+            const mountain = new GLBMountain(pos, cfg.file, cfg.name, cfg.scale, 50, cfg.color, 2);
             this.add(mountain);
             this.mountains.push(mountain);
         });
+
+        // ---------------------------------------------------------------------
+        // CHAOS FIELD - POPULATE WITH ALL REMAINING MODELS
+        // ---------------------------------------------------------------------
+
+        // Ring 1: Inhabitants (Creatures & Figures) - Radius 800-1200
+        const inhabitants = [
+            { file: '/models/AlienMonster.glb', name: 'AlienMonster', scale: 30 },
+            { file: '/models/AlienX.glb', name: 'AlienX', scale: 20 },
+            { file: '/models/AlienX0.glb', name: 'AlienX0', scale: 20 },
+            { file: '/models/AlienX1.glb', name: 'AlienX1', scale: 20 },
+            { file: '/models/AlienXBaby.glb', name: 'AlienXBaby', scale: 10 },
+            { file: '/models/AlienXFemale.glb', name: 'AlienXFemale', scale: 25 },
+            { file: '/models/Figure1.glb', name: 'Figure1', scale: 15 },
+            { file: '/models/Figure2.glb', name: 'Figure2', scale: 15 },
+            { file: '/models/Figure3.glb', name: 'Figure3', scale: 15 },
+            { file: '/models/Figure4.glb', name: 'Figure4', scale: 15 },
+            { file: '/models/Figure5.glb', name: 'Figure5', scale: 15 },
+            { file: '/models/BlackholeSkeleton.glb', name: 'BlackholeSkeleton', scale: 40 },
+        ];
+
+        // Ring 2: Defense Grid (Ships & Drones) - Radius 1200-1600
+        const defenseNet = [
+            { file: '/models/Drone.glb', name: 'Drone', scale: 10 },
+            { file: '/models/Drone1.glb', name: 'Drone1', scale: 10 },
+            { file: '/models/Drone2.glb', name: 'Drone2', scale: 10 },
+            { file: '/models/Robot.glb', name: 'Robot', scale: 15 },
+            { file: '/models/Ship.glb', name: 'Ship', scale: 20 },
+            { file: '/models/Ship1.glb', name: 'Ship1', scale: 20 },
+            { file: '/models/Ship2.glb', name: 'Ship2', scale: 25 },
+            { file: '/models/Ship3.glb', name: 'Ship3', scale: 30 },
+            { file: '/models/Ship4.glb', name: 'Ship4', scale: 20 },
+            { file: '/models/Jet.glb', name: 'Jet', scale: 15 },
+        ];
+
+        // Ring 3: Artifacts & Structures (Stations) - Radius 1600-2000
+        const structures = [
+            { file: '/models/Station.glb', name: 'Station', scale: 50 },
+            { file: '/models/Station1.glb', name: 'Station1', scale: 40 },
+            { file: '/models/Station2.glb', name: 'Station2', scale: 55 },
+            { file: '/models/Station3.glb', name: 'Station3', scale: 45 },
+            { file: '/models/Station4.glb', name: 'Station4', scale: 50 },
+            { file: '/models/Station5.glb', name: 'Station5', scale: 60 },
+        ];
+
+        // Helper to place ring
+        const addToRing = (items: typeof inhabitants, minR: number, maxR: number, heightVar: number) => {
+            items.forEach((item) => {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = minR + Math.random() * (maxR - minR);
+                const x = this.center.x + Math.cos(angle) * radius;
+                const z = this.center.z + Math.sin(angle) * radius;
+                const y = (Math.random() * heightVar) - (heightVar / 2);
+
+                const pos = new THREE.Vector3(x, y, z);
+                // Use a random generic color tint or white
+                const colors = ['#aaddff', '#ccaaff', '#88ffff', '#ffffff', '#aaaaff'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+
+                // Reusing GLBMountain class as it's a generic "Floating GLB Loader"
+                const artifact = new GLBMountain(pos, item.file, item.name, item.scale, 20, color, 2);
+                this.add(artifact);
+                this.mountains.push(artifact);
+            });
+        };
+
+        addToRing(inhabitants, 800, 1200, 400); // Creatures close
+        addToRing(defenseNet, 1200, 1500, 600); // Ships patrolling
+        addToRing(structures, 1500, 1900, 800); // Stations far out
 
         // Create distant beacon (visible when far away)
         this.distantBeacon = this.createDistantBeacon();
@@ -164,6 +191,10 @@ export class QuantumaniaSystem extends THREE.Group {
      * 2. Camera is APPROACHING from outside (within 500 units of boundary)
      */
     update(time: number, camera: THREE.Camera): void {
+        // Independent time for this system's animations (Realtime)
+        // so it floats calmly even if the solar system is zooming.
+        const independentTime = this.clock.getElapsedTime();
+
         // If externally hidden (camera is in another system), SHOW beacon as distant light
         if (!this.isExternallyVisible) {
             this.mountains.forEach(m => m.visible = false);
@@ -171,7 +202,7 @@ export class QuantumaniaSystem extends THREE.Group {
 
             // Show pulsing beacon as distant light
             this.distantBeacon.visible = true;
-            const pulse = 0.6 + Math.sin(time * 1.5) * 0.3;
+            const pulse = 0.6 + Math.sin(independentTime * 1.5) * 0.3;
             this.distantBeacon.material.opacity = pulse;
             this.distantBeacon.scale.set(400, 400, 1);
             return;
@@ -181,14 +212,24 @@ export class QuantumaniaSystem extends THREE.Group {
 
         // Toggle mountain visibility and update (no bobbing when visible to avoid vibration)
         this.mountains.forEach(mountain => {
-            mountain.visible = true;
-            if ('update' in mountain && typeof mountain.update === 'function') {
-                (mountain as any).update(time, camera);
+            // LOD: Only show if within reasonable distance to prevent massive shader compilation spike
+            // when teleporting from far away.
+            // 4000 units is enough to see the "cloud" as we approach, but small enough that
+            // at 18000 units (Solar System) they are hidden.
+            const dist = camera.position.distanceTo(mountain.position);
+            const isVisible = dist < 4000;
+
+            // Special case: Nexus (center mountain) should always be visible if system is active
+            // usually it's the first one or named 'The Nexus'
+            const isNexus = (mountain as any).mountainName === 'The Nexus';
+
+            mountain.visible = isVisible || isNexus;
+
+            // Pass BOTH simTime (for consistency) and independentTime (for smooth animation)
+            if (mountain.visible && 'update' in mountain && typeof (mountain as any).update === 'function') {
+                (mountain as any).update(time, camera, independentTime);
             }
         });
-
-        // Heliosphere always visible when externally visible
-        this.heliosphere.visible = true;
 
         // Beacon hidden when inside the system
         this.distantBeacon.visible = false;

@@ -82,28 +82,41 @@ export default function App() {
     const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
     const timeScaleRef = useRef(timeScale);
     const isPausedRef = useRef(isPaused);
+    const teleportIndexRef = useRef(0);
 
     // Lock functions exposed via refs instead of window globals
     const lockOnTarget = useRef((mesh: THREE.Object3D, radius: number) => {
-        let initialTheta = Math.PI / 4;
+        // Calculate initial spherical coordinates based on CURRENT camera position relative to target
+        // This prevents the camera from "snapping" to a default angle/distance
+        if (cameraRef.current) {
+            const targetPos = new THREE.Vector3();
+            mesh.getWorldPosition(targetPos);
 
-        // Special handling for Alien X to view Black Hole behind it
-        // Alien X is at 0.75 PI. Black Hole is at 0.75 PI (further out).
-        // We want Camera -> Alien X -> Black Hole.
-        // So Camera should be "Sun-side" of Alien X.
-        // Relative vector (Cam - AlienX) should point towards Sun (approx 1.75 PI).
-        const entity = entitiesRef.current.find(e => e.mesh === mesh);
-        if (entity?.label === 'Alien X') {
-            initialTheta = Math.PI * 0.75;
+            const camPos = cameraRef.current.position.clone();
+            const relPos = camPos.sub(targetPos); // Vector from Target to Camera
+
+            // Convert Cartesian to Spherical
+            const distance = relPos.length();
+            const phi = Math.asin(relPos.y / distance);
+            const theta = Math.atan2(relPos.x, relPos.z);
+
+            lockRef.current = {
+                mesh,
+                distance: radius * Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER, // Set GOAL distance to fly towards
+                isTop: false,
+                theta: theta,       // Start at current angle to avoid rotation snap
+                phi: phi
+            };
+        } else {
+            // Fallback if camera not ready
+            lockRef.current = {
+                mesh,
+                distance: radius * Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER,
+                isTop: false,
+                theta: Math.PI / 4,
+                phi: 0.3
+            };
         }
-
-        lockRef.current = {
-            mesh,
-            distance: radius * Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER,
-            isTop: false,
-            theta: initialTheta,
-            phi: 0.3            // Start slightly above horizon
-        };
         setShowRadarList(false);
     });
 
@@ -139,6 +152,31 @@ export default function App() {
         const handleKeyDown = (e: KeyboardEvent) => {
             updateInputKey(inputRef.current, e.code, true);
 
+            // TAB TELEPORT (Cycle through system entities)
+            if (e.key === 'Tab') {
+                e.preventDefault();
+
+                // Get entities for current system (excluding proxies)
+                // Use SystemManager to avoid stale closure
+                const manager = SystemManager.getInstance();
+                const activeSystem = manager.currentSystem;
+
+                const systemEntities = entitiesRef.current.filter(ent =>
+                    ent.system === activeSystem && !ent.isSystemProxy
+                );
+
+                if (systemEntities.length > 0) {
+                    // Cycle index
+                    teleportIndexRef.current = (teleportIndexRef.current + 1) % systemEntities.length;
+                    const target = systemEntities[teleportIndexRef.current];
+
+                    if (target && target.mesh) {
+                        lockOnTarget.current(target.mesh, target.radius);
+                    }
+                }
+                return;
+            }
+
             if (e.repeat) return;
             if (e.key.toLowerCase() === 'l') setShowLabels(prev => !prev);
             if (e.key.toLowerCase() === 'h') setShowUI(prev => !prev);
@@ -149,6 +187,8 @@ export default function App() {
                 unlockCamera.current();
             }
         };
+
+
 
         const handleKeyUp = (e: KeyboardEvent) => {
             updateInputKey(inputRef.current, e.code, false);
@@ -194,13 +234,14 @@ export default function App() {
         const sunLight = new THREE.PointLight(
             Cosmos.LIGHTING.SUN_COLOR,
             Cosmos.LIGHTING.SUN_INTENSITY,
-            0, 0
+            0, 0 // Infinite range (REALISTIC)
         );
         sunLight.position.set(0, 0, 0);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 4096;
         sunLight.shadow.mapSize.height = 4096;
         sunLight.shadow.bias = -0.00001;
+        sunLight.layers.set(1); // Layer 1: Solar System Only
         scene.add(sunLight);
 
         const ambientLight = new THREE.AmbientLight(Cosmos.LIGHTING.AMBIENT_COLOR, Cosmos.LIGHTING.AMBIENT_INTENSITY);
@@ -212,48 +253,103 @@ export default function App() {
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
         labelRenderer.domElement.style.position = 'absolute';
         labelRenderer.domElement.style.top = '0px';
-        labelRenderer.domElement.style.pointerEvents = 'none';
-        labelRendererRef.current = labelRenderer;
-
+        labelRenderer.domElement.style.pointerEvents = 'none'; // Click-through
         if (mountRef.current) {
             mountRef.current.innerHTML = '';
             mountRef.current.appendChild(renderer.domElement);
             mountRef.current.appendChild(labelRenderer.domElement);
         }
+        labelRendererRef.current = labelRenderer;
 
+        // ENABLE LAYERS (Camera is already created)
+        camera.layers.enable(0); // Default
+        camera.layers.enable(1); // Solar System
+        camera.layers.enable(2); // Quantumania
+
+        // =====================================================================
         // OBJECTS
+        // =====================================================================
+
+        // 1. SOLAR SYSTEM (Layer 1)
         const sun = new Sun(Cosmos.UNITS.SOLAR_RADIUS);
+        sun.layers.set(1);
         scene.add(sun);
+
         const stars = new Stars(8000, 5000);
-        scene.add(stars);
+        scene.add(stars); // Stars are generic (Layer 0)
+
         const mercury = new Mercury();
+        mercury.layers.set(1);
+        mercury.traverse(c => c.layers.set(1));
         scene.add(mercury);
+
         const venus = new Venus();
+        venus.layers.set(1);
+        venus.traverse(c => c.layers.set(1));
         scene.add(venus);
+
         const earth = new Earth();
+        earth.layers.set(1);
+        earth.traverse(c => c.layers.set(1));
         scene.add(earth);
+
         const mars = new Mars();
+        mars.layers.set(1);
+        mars.traverse(c => c.layers.set(1));
         scene.add(mars);
-        const belt = new AsteroidBelt();
-        scene.add(belt);
+
         const jupiter = new Jupiter();
+        jupiter.layers.set(1);
+        jupiter.traverse(c => c.layers.set(1));
         scene.add(jupiter);
+
         const saturn = new Saturn();
+        saturn.layers.set(1);
+        saturn.traverse(c => c.layers.set(1));
         scene.add(saturn);
+
         const uranus = new Uranus();
+        uranus.layers.set(1);
+        uranus.traverse(c => c.layers.set(1));
         scene.add(uranus);
+
         const neptune = new Neptune();
+        neptune.layers.set(1);
+        neptune.traverse(c => c.layers.set(1));
         scene.add(neptune);
+
         const pluto = new Pluto();
+        pluto.layers.set(1);
+        pluto.traverse(c => c.layers.set(1));
         scene.add(pluto);
 
-        // HELIOSPHERE - Solar System boundary bubble (light blue)
+        // Asteroid Belt (Points)
+        const belt = new AsteroidBelt();
+        belt.layers.set(1);
+        scene.add(belt);
+
+        // Easter Eggs related to Solar System
+        const spaceship = new Spaceship();
+        spaceship.layers.set(1);
+        spaceship.traverse(c => c.layers.set(1));
+        scene.add(spaceship);
+
+        // "The Kyln" (Prison) - Placed in Solar System for now
+        const theKyln = new SpecialAsteroid('The Kyln');
+        theKyln.layers.set(1);
+        theKyln.traverse(c => c.layers.set(1));
+        scene.add(theKyln);
+
+        // HELIOSPHERE - Solar System boundary (Layer 1)
         const solarHeliosphere = new Heliosphere(
             SystemManager.SOLAR_SYSTEM_RADIUS,
             SystemManager.SOLAR_SYSTEM_COLOR,
             SystemManager.SOLAR_SYSTEM_CENTER,
             SystemId.SOLAR_SYSTEM
         );
+        solarHeliosphere.layers.set(1);
+        // Heliosphere mesh itself needs to be on Layer 1
+        solarHeliosphere.traverse(c => c.layers.set(1));
         scene.add(solarHeliosphere);
 
         // SOLAR BEACON (Distant LOD)
@@ -288,11 +384,14 @@ export default function App() {
         const solarBeacon = createSolarBeacon();
         scene.add(solarBeacon);
 
-        // QUANTUMANIA SYSTEM - Floating mountains at distant location
+        // QUANTUMANIA SYSTEM - Floating mountains (Layer 2)
         const quantumania = new QuantumaniaSystem();
+        // quantumania layer setup is handled inside its class, or we do it here:
+        quantumania.layers.set(2);
+        quantumania.traverse(c => c.layers.set(2));
         scene.add(quantumania);
 
-        // ORBIT PATHS (with eccentricity and inclination)
+        // ORBIT PATHS (Layer 1)
         const orbitPaths = [
             new OrbitPath(Cosmos.PLANETS.MERCURY.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.MERCURY, Cosmos.INCLINATION.MERCURY),
             new OrbitPath(Cosmos.PLANETS.VENUS.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.VENUS, Cosmos.INCLINATION.VENUS),
@@ -304,19 +403,23 @@ export default function App() {
             new OrbitPath(Cosmos.PLANETS.NEPTUNE.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.NEPTUNE, Cosmos.INCLINATION.NEPTUNE),
             new OrbitPath(Cosmos.PLANETS.PLUTO.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.PLUTO, Cosmos.INCLINATION.PLUTO),
         ];
-        orbitPaths.forEach(path => scene.add(path));
+        orbitPaths.forEach(path => {
+            path.layers.set(1);
+            scene.add(path);
+        });
 
-        // EASTER EGGS
-        const spaceship = new Spaceship();
-        scene.add(spaceship);
-        const theKyln = new SpecialAsteroid('The Kyln');
-        scene.add(theKyln);
-        const robonaut = new AlienX(); // This is now AlienXFinalForm
+        // OTHER EASTER EGGS (Layer 1 to capture Sun light?)
+        const robonaut = new AlienX();
+        robonaut.layers.set(1);
+        robonaut.traverse(c => c.layers.set(1));
         scene.add(robonaut);
+
         const sagittariusA = new SagittariusA();
+        sagittariusA.layers.set(1);
+        sagittariusA.traverse(c => c.layers.set(1));
         scene.add(sagittariusA);
 
-        // SOLAR SYSTEM ENTITIES
+        // SOLAR SYSTEM ENTITIES (Radar)
         const solarSystemEntities: EntityInfo[] = [
             { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4, system: SystemId.SOLAR_SYSTEM },
             { mesh: mercury, id: 'mercury-blip', color: Cosmos.RADAR.COLORS.MERCURY, label: 'Mercury', radius: 10, system: SystemId.SOLAR_SYSTEM },
@@ -442,9 +545,16 @@ export default function App() {
 
             const delta = clock.getDelta();
 
-            // Apply time scale (only accumulate time when not paused)
+            // Apply time scale
             if (!isPausedRef.current) {
-                simTime += delta * timeScaleRef.current;
+                const sysManager = SystemManager.getInstance();
+                if (sysManager.currentSystem === SystemId.QUANTUMANIA) {
+                    // Force Realtime in Quantumania (Walking Simulator Mode)
+                    simTime += delta;
+                } else {
+                    // Use Time Slider for Solar System (Space Sim Mode)
+                    simTime += delta * timeScaleRef.current;
+                }
             }
             const time = simTime;
 
@@ -482,6 +592,10 @@ export default function App() {
                 solarBeacon.lookAt(camera.position); // Always face camera
             }
 
+            // Heliosphere Visibility Rule: Hide when locked onto an object inside the system
+            // Heliosphere Visibility Rule: Hide when locked onto an object inside the system
+            // (Enforced after update call below)
+
             // 2. Quantumania System
             const nexusDist = camera.position.distanceTo(SystemManager.QUANTUMANIA_CENTER);
             const isLockedToQuantum = lockedEntity?.system === SystemId.QUANTUMANIA;
@@ -489,8 +603,11 @@ export default function App() {
             // Show if close (Radius + 500 buffer) OR locked onto it
             const showQuantumania = (nexusDist < SystemManager.QUANTUMANIA_RADIUS + 500) || isLockedToQuantum;
 
-            // Apply to Quantumania class (handles its own internal beacon toggle)
+            // Apply to Quantumania class
             quantumania.setVisible(showQuantumania);
+
+            // Hide Quantumania heliosphere if locked onto an object inside it (except proxy)
+            // (Enforced after update call below)
 
             // 1. UPDATE OBJECTS (only if visible)
             if (showSolarSystem) {
@@ -509,10 +626,20 @@ export default function App() {
                 theKyln.update(time, camera);
             }
             solarHeliosphere.update(time, camera);
+            // ENFORCE VISIBILITY: Override Heliosphere.update logic which auto-shows it
+            if (!showSolarSystem || isLockedToSolar) {
+                solarHeliosphere.visible = false;
+            }
 
             // Update Quantumania system (pass visibility flag)
             quantumania.setVisible(showQuantumania);
             quantumania.update(time, camera);
+
+            // ENFORCE VISIBILITY for Quantumania
+            const isLockedToQuantumInside = isLockedToQuantum && lockedEntity?.isSystemProxy !== true;
+            if (isLockedToQuantumInside) {
+                quantumania.heliosphere.visible = false;
+            }
 
             // Track current system based on camera position
             const systemManager = SystemManager.getInstance();
