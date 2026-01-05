@@ -37,6 +37,22 @@ import { RadarObjectList } from './components/RadarObjectList';
 // TYPES
 // =============================================================================
 
+// Entity categories for radar filtering
+export enum EntityCategory {
+    STAR = 'star',
+    PLANET = 'planet',
+    MOON = 'moon',
+    ASTEROID = 'asteroid',
+    EASTER_EGG = 'easter_egg',
+    PROXY = 'proxy',
+    // Quantumania categories
+    NEXUS = 'nexus',
+    MOUNTAIN = 'mountain',
+    STRUCTURE = 'structure',
+    SHIP = 'ship',
+    INHABITANT = 'inhabitant',
+}
+
 export interface EntityInfo {
     mesh: THREE.Object3D;
     id: string;
@@ -45,6 +61,7 @@ export interface EntityInfo {
     radius: number;
     system?: SystemId; // Which system this entity belongs to
     isSystemProxy?: boolean; // If true, this entity represents the entire system from afar
+    category?: EntityCategory; // Category for radar filtering
 }
 
 // =============================================================================
@@ -422,31 +439,31 @@ export default function App() {
 
         // SOLAR SYSTEM ENTITIES (Radar)
         const solarSystemEntities: EntityInfo[] = [
-            { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4, system: SystemId.SOLAR_SYSTEM },
-            { mesh: mercury, id: 'mercury-blip', color: Cosmos.RADAR.COLORS.MERCURY, label: 'Mercury', radius: 10, system: SystemId.SOLAR_SYSTEM },
-            { mesh: venus, id: 'venus-blip', color: Cosmos.RADAR.COLORS.VENUS, label: 'Venus', radius: 15, system: SystemId.SOLAR_SYSTEM },
-            { mesh: earth, id: 'earth-blip', color: Cosmos.RADAR.COLORS.EARTH, label: 'Earth', radius: 15, system: SystemId.SOLAR_SYSTEM },
-            { mesh: earth.moon, id: 'moon-blip', color: Cosmos.RADAR.COLORS.MOON, label: 'Moon', radius: 5, system: SystemId.SOLAR_SYSTEM },
-            { mesh: mars, id: 'mars-blip', color: Cosmos.RADAR.COLORS.MARS, label: 'Mars', radius: 12, system: SystemId.SOLAR_SYSTEM },
-            { mesh: belt, id: 'belt-blip', color: '#888888', label: 'Asteroid Belt', radius: 100, system: SystemId.SOLAR_SYSTEM },
-            { mesh: jupiter, id: 'jupiter-blip', color: Cosmos.RADAR.COLORS.JUPITER, label: 'Jupiter', radius: 40, system: SystemId.SOLAR_SYSTEM },
-            { mesh: jupiter.europa, id: 'europa-blip', color: '#fff', label: 'Europa', radius: 5, system: SystemId.SOLAR_SYSTEM },
-            { mesh: saturn, id: 'saturn-blip', color: Cosmos.RADAR.COLORS.SATURN, label: 'Saturn', radius: 35, system: SystemId.SOLAR_SYSTEM },
-            { mesh: saturn.titan, id: 'titan-blip', color: '#e6d4be', label: 'Titan', radius: 6, system: SystemId.SOLAR_SYSTEM },
-            { mesh: uranus, id: 'uranus-blip', color: Cosmos.RADAR.COLORS.URANUS, label: 'Uranus', radius: 25, system: SystemId.SOLAR_SYSTEM },
-            { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25, system: SystemId.SOLAR_SYSTEM },
-            { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8, system: SystemId.SOLAR_SYSTEM },
-            { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4, system: SystemId.SOLAR_SYSTEM },
+            { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.STAR },
+            { mesh: mercury, id: 'mercury-blip', color: Cosmos.RADAR.COLORS.MERCURY, label: 'Mercury', radius: 10, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: venus, id: 'venus-blip', color: Cosmos.RADAR.COLORS.VENUS, label: 'Venus', radius: 15, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: earth, id: 'earth-blip', color: Cosmos.RADAR.COLORS.EARTH, label: 'Earth', radius: 15, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: earth.moon, id: 'moon-blip', color: Cosmos.RADAR.COLORS.MOON, label: 'Moon', radius: 5, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON },
+            { mesh: mars, id: 'mars-blip', color: Cosmos.RADAR.COLORS.MARS, label: 'Mars', radius: 12, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: belt, id: 'belt-blip', color: '#888888', label: 'Asteroid Belt', radius: 100, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.ASTEROID },
+            { mesh: jupiter, id: 'jupiter-blip', color: Cosmos.RADAR.COLORS.JUPITER, label: 'Jupiter', radius: 40, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: jupiter.europa, id: 'europa-blip', color: '#fff', label: 'Europa', radius: 5, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON },
+            { mesh: saturn, id: 'saturn-blip', color: Cosmos.RADAR.COLORS.SATURN, label: 'Saturn', radius: 35, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: saturn.titan, id: 'titan-blip', color: '#e6d4be', label: 'Titan', radius: 6, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON },
+            { mesh: uranus, id: 'uranus-blip', color: Cosmos.RADAR.COLORS.URANUS, label: 'Uranus', radius: 25, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+            { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON },
             // Easter Eggs (Solar System)
-            { mesh: explorer, id: 'explorer-blip', color: '#00aaff', label: 'Explorer', radius: 5, system: SystemId.SOLAR_SYSTEM },
-            { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8, system: SystemId.SOLAR_SYSTEM },
+            { mesh: explorer, id: 'explorer-blip', color: '#00aaff', label: 'Explorer', radius: 5, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.EASTER_EGG },
+            { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.EASTER_EGG },
             // Solar System Proxy (only visible from afar)
-            { mesh: sun, id: 'solar-proxy-blip', color: '#fc3', label: 'Solar System', radius: Cosmos.UNITS.SOLAR_RADIUS * 10, system: SystemId.SOLAR_SYSTEM, isSystemProxy: true },
+            { mesh: sun, id: 'solar-proxy-blip', color: '#fc3', label: 'Solar System', radius: Cosmos.UNITS.SOLAR_RADIUS * 10, system: SystemId.SOLAR_SYSTEM, isSystemProxy: true, category: EntityCategory.PROXY },
         ];
 
         const interstellarEntities: EntityInfo[] = [
-            { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR },
-            { mesh: blackHole, id: 'blackhole-blip', color: '#ff6600', label: 'Black Hole', radius: 100, system: SystemId.INTERSTELLAR },
+            { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
+            { mesh: blackHole, id: 'blackhole-blip', color: '#ff6600', label: 'Black Hole', radius: 100, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
         ];
 
         // QUANTUMANIA ENTITIES

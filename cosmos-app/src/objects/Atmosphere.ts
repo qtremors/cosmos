@@ -1,37 +1,8 @@
 import * as THREE from 'three';
 
-const vertexShader = `
-varying vec3 vNormal;
-varying vec3 vPosition;
-varying vec3 vViewPosition;
-
-void main() {
-  vNormal = normalize(normalMatrix * normal);
-  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-  vViewPosition = -mvPosition.xyz;
-  gl_Position = projectionMatrix * mvPosition;
-}
-`;
-
-const fragmentShader = `
-uniform vec3 uColor;
-uniform float uPower;
-uniform float uIntensity;
-
-varying vec3 vNormal;
-varying vec3 vViewPosition;
-
-void main() {
-  vec3 viewDir = normalize(vViewPosition);
-  float rim = 1.0 - max(0.0, dot(vNormal, viewDir));
-  rim = pow(rim, uPower);
-  
-  // Soft fade out at edges
-  float alpha = rim * uIntensity;
-  
-  gl_FragColor = vec4(uColor, alpha);
-}
-`;
+// Import external shaders
+import vertexShader from '../shaders/atmosphere/atmosphere.vert.glsl?raw';
+import fragmentShader from '../shaders/atmosphere/atmosphere.frag.glsl?raw';
 
 export interface AtmosphereConfig {
     radius: number;

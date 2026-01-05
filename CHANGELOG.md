@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.0] - 2026-01-05
+### Code Quality & Testing
+- **Test Suite:** Added Vitest with 12 unit tests for SDK orbital mechanics (smoothstep, orbital angles, elliptical distance, glare opacity, constants validation)
+- **Shader Extraction:** Moved 14 inline GLSL shaders to external `.glsl` files in `src/shaders/` with organized subdirectories (sun, earth, blackhole, atmosphere, alienx)
+- **Entity Categories:** Added `EntityCategory` enum to replace hardcoded label filters in RadarObjectList for better maintainability
+- **Documentation:** Fixed README version badge (was v1.6.0, now v1.9.0), updated "Recent" changelog section
+
+---
+
+## [1.8.0] - 2026-01-05
+### UI & UX Overhaul ("Cosmic Glass" Update)
+- **Advanced Panel Layout**: 
+  - Implemented a **side-by-side** layout for Radar List and Settings Panel.
+  - Added **resizable panels** (via CSS resize) with flexible viewport-based sizing.
+  - Restored the **Top-Right HUD** and optimized panel visibility/toggling.
+- **Enhanced Navigation**:
+  - **"Deep Space" & System Links** (Alien X, Black Hole, Solar/Quantum Switch) are now pinned to the **top** of the list for instant access.
+  - Prioritized navigation items to prevent endless scrolling.
+- **Detailed Categorization**:
+  - **Quantumania**: Split massive list into distinct grids: "Mountains & Terrain", "Structures", "Inhabitants", "Ships".
+  - **Solar System**: Categorized into "Planets", "Moons", and "Others".
+  - Applied consistent **Grid Layout** (`object-grid`) for all major object groups.
+- **Visual Polish**:
+  - **Glassmorphism**: Unified panel styles with deep blur and sleek borders.
+  - **Invisible Scrollbars**: Hidden native scrollbars for a cleaner, immersive look (`scrollbar-width: none`).
+  - **Styled Controls**: Settings panel now displays key bindings as styled 3D keys.
+
 ## [1.7.5] - 2026-01-05
 ### Refactoring & Optimization
 - **Quantumania Categorization**: Replaced monolithic `QuantumaniaSystem` config with dedicated category classes:

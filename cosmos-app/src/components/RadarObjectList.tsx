@@ -1,6 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
-import { EntityInfo } from '../App';
+import { EntityInfo, EntityCategory } from '../App';
 import { SystemId } from '../core/SystemManager';
 
 interface RadarObjectListProps {
@@ -82,7 +82,7 @@ export const RadarObjectList: React.FC<RadarObjectListProps> = ({
                         <div className="category-header">Planets</div>
                         <div className="object-grid">
                             {solarEntities
-                                .filter(e => ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(e.label))
+                                .filter(e => e.category === EntityCategory.PLANET)
                                 .map(ent => (
                                     <div
                                         key={ent.id}
@@ -99,7 +99,7 @@ export const RadarObjectList: React.FC<RadarObjectListProps> = ({
                         <div className="category-header">Moons</div>
                         <div className="object-grid">
                             {solarEntities
-                                .filter(e => ['Moon', 'Europa', 'Titan', 'Charon'].includes(e.label))
+                                .filter(e => e.category === EntityCategory.MOON)
                                 .map(ent => (
                                     <div
                                         key={ent.id}
@@ -116,7 +116,7 @@ export const RadarObjectList: React.FC<RadarObjectListProps> = ({
                         <div className="category-header">Others</div>
                         <div className="object-list">
                             {solarEntities
-                                .filter(e => !['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Moon', 'Europa', 'Titan', 'Charon'].includes(e.label))
+                                .filter(e => e.category !== EntityCategory.PLANET && e.category !== EntityCategory.MOON && !e.isSystemProxy)
                                 .map(ent => (
                                     <div
                                         key={ent.id}
