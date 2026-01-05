@@ -8,7 +8,7 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 const CONFIG = {
     // Position (galactic center relative to solar system)
     DISTANCE: 8000,
-    HEIGHT: 200,
+    HEIGHT: 2000,
 
     // Visual sizes
     BILLBOARD_SIZE: 600,

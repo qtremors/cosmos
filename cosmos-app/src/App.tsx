@@ -43,6 +43,7 @@ interface EntityInfo {
     label: string;
     radius: number;
     system?: SystemId; // Which system this entity belongs to
+    isSystemProxy?: boolean; // If true, this entity represents the entire system from afar
 }
 
 // =============================================================================
@@ -61,6 +62,7 @@ export default function App() {
     const [timeScale, setTimeScale] = useState(Cosmos.DEFAULT_TIME_SCALE);
     const [isPaused, setIsPaused] = useState(false);
     const [currentSystem, setCurrentSystem] = useState<string>('Solar System');
+    const [uiSystem, setUiSystem] = useState<string>('Solar System');
 
     const labelRendererRef = useRef<CSS2DRenderer | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -126,6 +128,11 @@ export default function App() {
     useEffect(() => {
         showLabelsRef.current = showLabels;
     }, [showLabels]);
+
+    // Auto-update UI system when physically entering a new system
+    useEffect(() => {
+        setUiSystem(currentSystem);
+    }, [currentSystem]);
 
     useEffect(() => {
         // --- KEYBOARD HANDLERS ---
@@ -249,6 +256,38 @@ export default function App() {
         );
         scene.add(solarHeliosphere);
 
+        // SOLAR BEACON (Distant LOD)
+        const createSolarBeacon = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, 64, 64);
+                const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+                g.addColorStop(0, 'rgba(255, 200, 50, 1)');
+                g.addColorStop(0.2, 'rgba(255, 200, 50, 0.6)');
+                g.addColorStop(1, 'rgba(255, 200, 50, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, 64, 64);
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({
+                map: texture,
+                color: 0xffcc33,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                depthTest: false,
+            });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(600, 600, 1);
+            sprite.visible = false; // Hidden by default (start inside)
+            return sprite;
+        };
+        const solarBeacon = createSolarBeacon();
+        scene.add(solarBeacon);
+
         // QUANTUMANIA SYSTEM - Floating mountains at distant location
         const quantumania = new QuantumaniaSystem();
         scene.add(quantumania);
@@ -297,6 +336,8 @@ export default function App() {
             // Easter Eggs (Solar System)
             { mesh: spaceship, id: 'spaceship-blip', color: '#00aaff', label: 'Explorer-1', radius: 5, system: SystemId.SOLAR_SYSTEM },
             { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8, system: SystemId.SOLAR_SYSTEM },
+            // Solar System Proxy (only visible from afar)
+            { mesh: sun, id: 'solar-proxy-blip', color: '#fc3', label: 'Solar System', radius: Cosmos.UNITS.SOLAR_RADIUS * 10, system: SystemId.SOLAR_SYSTEM, isSystemProxy: true },
         ];
 
         // INTERSTELLAR ENTITIES (visible from both systems)
@@ -307,6 +348,17 @@ export default function App() {
 
         // QUANTUMANIA ENTITIES
         const quantumaniaEntities: EntityInfo[] = quantumania.getEntities();
+        // Add Quantumania Proxy (Nexus as target)
+        const nexusMountain = quantumania.mountains[0]; // Nexus is first
+        quantumaniaEntities.push({
+            mesh: nexusMountain,
+            id: 'quantumania-proxy-blip',
+            color: '#bb88ff',
+            label: 'Quantumania',
+            radius: 200,
+            system: SystemId.QUANTUMANIA,
+            isSystemProxy: true
+        });
 
         // Combine all entities
         entitiesRef.current = [
@@ -396,38 +448,49 @@ export default function App() {
             }
             const time = simTime;
 
-            // Determine current location for visibility
-            const distToSolar = camera.position.distanceTo(SystemManager.SOLAR_SYSTEM_CENTER);
-            const distToQuantumania = camera.position.distanceTo(SystemManager.QUANTUMANIA_CENTER);
-            const solarRadius = SystemManager.SOLAR_SYSTEM_RADIUS;
-            const quantumRadius = SystemManager.QUANTUMANIA_RADIUS;
 
-            // Is camera inside a specific system?
-            const isInsideSolar = distToSolar < solarRadius;
-            const isInsideQuantumania = distToQuantumania < quantumRadius;
-            const isInInterstellar = !isInsideSolar && !isInsideQuantumania;
 
-            // Visibility rules:
-            // - Render Solar System if: inside Solar OR in interstellar (NOT in Quantumania)
-            // - Render Quantumania if: inside Quantumania OR in interstellar (NOT in Solar)
-            const showSolarSystem = isInsideSolar || isInInterstellar;
-            const showQuantumania = isInsideQuantumania || isInInterstellar;
+            // Visibility rules (LOD):
+            // 1. Solar System
+            // Show if:
+            // - Inside Solar Radius
+            // - Inside extended range (4500) covering Alien X
+            // - Locked onto any Solar object
+            // - Locked specifically onto Alien X (override)
+            const sunDist = camera.position.distanceTo(SystemManager.SOLAR_SYSTEM_CENTER);
+            const lockedEntity = lockRef.current?.mesh ? entitiesRef.current.find(e => e.mesh === lockRef.current?.mesh) : null;
+            const isLockedToSolar = lockedEntity?.system === SystemId.SOLAR_SYSTEM;
+            const isLockedToAlienX = lockedEntity?.label === 'Alien X';
 
-            // Toggle Solar System object visibility
-            sun.visible = showSolarSystem;
-            mercury.visible = showSolarSystem;
-            venus.visible = showSolarSystem;
-            earth.visible = showSolarSystem;
-            mars.visible = showSolarSystem;
-            belt.visible = showSolarSystem;
-            jupiter.visible = showSolarSystem;
-            saturn.visible = showSolarSystem;
-            uranus.visible = showSolarSystem;
-            neptune.visible = showSolarSystem;
-            pluto.visible = showSolarSystem;
+            const showSolarSystem = (sunDist < 4500) || isLockedToSolar || isLockedToAlienX;
+
+            // Toggle Solar System (3D Objects vs Beacon)
+            const solarObjects = [
+                sun, mercury, venus, earth, mars, belt, jupiter, saturn, uranus, neptune, pluto,
+                spaceship, theKyln
+            ];
+
+            solarObjects.forEach(obj => obj.visible = showSolarSystem);
             orbitPaths.forEach(p => p.visible = showSolarSystem);
-            spaceship.visible = showSolarSystem;
-            theKyln.visible = showSolarSystem;
+
+            // Beacon is visible when 3D system is HIDDEN
+            solarBeacon.visible = !showSolarSystem;
+            if (solarBeacon.visible) {
+                // Pulse beacon
+                const p = 0.8 + Math.sin(time * 2) * 0.2;
+                solarBeacon.material.opacity = p;
+                solarBeacon.lookAt(camera.position); // Always face camera
+            }
+
+            // 2. Quantumania System
+            const nexusDist = camera.position.distanceTo(SystemManager.QUANTUMANIA_CENTER);
+            const isLockedToQuantum = lockedEntity?.system === SystemId.QUANTUMANIA;
+
+            // Show if close (Radius + 500 buffer) OR locked onto it
+            const showQuantumania = (nexusDist < SystemManager.QUANTUMANIA_RADIUS + 500) || isLockedToQuantum;
+
+            // Apply to Quantumania class (handles its own internal beacon toggle)
+            quantumania.setVisible(showQuantumania);
 
             // 1. UPDATE OBJECTS (only if visible)
             if (showSolarSystem) {
@@ -564,6 +627,41 @@ export default function App() {
             entitiesRef.current.forEach(ent => {
                 const blip = radarBlipsRef.current.get(ent.id);
                 if (blip && ent.mesh) {
+                    // --- RADAR MAP DECLUTTERING LOGIC ---
+                    // Determine if we should show this specific blip based on where we are
+                    let shouldShow = true;
+
+                    const sysManager = SystemManager.getInstance();
+                    const mySystemId = sysManager.currentSystem;
+
+                    if (ent.system === SystemId.INTERSTELLAR) {
+                        // Always show interstellar objects (Alien X, Black Hole)
+                        shouldShow = true;
+                    } else if (ent.system === mySystemId) {
+                        // We are inside this system
+                        if (ent.isSystemProxy) {
+                            // Hide the "Solar System" big dot when we are INSIDE Solar System
+                            shouldShow = false;
+                        } else {
+                            // Show individual planets/mountains
+                            shouldShow = true;
+                        }
+                    } else {
+                        // We are in a DIFFERENT system (or interstellar) looking at this one
+                        if (ent.isSystemProxy) {
+                            // Show the single big dot for the distant system
+                            shouldShow = true;
+                        } else {
+                            // Hide individual distant planets/mountains to reduce clutter
+                            shouldShow = false;
+                        }
+                    }
+
+                    // Apply visibility
+                    blip.style.display = shouldShow ? 'block' : 'none';
+
+                    if (!shouldShow) return;
+
                     const vec = new THREE.Vector3();
                     ent.mesh.getWorldPosition(vec);
                     vec.sub(camera.position);
@@ -634,7 +732,7 @@ export default function App() {
                 <div className="radar-panels" style={{ zIndex: 1001, display: 'flex', gap: '10px' }}>
                     {/* Navigation Panel */}
                     <div className="radar-list">
-                        {/* System Tabs - Clickable for Teleport */}
+                        {/* System Tabs - Clickable for switching visual list ONLY */}
                         <div style={{
                             display: 'flex',
                             borderBottom: '1px solid rgba(255,255,255,0.2)',
@@ -642,19 +740,14 @@ export default function App() {
                         }}>
                             {/* Solar System Tab */}
                             <div
-                                onClick={() => {
-                                    if (cameraRef.current) {
-                                        cameraRef.current.position.set(0, 500, 800);
-                                        cameraRef.current.lookAt(0, 0, 0);
-                                    }
-                                }}
+                                onClick={() => setUiSystem('Solar System')}
                                 style={{
                                     flex: 1,
                                     padding: '10px 8px',
                                     textAlign: 'center',
                                     cursor: 'pointer',
-                                    background: currentSystem === 'Solar System' ? 'rgba(102, 153, 255, 0.3)' : 'transparent',
-                                    borderBottom: currentSystem === 'Solar System' ? '2px solid #6699ff' : '2px solid transparent',
+                                    background: uiSystem === 'Solar System' ? 'rgba(102, 153, 255, 0.3)' : 'transparent',
+                                    borderBottom: uiSystem === 'Solar System' ? '2px solid #6699ff' : '2px solid transparent',
                                     transition: 'all 0.2s',
                                     fontSize: '11px'
                                 }}
@@ -665,19 +758,14 @@ export default function App() {
 
                             {/* Interstellar Tab */}
                             <div
-                                onClick={() => {
-                                    if (cameraRef.current) {
-                                        cameraRef.current.position.set(5000, 500, 0);
-                                        cameraRef.current.lookAt(0, 0, 0);
-                                    }
-                                }}
+                                onClick={() => setUiSystem('Interstellar Space')}
                                 style={{
                                     flex: 1,
                                     padding: '10px 8px',
                                     textAlign: 'center',
                                     cursor: 'pointer',
-                                    background: currentSystem === 'Interstellar Space' ? 'rgba(136, 136, 136, 0.3)' : 'transparent',
-                                    borderBottom: currentSystem === 'Interstellar Space' ? '2px solid #888' : '2px solid transparent',
+                                    background: uiSystem === 'Interstellar Space' ? 'rgba(136, 136, 136, 0.3)' : 'transparent',
+                                    borderBottom: uiSystem === 'Interstellar Space' ? '2px solid #888' : '2px solid transparent',
                                     transition: 'all 0.2s',
                                     fontSize: '11px'
                                 }}
@@ -688,19 +776,14 @@ export default function App() {
 
                             {/* Quantumania Tab */}
                             <div
-                                onClick={() => {
-                                    if (cameraRef.current) {
-                                        cameraRef.current.position.set(18000, 500, 800);
-                                        cameraRef.current.lookAt(18000, 0, 0);
-                                    }
-                                }}
+                                onClick={() => setUiSystem('Quantumania')}
                                 style={{
                                     flex: 1,
                                     padding: '10px 8px',
                                     textAlign: 'center',
                                     cursor: 'pointer',
-                                    background: currentSystem === 'Quantumania' ? 'rgba(187, 136, 255, 0.3)' : 'transparent',
-                                    borderBottom: currentSystem === 'Quantumania' ? '2px solid #bb88ff' : '2px solid transparent',
+                                    background: uiSystem === 'Quantumania' ? 'rgba(187, 136, 255, 0.3)' : 'transparent',
+                                    borderBottom: uiSystem === 'Quantumania' ? '2px solid #bb88ff' : '2px solid transparent',
                                     transition: 'all 0.2s',
                                     fontSize: '11px'
                                 }}
@@ -710,11 +793,11 @@ export default function App() {
                             </div>
                         </div>
 
-                        {/* Current System Objects */}
-                        {currentSystem === 'Solar System' && (
+                        {/* Current System Objects - Filter out proxies for the list */}
+                        {uiSystem === 'Solar System' && (
                             <>
                                 <div className="radar-category" style={{ color: '#6699ff' }}>☀️ Solar System</div>
-                                {entitiesRef.current.filter(e => e.label === 'Sun').map(ent => (
+                                {entitiesRef.current.filter(e => e.label === 'Sun' && !e.isSystemProxy).map(ent => (
                                     <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
                                         <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
                                         {ent.label}
@@ -753,10 +836,17 @@ export default function App() {
                                 <div
                                     className="radar-item"
                                     style={{ opacity: 0.7 }}
-                                    onClick={() => {
-                                        if (cameraRef.current) {
-                                            cameraRef.current.position.set(18000, 500, 800);
-                                            cameraRef.current.lookAt(18000, 0, 0);
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Find Nexus Mountain (center of Quantumania) and lock onto it
+                                        const nexus = entitiesRef.current.find(e => e.label === 'The Nexus');
+                                        if (nexus && nexus.mesh) {
+                                            if (cameraRef.current) {
+                                                // Pre-orient camera towards destination for smoother transition if needed
+                                                // but lockOnTarget handles position lerp.
+                                                // Just triggering lock is enough.
+                                            }
+                                            lockOnTarget.current(nexus.mesh, nexus.radius);
                                         }
                                     }}
                                 >
@@ -766,7 +856,7 @@ export default function App() {
                             </>
                         )}
 
-                        {currentSystem === 'Interstellar Space' && (
+                        {uiSystem === 'Interstellar Space' && (
                             <>
                                 <div className="radar-category" style={{ color: '#888' }}>🌌 Interstellar Space</div>
                                 <div style={{ padding: '5px 10px', fontSize: '10px', color: '#666', fontStyle: 'italic' }}>
@@ -784,11 +874,11 @@ export default function App() {
                             </>
                         )}
 
-                        {currentSystem === 'Quantumania' && (
+                        {uiSystem === 'Quantumania' && (
                             <>
                                 <div className="radar-category" style={{ color: '#bb88ff' }}>🏔️ Quantumania</div>
                                 <div className="radar-category" style={{ fontSize: '10px' }}>Mountains</div>
-                                {entitiesRef.current.filter(e => e.system === SystemId.QUANTUMANIA).map(ent => (
+                                {entitiesRef.current.filter(e => e.system === SystemId.QUANTUMANIA && !e.isSystemProxy).map(ent => (
                                     <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
                                         <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
                                         {ent.label}
@@ -800,18 +890,21 @@ export default function App() {
                                 <div
                                     className="radar-item"
                                     style={{ opacity: 0.7 }}
-                                    onClick={() => {
-                                        if (cameraRef.current) {
-                                            cameraRef.current.position.set(0, 500, 800);
-                                            cameraRef.current.lookAt(0, 0, 0);
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Find Sun (center of Solar System) and lock onto it
+                                        const sun = entitiesRef.current.find(e => e.label === 'Sun');
+                                        if (sun && sun.mesh) {
+                                            lockOnTarget.current(sun.mesh, sun.radius);
                                         }
                                     }}
                                 >
-                                    <div className="radar-item-dot" style={{ backgroundColor: '#ffdd44' }}></div>
+                                    <div className="radar-item-dot" style={{ backgroundColor: '#fc3' }}></div>
                                     ☀️ Solar System
                                 </div>
                             </>
                         )}
+
                     </div>
 
                     {/* Settings Panel (beside objects panel) */}
@@ -824,8 +917,9 @@ export default function App() {
                         isPaused={isPaused}
                         onPauseToggle={() => setIsPaused(p => !p)}
                     />
-                </div>
-            )}
+                </div >
+            )
+            }
 
             {/* Radar always rendered but visibility controlled to preserve DOM refs */}
             <div
@@ -844,43 +938,45 @@ export default function App() {
             </div>
 
             {/* Stats HUD */}
-            {showUI && (
-                <div className="stats-hud">
-                    {lockedInfo ? (
-                        <>
-                            <div className="stats-hud-title">Locked: {lockedInfo.name}</div>
-                            <div className="stats-hud-row">
-                                <span className="stats-hud-label">Orbital Speed:</span>
-                                <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
-                            </div>
-                            <div className="stats-hud-row">
-                                <span className="stats-hud-label">From Sun:</span>
-                                <span className="stats-hud-value">{lockedInfo.sunDist}M km</span>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="stats-hud-title">🚀 Free Flight</div>
-                            <div className="stats-hud-row">
-                                <span className="stats-hud-label">Speed:</span>
-                                <span className="stats-hud-value">{cameraSpeed} km/s</span>
-                            </div>
-                            {nearestObject && (
-                                <>
-                                    <div className="stats-hud-row">
-                                        <span className="stats-hud-label">Nearest:</span>
-                                        <span className="stats-hud-value">{nearestObject.name}</span>
-                                    </div>
-                                    <div className="stats-hud-row">
-                                        <span className="stats-hud-label">Distance:</span>
-                                        <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
-                                    </div>
-                                </>
-                            )}
-                        </>
-                    )}
-                </div>
-            )}
-        </div>
+            {
+                showUI && (
+                    <div className="stats-hud">
+                        {lockedInfo ? (
+                            <>
+                                <div className="stats-hud-title">Locked: {lockedInfo.name}</div>
+                                <div className="stats-hud-row">
+                                    <span className="stats-hud-label">Orbital Speed:</span>
+                                    <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
+                                </div>
+                                <div className="stats-hud-row">
+                                    <span className="stats-hud-label">From Sun:</span>
+                                    <span className="stats-hud-value">{lockedInfo.sunDist}M km</span>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="stats-hud-title">🚀 Free Flight</div>
+                                <div className="stats-hud-row">
+                                    <span className="stats-hud-label">Speed:</span>
+                                    <span className="stats-hud-value">{cameraSpeed} km/s</span>
+                                </div>
+                                {nearestObject && (
+                                    <>
+                                        <div className="stats-hud-row">
+                                            <span className="stats-hud-label">Nearest:</span>
+                                            <span className="stats-hud-value">{nearestObject.name}</span>
+                                        </div>
+                                        <div className="stats-hud-row">
+                                            <span className="stats-hud-label">Distance:</span>
+                                            <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
+                                        </div>
+                                    </>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )
+            }
+        </div >
     );
 }

@@ -276,7 +276,7 @@ export class AlienX extends THREE.Group {
         const positionDistance = 4000;          // Halfway to black hole
         this.position.set(
             Math.cos(positionAngle) * positionDistance,
-            100,  // Slight elevation
+            1000,  // Elevated (reduced from 1500)
             Math.sin(positionAngle) * positionDistance
         );
 
@@ -404,8 +404,8 @@ export class AlienX extends THREE.Group {
         // Subtle floating animation
         this.alienGroup.position.y = Math.sin(independentTime * 0.5) * 0.15;
 
-        // Face the Sun (Origin) - AlienX back is towards Black Hole
-        this.alienGroup.lookAt(0, 0, 0);
+        // Face the Sun (Origin) - Keep upright (look at same Y level)
+        this.alienGroup.lookAt(0, this.position.y, 0);
 
         // Power pulsing
         const power = 1 + Math.sin(independentTime * 3) * 0.01;

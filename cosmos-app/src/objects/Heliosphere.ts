@@ -4,103 +4,16 @@ import { SystemId } from '../core/SystemManager';
 /**
  * Heliosphere - A visual boundary bubble around a star system.
  * 
- * Behavior:
- * - From INSIDE (far from edge): Invisible
- * - From INSIDE (near edge): Fades in as you approach
- * - From OUTSIDE: Always visible, semi-transparent
- * - From VERY FAR: Appears as a glowing dot (natural perspective)
+ * Visuals:
+ * - Sparse wireframe grid (low poly).
+ * - Invisible by default.
+ * - Fades in only when camera is close to the boundary.
  */
-
-const vertexShader = `
-    #include <common>
-    #include <logdepthbuf_pars_vertex>
-    
-    varying vec3 vWorldPosition;
-    varying vec3 vNormal;
-    
-    void main() {
-        vNormal = normalize(normalMatrix * normal);
-        vec4 worldPos = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPos.xyz;
-        gl_Position = projectionMatrix * viewMatrix * worldPos;
-        
-        #include <logdepthbuf_vertex>
-    }
-`;
-
-const fragmentShader = `
-    #include <common>
-    #include <logdepthbuf_pars_fragment>
-    
-    uniform vec3 uCameraPos;
-    uniform vec3 uCenter;  // System center position
-    uniform float uRadius;
-    uniform float uTime;
-    uniform vec3 uColor;
-    
-    varying vec3 vWorldPosition;
-    varying vec3 vNormal;
-    
-    void main() {
-        #include <logdepthbuf_fragment>
-        
-        // Distance from camera to center of sphere
-        float camDistFromCenter = length(uCameraPos - uCenter);
-        
-        // Is camera inside the sphere?
-        bool isInside = camDistFromCenter < uRadius;
-        
-        // Calculate base opacity
-        float opacity = 0.0;
-        
-        if (isInside) {
-            // INSIDE: Only show when close to the boundary
-            float distToEdge = uRadius - camDistFromCenter;
-            
-            // Fade zone: start fading in when within 15% of radius from the edge
-            float fadeZone = uRadius * 0.15;
-            
-            // Opacity increases as we get closer to the edge
-            opacity = 1.0 - smoothstep(0.0, fadeZone, distToEdge);
-            opacity *= 0.25; // Max opacity when inside
-            
-            // Only show the part of the sphere we're looking at
-            vec3 viewDir = normalize(uCameraPos - vWorldPosition);
-            float facing = dot(vNormal, viewDir);
-            if (facing > 0.0) {
-                opacity = 0.0;
-            }
-        } else {
-            // OUTSIDE: Always visible
-            vec3 viewDir = normalize(uCameraPos - vWorldPosition);
-            float fresnel = 1.0 - abs(dot(vNormal, viewDir));
-            fresnel = pow(fresnel, 2.0);
-            
-            // Base visibility + fresnel glow
-            opacity = 0.06 + fresnel * 0.2;
-            
-            // When very far, make it slightly brighter
-            float distanceFactor = camDistFromCenter / uRadius;
-            if (distanceFactor > 3.0) {
-                opacity += 0.08 * smoothstep(3.0, 10.0, distanceFactor);
-            }
-        }
-        
-        // Subtle animation - very slow shimmer
-        float shimmer = sin(vWorldPosition.x * 0.01 + uTime * 0.5) * 
-                        sin(vWorldPosition.z * 0.01 - uTime * 0.3);
-        shimmer = shimmer * 0.02 + 1.0;
-        
-        vec3 finalColor = uColor * shimmer;
-        
-        gl_FragColor = vec4(finalColor, opacity);
-    }
-`;
-
 export class Heliosphere extends THREE.Mesh {
-    private shaderMat: THREE.ShaderMaterial;
     public readonly systemId: SystemId;
     private center: THREE.Vector3;
+    private radius: number;
+    private materialRef: THREE.MeshBasicMaterial;
 
     /**
      * Create a heliosphere boundary bubble.
@@ -115,49 +28,63 @@ export class Heliosphere extends THREE.Mesh {
         center: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
         systemId: SystemId = SystemId.SOLAR_SYSTEM
     ) {
-        const geometry = new THREE.SphereGeometry(radius, 128, 64);
+        // significantly reduced segment count for "sparse" wireframe look
+        const geometry = new THREE.SphereGeometry(radius, 24, 16);
 
-        const shaderMat = new THREE.ShaderMaterial({
-            vertexShader,
-            fragmentShader,
-            uniforms: {
-                uCameraPos: { value: new THREE.Vector3() },
-                uCenter: { value: center.clone() },
-                uRadius: { value: radius },
-                uTime: { value: 0 },
-                uColor: { value: color.clone() },
-            },
+        const material = new THREE.MeshBasicMaterial({
+            color: color,
+            wireframe: true,
             transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: false,
-            depthTest: true,
-            blending: THREE.NormalBlending,
+            opacity: 0, // Start invisible
+            side: THREE.BackSide, // Only visible from inside (mostly)
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         });
 
-        super(geometry, shaderMat);
-        this.shaderMat = shaderMat;
+        super(geometry, material);
+        this.materialRef = material;
         this.systemId = systemId;
         this.center = center.clone();
+        this.radius = radius;
 
         // Position the heliosphere at its center
         this.position.copy(center);
-
         this.renderOrder = 50;
     }
 
     /**
      * Update the heliosphere each frame.
+     * Checks distance to edge and fades in if close.
      */
     update(time: number, camera: THREE.Camera): void {
-        this.shaderMat.uniforms.uCameraPos.value.copy(camera.position);
-        this.shaderMat.uniforms.uTime.value = time;
+        const distToCenter = camera.position.distanceTo(this.center);
+        const distToEdge = Math.abs(distToCenter - this.radius);
+
+        // Visibility ranges
+        const FADE_START_DIST = 1000; // Start fading in 1000 units from edge
+
+        // If we are close to the edge (from inside or outside)
+        if (distToEdge < FADE_START_DIST) {
+            // Calculate opacity: 0 at FADE_START_DIST, up to MAX_OPACITY at 0 distance
+            const t = 1.0 - (distToEdge / FADE_START_DIST);
+
+            // Non-linear fade for smoother feel
+            const fade = t * t;
+
+            // Cap max opacity to keep it subtle
+            this.materialRef.opacity = Math.min(0.3, fade * 0.3);
+            this.visible = true;
+        } else {
+            this.materialRef.opacity = 0;
+            this.visible = false;
+        }
     }
 
     /**
      * Set the bubble color.
      */
     setColor(color: THREE.Color): void {
-        this.shaderMat.uniforms.uColor.value.copy(color);
+        this.materialRef.color.copy(color);
     }
 
     /**
