@@ -241,8 +241,8 @@ export class BlackHole extends THREE.Group {
 
         this.material.uniforms.uTime.value = independentTime;
 
-        // Billboard always faces camera
-        this.billboard.lookAt(camera.position);
+        // Billboard tilted towards Sun (User Request)
+        this.billboard.lookAt(0, 0, 0);
 
         // Calculate camera position relative to black hole
         const blackHoleWorldPos = this.getWorldPosition(new THREE.Vector3());

@@ -31,12 +31,13 @@ import {
     applyInputToCamera
 } from './core/InputHandler';
 import { SettingsPanel } from './components/SettingsPanel';
+import { RadarObjectList } from './components/RadarObjectList';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-interface EntityInfo {
+export interface EntityInfo {
     mesh: THREE.Object3D;
     id: string;
     color: string;
@@ -201,7 +202,7 @@ export default function App() {
         const handleWheel = (e: WheelEvent) => {
             // Don't capture wheel events inside radar panels (allow scrolling)
             const target = e.target as HTMLElement;
-            if (target.closest('.radar-panels') || target.closest('.radar-list')) {
+            if (target.closest('.ui-panels-container') || target.closest('.radar-panel') || target.closest('.settings-panel-inline')) {
                 return; // Let the panel scroll naturally
             }
 
@@ -451,7 +452,7 @@ export default function App() {
         // QUANTUMANIA ENTITIES
         const quantumaniaEntities: EntityInfo[] = quantumania.getEntities();
         // Add Quantumania Proxy (Nexus as target)
-        const nexusMountain = quantumania.mountains[0]; // Nexus is first
+        const nexusMountain = quantumania.nexus; // Nexus is the main target
         quantumaniaEntities.push({
             mesh: nexusMountain,
             id: 'quantumania-proxy-blip',
@@ -841,9 +842,20 @@ export default function App() {
     useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
     return (
-        <div className="container">
+        <div className="container" onKeyDown={e => {
+            if (e.key === 't' || e.key === 'T') {
+                if (cameraRef.current) toggleTopView.current(cameraRef.current);
+            }
+            if (e.key === 'h' || e.key === 'H') {
+                setShowUI(prev => !prev);
+            }
+            if (e.key === 'l' || e.key === 'L') {
+                setShowLabels(prev => !prev);
+            }
+        }} tabIndex={0} style={{ outline: 'none', width: '100%', height: '100%' }}>
 
             <div ref={mountRef} className="canvas-container" style={{ position: 'relative' }} />
+
             <div className="overlay" style={{ opacity: showUI ? 1 : 0, transition: 'opacity 0.5s', pointerEvents: 'none' }}>
                 Cosmos<br />
                 <span style={{ color: '#aaa', fontSize: '12px' }}>
@@ -855,255 +867,88 @@ export default function App() {
                 </span>
             </div>
 
-            {showUI && showRadarList && entitiesRef.current.length > 0 && (
-                <div className="radar-panels" style={{ zIndex: 1001, display: 'flex', gap: '10px' }}>
-                    {/* Navigation Panel */}
-                    <div className="radar-list">
-                        {/* System Tabs - Clickable for switching visual list ONLY */}
-                        <div style={{
-                            display: 'flex',
-                            borderBottom: '1px solid rgba(255,255,255,0.2)',
-                            marginBottom: '10px'
-                        }}>
-                            {/* Solar System Tab */}
+            {showUI && (
+                <>
+                    {/* Floating UI Layer */}
+                    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+
+                        {/* Main UI Container */}
+                        <div className="ui-panels-container">
+                            {/* Visual Radar Circle */}
                             <div
-                                onClick={() => setUiSystem('Solar System')}
+                                id="radar-container"
+                                className="radar-visual-container"
                                 style={{
-                                    flex: 1,
-                                    padding: '10px 8px',
-                                    textAlign: 'center',
                                     cursor: 'pointer',
-                                    background: uiSystem === 'Solar System' ? 'rgba(102, 153, 255, 0.3)' : 'transparent',
-                                    borderBottom: uiSystem === 'Solar System' ? '2px solid #6699ff' : '2px solid transparent',
-                                    transition: 'all 0.2s',
-                                    fontSize: '11px'
+                                    pointerEvents: 'auto',
+                                    visibility: showUI ? 'visible' : 'hidden'
                                 }}
+                                onClick={() => { if (entitiesRef.current.length > 0) setShowRadarList(prev => !prev); }}
+                                title="Click to Open/Close Object List"
                             >
-                                ☀️ Solar
-                                {currentSystem === 'Solar System' && <div style={{ fontSize: '8px', color: '#4f4' }}>● HERE</div>}
+                                <div className="radar-center"></div>
                             </div>
 
-                            {/* Interstellar Tab */}
-                            <div
-                                onClick={() => setUiSystem('Interstellar Space')}
-                                style={{
-                                    flex: 1,
-                                    padding: '10px 8px',
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    background: uiSystem === 'Interstellar Space' ? 'rgba(136, 136, 136, 0.3)' : 'transparent',
-                                    borderBottom: uiSystem === 'Interstellar Space' ? '2px solid #888' : '2px solid transparent',
-                                    transition: 'all 0.2s',
-                                    fontSize: '11px'
-                                }}
-                            >
-                                🌌 Deep
-                                {currentSystem === 'Interstellar Space' && <div style={{ fontSize: '8px', color: '#4f4' }}>● HERE</div>}
-                            </div>
+                            {/* Radar Object List Panel */}
+                            <RadarObjectList
+                                isOpen={showRadarList}
+                                entities={entitiesRef.current}
+                                currentSystem={uiSystem as any} // Cast to any or helper type if needed, but string match is fine usually, unless strict enum.
+                                onLockConfig={(mesh, radius) => lockOnTarget.current(mesh, radius)}
+                                onToggle={() => setShowRadarList(false)}
+                            />
 
-                            {/* Quantumania Tab */}
-                            <div
-                                onClick={() => setUiSystem('Quantumania')}
-                                style={{
-                                    flex: 1,
-                                    padding: '10px 8px',
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    background: uiSystem === 'Quantumania' ? 'rgba(187, 136, 255, 0.3)' : 'transparent',
-                                    borderBottom: uiSystem === 'Quantumania' ? '2px solid #bb88ff' : '2px solid transparent',
-                                    transition: 'all 0.2s',
-                                    fontSize: '11px'
-                                }}
-                            >
-                                🏔️ Quantum
-                                {currentSystem === 'Quantumania' && <div style={{ fontSize: '8px', color: '#4f4' }}>● HERE</div>}
-                            </div>
+                            {/* Settings Panel */}
+                            <SettingsPanel
+                                isOpen={showRadarList}
+                                ambientIntensity={ambientIntensity}
+                                onAmbientChange={setAmbientIntensity}
+                                timeScale={timeScale}
+                                onTimeScaleChange={setTimeScale}
+                                isPaused={isPaused}
+                                onPauseToggle={() => setIsPaused(p => !p)}
+                            />
                         </div>
 
-                        {/* Current System Objects - Filter out proxies for the list */}
-                        {uiSystem === 'Solar System' && (
-                            <>
-                                <div className="radar-category" style={{ color: '#6699ff' }}>☀️ Solar System</div>
-                                {entitiesRef.current.filter(e => e.label === 'Sun' && !e.isSystemProxy).map(ent => (
-                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
-                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                        {ent.label}
+                        {/* Stats HUD */}
+                        <div className="stats-hud" style={{ pointerEvents: 'auto' }}>
+                            {lockedInfo ? (
+                                <>
+                                    <div className="stats-hud-title">Locked: {lockedInfo.name}</div>
+                                    <div className="stats-hud-row">
+                                        <span className="stats-hud-label">Orbital Speed:</span>
+                                        <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
                                     </div>
-                                ))}
-                                <div className="radar-category" style={{ fontSize: '10px' }}>Planets</div>
-                                {entitiesRef.current.filter(e =>
-                                    ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(e.label)
-                                ).map(ent => (
-                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
-                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                        {ent.label}
+                                    <div className="stats-hud-row">
+                                        <span className="stats-hud-label">From Sun:</span>
+                                        <span className="stats-hud-value">{lockedInfo.sunDist}M km</span>
                                     </div>
-                                ))}
-                                <div className="radar-category" style={{ fontSize: '10px' }}>Moons</div>
-                                {entitiesRef.current.filter(e =>
-                                    ['Moon', 'Europa', 'Titan', 'Charon'].includes(e.label)
-                                ).map(ent => (
-                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
-                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                        {ent.label}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="stats-hud-title">🚀 Free Flight</div>
+                                    <div className="stats-hud-row">
+                                        <span className="stats-hud-label">Speed:</span>
+                                        <span className="stats-hud-value">{cameraSpeed} km/s</span>
                                     </div>
-                                ))}
-                                <div className="radar-category" style={{ fontSize: '10px' }}>Other</div>
-                                {entitiesRef.current.filter(e =>
-                                    ['Asteroid Belt', 'Explorer-1', 'The Kyln'].includes(e.label)
-                                ).map(ent => (
-                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
-                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                        {ent.label}
-                                    </div>
-                                ))}
-
-                                {/* Distant System - Quantumania as single blip */}
-                                <div className="radar-category" style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>Distant Systems</div>
-                                <div
-                                    className="radar-item"
-                                    style={{ opacity: 0.7 }}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Find Nexus Mountain (center of Quantumania) and lock onto it
-                                        const nexus = entitiesRef.current.find(e => e.label === 'The Nexus');
-                                        if (nexus && nexus.mesh) {
-                                            if (cameraRef.current) {
-                                                // Pre-orient camera towards destination for smoother transition if needed
-                                                // but lockOnTarget handles position lerp.
-                                                // Just triggering lock is enough.
-                                            }
-                                            lockOnTarget.current(nexus.mesh, nexus.radius);
-                                        }
-                                    }}
-                                >
-                                    <div className="radar-item-dot" style={{ backgroundColor: '#bb88ff' }}></div>
-                                    🏔️ Quantumania
-                                </div>
-                            </>
-                        )}
-
-                        {uiSystem === 'Interstellar Space' && (
-                            <>
-                                <div className="radar-category" style={{ color: '#888' }}>🌌 Interstellar Space</div>
-                                <div style={{ padding: '5px 10px', fontSize: '10px', color: '#666', fontStyle: 'italic' }}>
-                                    You are between star systems
-                                </div>
-                                {entitiesRef.current.filter(e => e.system === SystemId.INTERSTELLAR).map(ent => (
-                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
-                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                        {ent.label}
-                                    </div>
-                                ))}
-                                <div style={{ padding: '10px', fontSize: '10px', color: '#555' }}>
-                                    💡 Click tabs above to travel
-                                </div>
-                            </>
-                        )}
-
-                        {uiSystem === 'Quantumania' && (
-                            <>
-                                <div className="radar-category" style={{ color: '#bb88ff' }}>🏔️ Quantumania</div>
-                                <div className="radar-category" style={{ fontSize: '10px' }}>Mountains</div>
-                                {entitiesRef.current.filter(e => e.system === SystemId.QUANTUMANIA && !e.isSystemProxy).map(ent => (
-                                    <div key={ent.id} className="radar-item" onClick={(e) => { e.stopPropagation(); lockOnTarget.current(ent.mesh, ent.radius); }}>
-                                        <div className="radar-item-dot" style={{ backgroundColor: ent.color }}></div>
-                                        {ent.label}
-                                    </div>
-                                ))}
-
-                                {/* Distant System - Solar System as single blip */}
-                                <div className="radar-category" style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>Distant Systems</div>
-                                <div
-                                    className="radar-item"
-                                    style={{ opacity: 0.7 }}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Find Sun (center of Solar System) and lock onto it
-                                        const sun = entitiesRef.current.find(e => e.label === 'Sun');
-                                        if (sun && sun.mesh) {
-                                            lockOnTarget.current(sun.mesh, sun.radius);
-                                        }
-                                    }}
-                                >
-                                    <div className="radar-item-dot" style={{ backgroundColor: '#fc3' }}></div>
-                                    ☀️ Solar System
-                                </div>
-                            </>
-                        )}
-
+                                    {nearestObject && (
+                                        <>
+                                            <div className="stats-hud-row">
+                                                <span className="stats-hud-label">Nearest:</span>
+                                                <span className="stats-hud-value">{nearestObject.name}</span>
+                                            </div>
+                                            <div className="stats-hud-row">
+                                                <span className="stats-hud-label">Distance:</span>
+                                                <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
-
-                    {/* Settings Panel (beside objects panel) */}
-                    <SettingsPanel
-                        isOpen={true}
-                        ambientIntensity={ambientIntensity}
-                        onAmbientChange={setAmbientIntensity}
-                        timeScale={timeScale}
-                        onTimeScaleChange={setTimeScale}
-                        isPaused={isPaused}
-                        onPauseToggle={() => setIsPaused(p => !p)}
-                    />
-                </div >
-            )
-            }
-
-            {/* Radar always rendered but visibility controlled to preserve DOM refs */}
-            <div
-                id="radar-container"
-                className="radar-container"
-                style={{
-                    cursor: 'pointer',
-                    pointerEvents: showUI ? 'auto' : 'none',
-                    zIndex: 1000,
-                    visibility: showUI ? 'visible' : 'hidden'
-                }}
-                onClick={() => { if (entitiesRef.current.length > 0) setShowRadarList(prev => !prev); }}
-                title="Click to Open/Close Object List"
-            >
-                <div className="radar-center"></div>
-            </div>
-
-            {/* Stats HUD */}
-            {
-                showUI && (
-                    <div className="stats-hud">
-                        {lockedInfo ? (
-                            <>
-                                <div className="stats-hud-title">Locked: {lockedInfo.name}</div>
-                                <div className="stats-hud-row">
-                                    <span className="stats-hud-label">Orbital Speed:</span>
-                                    <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
-                                </div>
-                                <div className="stats-hud-row">
-                                    <span className="stats-hud-label">From Sun:</span>
-                                    <span className="stats-hud-value">{lockedInfo.sunDist}M km</span>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="stats-hud-title">🚀 Free Flight</div>
-                                <div className="stats-hud-row">
-                                    <span className="stats-hud-label">Speed:</span>
-                                    <span className="stats-hud-value">{cameraSpeed} km/s</span>
-                                </div>
-                                {nearestObject && (
-                                    <>
-                                        <div className="stats-hud-row">
-                                            <span className="stats-hud-label">Nearest:</span>
-                                            <span className="stats-hud-value">{nearestObject.name}</span>
-                                        </div>
-                                        <div className="stats-hud-row">
-                                            <span className="stats-hud-label">Distance:</span>
-                                            <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
-                                        </div>
-                                    </>
-                                )}
-                            </>
-                        )}
-                    </div>
-                )
-            }
-        </div >
+                </>
+            )}
+        </div>
     );
 }
