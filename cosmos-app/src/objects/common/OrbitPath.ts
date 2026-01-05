@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Cosmos } from '../core/SDK';
+import { Cosmos } from '../../core/SDK';
 
 export class OrbitPath extends THREE.LineLoop {
     constructor(

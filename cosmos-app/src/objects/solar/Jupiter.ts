@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { Cosmos, MoonConfig } from '../core/SDK';
+import { Cosmos, MoonConfig } from '../../core/SDK';
 
 // =============================================================================
-// CHARON MOON CLASS
+// EUROPA MOON CLASS
 // =============================================================================
 
-class Charon extends THREE.Mesh {
+class Europa extends THREE.Mesh {
     public readonly config: MoonConfig;
     private initialAngle: number;
     private label: CSS2DObject;
@@ -14,9 +14,9 @@ class Charon extends THREE.Mesh {
     constructor(config: MoonConfig) {
         const geometry = new THREE.SphereGeometry(config.RADIUS, 32, 32);
         const material = new THREE.MeshStandardMaterial({
-            color: 0x8a8a8a,
-            roughness: 0.8,
-            metalness: 0.0,
+            color: 0xe0e0e0,
+            roughness: 0.6,
+            metalness: 0.1,
         });
         super(geometry, material);
 
@@ -29,7 +29,7 @@ class Charon extends THREE.Mesh {
         // Label
         const div = document.createElement('div');
         div.className = 'label';
-        div.textContent = 'Charon';
+        div.textContent = 'Europa';
         div.style.fontSize = '10px';
         this.label = new CSS2DObject(div);
         this.label.position.set(0, config.RADIUS * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
@@ -37,10 +37,10 @@ class Charon extends THREE.Mesh {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Charon orbit around Pluto (realistic: 6.39 days, tidally locked)
+        // Europa orbit around Jupiter (realistic: 3.55 days)
         const angle = Cosmos.getRealisticOrbitalAngle(
             time,
-            Cosmos.ORBITAL_PERIODS.CHARON,
+            Cosmos.ORBITAL_PERIODS.EUROPA,
             this.initialAngle
         );
         const distance = this.config.DISTANCE; // Use original sim distance
@@ -56,12 +56,12 @@ class Charon extends THREE.Mesh {
 }
 
 // =============================================================================
-// PLUTO CLASS
+// JUPITER CLASS
 // =============================================================================
 
-export class Pluto extends THREE.Group {
+export class Jupiter extends THREE.Group {
     public readonly radius: number;
-    public readonly charon: Charon;
+    public readonly europa: Europa;
 
     private mesh: THREE.Mesh;
     private label: CSS2DObject;
@@ -70,21 +70,21 @@ export class Pluto extends THREE.Group {
     constructor() {
         super();
 
-        const config = Cosmos.PLANETS.PLUTO;
+        const config = Cosmos.PLANETS.JUPITER;
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
         // Load texture
         const loader = new THREE.TextureLoader();
-        const texture = loader.load('/textures/Pluto.jpg');
+        const texture = loader.load('/textures/2k_jupiter.jpg');
 
         // Geometry
-        const geometry = new THREE.SphereGeometry(this.radius, 32, 32);
+        const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
         // Material with texture
         const material = new THREE.MeshStandardMaterial({
             map: texture,
-            roughness: 0.7,
+            roughness: 0.4,
             metalness: 0.0,
         });
 
@@ -93,63 +93,61 @@ export class Pluto extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        // Moon: Charon
-        this.charon = new Charon(config.MOON!);
-        this.add(this.charon);
+        // Moon: Europa
+        this.europa = new Europa(config.MOON!);
+        this.add(this.europa);
 
-        // Charon Orbit Path
-        const charonOrbitCurve = new THREE.EllipseCurve(
+        // Europa Orbit Path
+        const europaOrbitCurve = new THREE.EllipseCurve(
             0, 0,
             config.MOON!.DISTANCE, config.MOON!.DISTANCE,
             0, 2 * Math.PI,
             false, 0
         );
-        const charonOrbitPoints = charonOrbitCurve.getPoints(64);
-        const charonOrbitGeo = new THREE.BufferGeometry().setFromPoints(charonOrbitPoints);
-        charonOrbitGeo.rotateX(-Math.PI / 2);
-        const charonOrbitMat = new THREE.LineBasicMaterial({
-            color: 0x8a8a8a,
+        const europaOrbitPoints = europaOrbitCurve.getPoints(64);
+        const europaOrbitGeo = new THREE.BufferGeometry().setFromPoints(europaOrbitPoints);
+        europaOrbitGeo.rotateX(-Math.PI / 2);
+        const europaOrbitMat = new THREE.LineBasicMaterial({
+            color: 0xffffff,
             transparent: true,
             opacity: 0.1,
             depthWrite: false,
         });
-        const charonOrbitLine = new THREE.LineLoop(charonOrbitGeo, charonOrbitMat);
-        this.add(charonOrbitLine);
+        const europaOrbitLine = new THREE.LineLoop(europaOrbitGeo, europaOrbitMat);
+        this.add(europaOrbitLine);
 
         // Label
         const div = document.createElement('div');
         div.className = 'label';
-        div.textContent = 'Pluto';
+        div.textContent = 'Jupiter';
         this.label = new CSS2DObject(div);
         this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
         this.add(this.label);
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Orbit (realistic period: 90560 days = ~248 years, elliptical with e=0.248)
-        const orbitalAngle = Cosmos.getRealisticOrbitalAngle(
+        // Orbit (realistic period: 4333 days = ~12 years, elliptical e=0.048)
+        const theta = Cosmos.getRealisticOrbitalAngle(
             time,
-            Cosmos.ORBITAL_PERIODS.PLUTO,
+            Cosmos.ORBITAL_PERIODS.JUPITER,
             this.initialAngle
         );
-
-        // Use elliptical orbit with eccentricity and inclination
         const pos = Cosmos.getEllipticalOrbitalPosition(
-            Cosmos.PLANETS.PLUTO.DISTANCE,
-            Cosmos.ECCENTRICITY.PLUTO,
-            Cosmos.INCLINATION.PLUTO,
-            orbitalAngle
+            Cosmos.PLANETS.JUPITER.DISTANCE,
+            Cosmos.ECCENTRICITY.JUPITER,
+            Cosmos.INCLINATION.JUPITER,
+            theta
         );
         this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation (realistic: 153.29 hours = 6.39 days, retrograde)
+        // Rotation (realistic: 9.93 hours - fastest planet!)
         this.mesh.rotation.y = Cosmos.getRealisticRotation(
             time,
-            Cosmos.ROTATION_PERIODS.PLUTO
+            Cosmos.ROTATION_PERIODS.JUPITER
         );
 
-        // Moon
-        this.charon.update(time, camera);
+        // Moon Update
+        this.europa.update(time, camera);
 
         // Label
         const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));

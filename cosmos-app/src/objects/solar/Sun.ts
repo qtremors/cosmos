@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { noiseFunctions } from '../materials/Noise';
-import { Cosmos } from '../core/SDK';
+import { noiseFunctions } from '../../materials/Noise';
+import { Cosmos } from '../../core/SDK';
 
 // =============================================================================
 // SHADERS

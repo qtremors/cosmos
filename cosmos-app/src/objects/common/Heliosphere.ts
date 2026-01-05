@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SystemId } from '../core/SystemManager';
+import { SystemId } from '../../core/SystemManager';
 
 /**
  * Heliosphere - A visual boundary bubble around a star system.

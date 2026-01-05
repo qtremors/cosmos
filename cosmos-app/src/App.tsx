@@ -1,24 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { Sun } from './objects/Sun';
+import { Sun } from './objects/solar/Sun';
 import { Stars } from './objects/Stars';
-import { Mercury } from './objects/Mercury';
-import { Venus } from './objects/Venus';
-import { Earth } from './objects/Earth';
-import { Mars } from './objects/Mars';
-import { Jupiter } from './objects/Jupiter';
-import { Saturn } from './objects/Saturn';
-import { Uranus } from './objects/Uranus';
-import { Neptune } from './objects/Neptune';
-import { AsteroidBelt } from './objects/AsteroidBelt';
-import { OrbitPath } from './objects/OrbitPath';
-import { Pluto } from './objects/Pluto';
-import { Heliosphere } from './objects/Heliosphere';
-import { Spaceship } from './objects/easter_eggs/Spaceship';
-import { SpecialAsteroid } from './objects/easter_eggs/SpecialAsteroid';
-import { AlienX } from './objects/easter_eggs/AlienX';
-import { SagittariusA } from './objects/easter_eggs/SagittariusA';
+import { Mercury } from './objects/solar/Mercury';
+import { Venus } from './objects/solar/Venus';
+import { Earth } from './objects/solar/Earth';
+import { Mars } from './objects/solar/Mars';
+import { Jupiter } from './objects/solar/Jupiter';
+import { Saturn } from './objects/solar/Saturn';
+import { Uranus } from './objects/solar/Uranus';
+import { Neptune } from './objects/solar/Neptune';
+import { AsteroidBelt } from './objects/solar/AsteroidBelt';
+import { OrbitPath } from './objects/common/OrbitPath';
+import { Pluto } from './objects/solar/Pluto';
+import { Heliosphere } from './objects/common/Heliosphere';
+import { Explorer } from './objects/solar/Explorer';
+import { TheKyln } from './objects/solar/TheKyln';
+import { AlienX } from './objects/AlienX';
+import { BlackHole } from './objects/BlackHole';
 import { Cosmos } from './core/SDK';
 import { SystemManager, SystemId } from './core/SystemManager';
 import { QuantumaniaSystem } from './objects/quantumania/QuantumaniaSystem';
@@ -329,13 +329,13 @@ export default function App() {
         scene.add(belt);
 
         // Easter Eggs related to Solar System
-        const spaceship = new Spaceship();
-        spaceship.layers.set(1);
-        spaceship.traverse(c => c.layers.set(1));
-        scene.add(spaceship);
+        const explorer = new Explorer();
+        explorer.layers.set(1);
+        explorer.traverse(c => c.layers.set(1));
+        scene.add(explorer);
 
         // "The Kyln" (Prison) - Placed in Solar System for now
-        const theKyln = new SpecialAsteroid('The Kyln');
+        const theKyln = new TheKyln('The Kyln');
         theKyln.layers.set(1);
         theKyln.traverse(c => c.layers.set(1));
         scene.add(theKyln);
@@ -414,10 +414,10 @@ export default function App() {
         robonaut.traverse(c => c.layers.set(1));
         scene.add(robonaut);
 
-        const sagittariusA = new SagittariusA();
-        sagittariusA.layers.set(1);
-        sagittariusA.traverse(c => c.layers.set(1));
-        scene.add(sagittariusA);
+        const blackHole = new BlackHole();
+        blackHole.layers.set(1);
+        blackHole.traverse(c => c.layers.set(1));
+        scene.add(blackHole);
 
         // SOLAR SYSTEM ENTITIES (Radar)
         const solarSystemEntities: EntityInfo[] = [
@@ -437,16 +437,15 @@ export default function App() {
             { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8, system: SystemId.SOLAR_SYSTEM },
             { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4, system: SystemId.SOLAR_SYSTEM },
             // Easter Eggs (Solar System)
-            { mesh: spaceship, id: 'spaceship-blip', color: '#00aaff', label: 'Explorer-1', radius: 5, system: SystemId.SOLAR_SYSTEM },
+            { mesh: explorer, id: 'explorer-blip', color: '#00aaff', label: 'Explorer', radius: 5, system: SystemId.SOLAR_SYSTEM },
             { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8, system: SystemId.SOLAR_SYSTEM },
             // Solar System Proxy (only visible from afar)
             { mesh: sun, id: 'solar-proxy-blip', color: '#fc3', label: 'Solar System', radius: Cosmos.UNITS.SOLAR_RADIUS * 10, system: SystemId.SOLAR_SYSTEM, isSystemProxy: true },
         ];
 
-        // INTERSTELLAR ENTITIES (visible from both systems)
         const interstellarEntities: EntityInfo[] = [
             { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR },
-            { mesh: sagittariusA, id: 'sagittariusa-blip', color: '#ff6600', label: 'Sagittarius A*', radius: 100, system: SystemId.INTERSTELLAR },
+            { mesh: blackHole, id: 'blackhole-blip', color: '#ff6600', label: 'Black Hole', radius: 100, system: SystemId.INTERSTELLAR },
         ];
 
         // QUANTUMANIA ENTITIES
@@ -577,7 +576,7 @@ export default function App() {
             // Toggle Solar System (3D Objects vs Beacon)
             const solarObjects = [
                 sun, mercury, venus, earth, mars, belt, jupiter, saturn, uranus, neptune, pluto,
-                spaceship, theKyln
+                explorer, theKyln
             ];
 
             solarObjects.forEach(obj => obj.visible = showSolarSystem);
@@ -622,7 +621,7 @@ export default function App() {
                 uranus.update(time, camera);
                 neptune.update(time, camera);
                 pluto.update(time, camera);
-                spaceship.update(time, camera);
+                explorer.update(time, camera);
                 theKyln.update(time, camera);
             }
             solarHeliosphere.update(time, camera);
@@ -649,14 +648,15 @@ export default function App() {
             }
 
             // Update planet positions for Explorer collision avoidance
-            Spaceship.updatePlanetPositions([
+            // Update planet positions for Explorer collision avoidance
+            Explorer.updatePlanetPositions([
                 mercury.position, venus.position, earth.position, mars.position,
                 jupiter.position, saturn.position, uranus.position, neptune.position, pluto.position
             ]);
 
             // Interstellar Easter Eggs (always visible/updated)
             robonaut.update(time, camera);
-            sagittariusA.update(time, camera);
+            blackHole.update(time, camera);
 
             // 2. INPUT PROCESSING
             const pad = pollGamepad();

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.5] - 2026-01-05
+### Refactoring & Optimization
+- **Quantumania Categorization**: Replaced monolithic `QuantumaniaSystem` config with dedicated category classes:
+  - `Mountains.ts`: Natural floating formations.
+  - `Structures.ts`: Artificial stations and constructs.
+  - `Ships.ts`: Defense net units and drones.
+  - `Inhabitants.ts`: Creatures and living entities.
+- **Code Cleanup**: Deleted obsolete procedural mountain files (`CityMountain.ts`, `CloudMountain.ts`, etc.).
+- **Build Fixes**: Corrected relative import paths in all Solar System objects to fix build failures.
+
+## [1.7.0] - 2026-01-05
+
+### Added
+
+#### ⚡ Performance & Optimization
+- **System LOD (Level of Detail):** Quantumania objects only load when camera is within 4000 units (prevents teleport freeze)
+- **Strict Layer Separation:** Layer 1 (Solar) and Layer 2 (Quantumania) lighting completely isolated
+- **Model Cleanup:** Removed 15+ failing/unused GLB files to reduce build size
+
+#### 🎥 Cinematic Transitions
+- **Smooth Teleportation:** Camera now flies smoothly from *current* position to target instead of snapping
+- **Smart Angle Logic:** Preserves viewing angle during lock-on for seamless transitions
+- **Teleport Zoom:** Correctly zooms in to target radius upon arrival
+
+### Changed
+- **Quantumania Lighting:** Boosted intensity to compensate for distance (2M intensity)
+- **Time Scale Logic:** Forces "Realtime" in Quantumania (mountains float calmly) vs "Sim Speed" in Solar System
+- **Radar Map:** Decluttered blips, hiding Proxy objects and showing distant systems as single icons
+
+### Fixed
+- **Tab Teleport:** Fixed logic bug that prevented cycling targets in Quantumania (Stale Closure)
+- **Visibility Override:** Fixed bug where Heliosphere wireframe would reappear after locking
+- **Heliosphere Hiding:** Wireframes now correctly hide when locked onto an internal object in BOTH systems
+
+---
+
 ## [1.6.0] - 2026-01-04
 
 ### Added

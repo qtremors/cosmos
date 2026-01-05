@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
+
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
@@ -171,7 +172,7 @@ const fragmentShader = `
 // SAGITTARIUS A* CLASS
 // =============================================================================
 
-export class SagittariusA extends THREE.Group {
+export class BlackHole extends THREE.Group {
     public readonly radius: number = CONFIG.BILLBOARD_SIZE / 2;
 
     private billboard: THREE.Mesh;
@@ -228,7 +229,7 @@ export class SagittariusA extends THREE.Group {
         // 3. Label
         const div = document.createElement('div');
         div.className = 'label';
-        div.textContent = 'Sagittarius A*';
+        div.textContent = 'Black Hole';
         div.style.color = '#ff8844';
         this.label = new CSS2DObject(div);
         this.label.position.set(0, CONFIG.BILLBOARD_SIZE / 2 + 30, 0);

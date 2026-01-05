@@ -7,7 +7,7 @@ import { Cosmos } from '../../core/SDK';
  * Located in the asteroid belt, it's a towering industrial structure
  * with multiple spires, docking bays, and an ominous glow.
  */
-export class SpecialAsteroid extends THREE.Group {
+export class TheKyln extends THREE.Group {
     private structure: THREE.Group;
     private label: CSS2DObject;
     private glowLights: THREE.PointLight[];

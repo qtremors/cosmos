@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { Cosmos, PlanetConfig } from '../core/SDK';
+import { Cosmos, PlanetConfig } from '../../core/SDK';
 
 // =============================================================================
-// VENUS CLASS
+// MERCURY CLASS
 // =============================================================================
 
-export class Venus extends THREE.Group {
+export class Mercury extends THREE.Group {
   public readonly radius: number;
 
   private mesh: THREE.Mesh;
@@ -17,22 +17,22 @@ export class Venus extends THREE.Group {
   constructor() {
     super();
 
-    this.data = Cosmos.PLANETS.VENUS;
+    this.data = Cosmos.PLANETS.MERCURY;
     this.radius = this.data.RADIUS;
     this.initialAngle = Math.random() * Math.PI * 2;
 
     // Load texture
     const loader = new THREE.TextureLoader();
-    const texture = loader.load('/textures/2k_venus_atmosphere.jpg');
+    const texture = loader.load('/textures/2k_mercury.jpg');
 
     // Geometry
     const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-    // Material with texture (using MeshStandardMaterial for consistent lighting)
+    // Material with texture
     const material = new THREE.MeshStandardMaterial({
       map: texture,
-      roughness: 0.8,
-      metalness: 0.0,
+      roughness: 0.9,
+      metalness: 0.1,
     });
 
     this.mesh = new THREE.Mesh(geometry, material);
@@ -43,31 +43,31 @@ export class Venus extends THREE.Group {
     // Label
     const div = document.createElement('div');
     div.className = 'label';
-    div.textContent = 'Venus';
+    div.textContent = 'Mercury';
     this.label = new CSS2DObject(div);
     this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
     this.add(this.label);
   }
 
   update(time: number, camera: THREE.Camera): void {
-    // Orbital Position (realistic period: 224.7 days, elliptical e=0.007)
+    // Orbital Position (realistic period: 87.97 days, elliptical e=0.206)
     const theta = Cosmos.getRealisticOrbitalAngle(
       time,
-      Cosmos.ORBITAL_PERIODS.VENUS,
+      Cosmos.ORBITAL_PERIODS.MERCURY,
       this.initialAngle
     );
     const pos = Cosmos.getEllipticalOrbitalPosition(
       this.data.DISTANCE,
-      Cosmos.ECCENTRICITY.VENUS,
-      Cosmos.INCLINATION.VENUS,
+      Cosmos.ECCENTRICITY.MERCURY,
+      Cosmos.INCLINATION.MERCURY,
       theta
     );
     this.position.set(pos.x, pos.y, pos.z);
 
-    // Rotation (realistic: 243 days retrograde - spins backwards!)
+    // Rotation (realistic: 58.65 days - very slow!)
     this.mesh.rotation.y = Cosmos.getRealisticRotation(
       time,
-      Cosmos.ROTATION_PERIODS.VENUS
+      Cosmos.ROTATION_PERIODS.MERCURY
     );
 
     // Label Opacity

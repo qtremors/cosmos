@@ -18,7 +18,7 @@ export class NexusMountain extends THREE.Group {
     private label: CSS2DObject;
     private light: THREE.PointLight;
 
-    public readonly mountainName = 'The Nexus';
+    public readonly mountainName = 'Nexus';
     public readonly radius = 100;
 
     constructor(position: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {

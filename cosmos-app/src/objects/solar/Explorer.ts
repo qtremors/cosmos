@@ -4,7 +4,7 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 // Planet positions for collision avoidance (will be updated each frame)
 const planetPositions: THREE.Vector3[] = [];
 
-export class Spaceship extends THREE.Group {
+export class Explorer extends THREE.Group {
     private ship: THREE.Group;
     private label: CSS2DObject;
     private velocity: THREE.Vector3;
@@ -79,7 +79,7 @@ export class Spaceship extends THREE.Group {
         // Label (no emoji)
         const div = document.createElement('div');
         div.className = 'label';
-        div.textContent = 'Explorer-1';
+        div.textContent = 'Explorer';
         this.label = new CSS2DObject(div);
         this.label.position.set(0, 1, 0);
         this.add(this.label);
@@ -114,9 +114,9 @@ export class Spaceship extends THREE.Group {
             const toPlanet = planetPos.clone().sub(this.position);
             const distance = toPlanet.length();
 
-            if (distance < Spaceship.MIN_PLANET_DISTANCE && distance > 0.1) {
+            if (distance < Explorer.MIN_PLANET_DISTANCE && distance > 0.1) {
                 // Push away from planet
-                const force = (Spaceship.MIN_PLANET_DISTANCE - distance) / Spaceship.MIN_PLANET_DISTANCE;
+                const force = (Explorer.MIN_PLANET_DISTANCE - distance) / Explorer.MIN_PLANET_DISTANCE;
                 avoidance.sub(toPlanet.normalize().multiplyScalar(force * 2));
             }
         }
@@ -132,7 +132,7 @@ export class Spaceship extends THREE.Group {
         }
 
         // Calculate desired direction
-        const desired = toTarget.normalize().multiplyScalar(Spaceship.SPEED);
+        const desired = toTarget.normalize().multiplyScalar(Explorer.SPEED);
 
         // Add avoidance force
         const avoidance = this.avoidPlanets();
@@ -142,8 +142,8 @@ export class Spaceship extends THREE.Group {
         this.velocity.lerp(desired, 0.02);
 
         // Limit speed
-        if (this.velocity.length() > Spaceship.SPEED) {
-            this.velocity.normalize().multiplyScalar(Spaceship.SPEED);
+        if (this.velocity.length() > Explorer.SPEED) {
+            this.velocity.normalize().multiplyScalar(Explorer.SPEED);
         }
 
         // Move
