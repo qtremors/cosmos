@@ -8,53 +8,61 @@ import { RadarObjectList } from './components/RadarObjectList';
 import type { EntityInfo } from './core/Entity';
 import { EMPTY_ASSET_STATUS } from './core/AssetStatus';
 import { getSavedQuality, saveQuality, type QualityLevel } from './core/Quality';
-import { DEFAULT_TIME_SCALE } from './core/TimeConfig';
-import { DEFAULT_DARK_SIDE_FILL } from './core/Lighting';
+import { readPreferences, savePreferences } from './core/Preferences';
 import type { SceneController, LockedInfo } from './core/SceneController';
 
 export default function App() {
+    const [saved] = useState(readPreferences);
     const mountRef = useRef<HTMLDivElement>(null);
     const radarButtonRef = useRef<HTMLButtonElement>(null);
     const controllerRef = useRef<SceneController | null>(null);
-    const [showLabels, setShowLabels] = useState(true);
-    const [showUI, setShowUI] = useState(true);
+    const [showLabels, setShowLabels] = useState(saved.showLabels);
+    const [showUI, setShowUI] = useState(saved.showUI);
     const [showRadarList, setShowRadarList] = useState(false);
     const [cameraSpeed, setCameraSpeed] = useState(0);
     const [lockedInfo, setLockedInfo] = useState<LockedInfo | null>(null);
     const [nearestObject, setNearestObject] = useState<{ name: string; distance: number } | null>(null);
-    const [epoch, setEpoch] = useState(() => Date.now() / 1000);
-    const [simulationDate, setSimulationDate] = useState(() => new Date().toISOString());
-    const [showOrbits, setShowOrbits] = useState(true);
-    const [autoExposure, setAutoExposure] = useState(true);
-    const [fiction, setFiction] = useState(true);
-    const [timeScale, setTimeScale] = useState(DEFAULT_TIME_SCALE);
-    const [isPaused, setIsPaused] = useState(false);
+    const [customEpoch, setCustomEpoch] = useState(saved.epoch);
+    const [epoch, setEpoch] = useState(() => saved.epoch ?? Date.now() / 1000);
+    const [simulationDate, setSimulationDate] = useState(() => new Date(epoch * 1000).toISOString());
+    const [showOrbits, setShowOrbits] = useState(saved.showOrbits);
+    const [autoExposure, setAutoExposure] = useState(saved.autoExposure);
+    const [fiction, setFiction] = useState(saved.fiction);
+    const [timeScale, setTimeScale] = useState(saved.timeScale);
+    const [isPaused, setIsPaused] = useState(saved.paused);
     const [currentSystem, setCurrentSystem] = useState('Solar System');
     const [entities, setEntities] = useState<EntityInfo[]>([]);
     const [quality, setQuality] = useState<QualityLevel>(getSavedQuality);
     const [assetStatus, setAssetStatus] = useState(EMPTY_ASSET_STATUS);
     const [sceneError, setSceneError] = useState<string | null>(null);
     const [lockedEntity, setLockedEntity] = useState<EntityInfo | null>(null);
-    const [diagnostics, setDiagnostics] = useState(() => new URLSearchParams(location.search).get('profile') === '1');
+    const [diagnostics, setDiagnostics] = useState(() => new URLSearchParams(location.search).get('profile') === '1' || saved.diagnostics);
     const [performanceSnapshot, setPerformanceSnapshot] = useState<PerformanceSnapshot | null>(null);
-    const [showInfo, setShowInfo] = useState(() => !matchMedia('(max-width: 600px)').matches);
-    const [darkSideFill, setDarkSideFill] = useState(DEFAULT_DARK_SIDE_FILL);
+    const [infoPreference, setInfoPreference] = useState(saved.showInfo);
+    const [showInfo, setShowInfo] = useState(() => saved.showInfo ?? !matchMedia('(max-width: 600px)').matches);
+    const [darkSideFill, setDarkSideFill] = useState(saved.darkSideFill);
     const [starting, setStarting] = useState(true);
     const settingsRef = useRef({ quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure });
     const closeRadar = useCallback(() => {
         setShowRadarList(false);
         radarButtonRef.current?.focus();
     }, []);
-    const lockOnTarget = useCallback((entity: EntityInfo) => { setShowInfo(!matchMedia('(max-width: 600px)').matches); controllerRef.current?.lock(entity); }, []);
+    const lockOnTarget = useCallback((entity: EntityInfo) => {
+        if (infoPreference === null) setShowInfo(!matchMedia('(max-width: 600px)').matches);
+        controllerRef.current?.lock(entity);
+    }, [infoPreference]);
+    const changeInfo = (visible: boolean) => { setInfoPreference(visible); setShowInfo(visible); };
+    const changeEpoch = (value: number) => { setCustomEpoch(value); setEpoch(value); };
+    const useCurrentDate = () => { setCustomEpoch(null); setEpoch(Date.now() / 1000); };
     const resetView = useCallback(() => controllerRef.current?.resetView(), []);
     const touchKey = useCallback((code: string, pressed: boolean) => controllerRef.current?.key(code, pressed), []);
 
     useEffect(() => {
         const narrow = matchMedia('(max-width: 600px)');
-        const collapseInfo = () => { if (narrow.matches) setShowInfo(false); };
+        const collapseInfo = () => { if (infoPreference === null) setShowInfo(!narrow.matches); };
         narrow.addEventListener('change', collapseInfo);
         return () => narrow.removeEventListener('change', collapseInfo);
-    }, []);
+    }, [infoPreference]);
 
     useEffect(() => {
         let cancelled = false;
@@ -84,6 +92,10 @@ export default function App() {
         controllerRef.current?.configure(settings);
         saveQuality(quality);
     }, [quality, showLabels, timeScale, isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure]);
+    useEffect(() => {
+        savePreferences({ showLabels, showUI, showOrbits, autoExposure, fiction, timeScale,
+            paused: isPaused, darkSideFill, diagnostics, showInfo: infoPreference, epoch: customEpoch });
+    }, [showLabels, showUI, showOrbits, autoExposure, fiction, timeScale, isPaused, darkSideFill, diagnostics, infoPreference, customEpoch]);
     return (
         <div className="container">
 
@@ -134,7 +146,7 @@ export default function App() {
                                 isPaused={isPaused}
                                 onPauseToggle={() => setIsPaused(p => !p)}
                                 autoExposure={autoExposure} onAutoExposureChange={setAutoExposure}
-                                epoch={epoch} onEpochChange={setEpoch}
+                                epoch={epoch} onEpochChange={changeEpoch} onNow={useCurrentDate}
                                 showOrbits={showOrbits} onOrbitsChange={setShowOrbits}
                                 fiction={fiction} onFictionChange={setFiction}
                                 quality={quality}
@@ -190,8 +202,8 @@ export default function App() {
                             )}
                         </div>
                         {lockedEntity && (showInfo
-                            ? <ObjectInfo entity={lockedEntity} onClose={() => { setShowInfo(false); radarButtonRef.current?.focus(); }} />
-                            : <button type="button" className="info-toggle" data-ui onClick={() => setShowInfo(true)}>Object information</button>)}
+                            ? <ObjectInfo entity={lockedEntity} onClose={() => { changeInfo(false); radarButtonRef.current?.focus(); }} />
+                            : <button type="button" className="info-toggle" data-ui onClick={() => changeInfo(true)}>Object information</button>)}
                         {diagnostics && <PerformancePanel snapshot={performanceSnapshot} onClose={() => { setDiagnostics(false); radarButtonRef.current?.focus(); }} />}
                         </aside>
             </div>

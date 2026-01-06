@@ -48,6 +48,22 @@ export type SceneController = ReturnType<typeof createSceneController>;
 
 /** Owns the renderer, simulation, inputs, assets and teardown independently of React. */
 export function createSceneController(mount: HTMLDivElement, options: SceneOptions) {
+    const cleanup: (() => void)[] = [];
+    try {
+        const controller = initializeSceneController(mount, options, cleanup);
+        cleanup.length = 0;
+        return controller;
+    } catch (error) {
+        for (const release of cleanup.reverse()) {
+            try { release(); } catch { /* Preserve the original initialization error. */ }
+        }
+        throw error;
+    }
+}
+
+function initializeSceneController(mount: HTMLDivElement, options: SceneOptions, cleanup: (() => void)[]) {
+    let disposed = false;
+    cleanup.push(() => { disposed = true; });
     const cell = <T,>(current: T) => ({ current });
     const mountRef = cell(mount);
     const radarButtonRef = cell(options.radarButton);
@@ -151,14 +167,16 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
 
     const radarBlips = radarBlipsRef.current;
     const assets = new SceneAssets(setAssetStatus);
+    cleanup.push(() => assets.dispose());
     let renderer: THREE.WebGLRenderer;
     try {
         renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
     } catch {
         assets.dispose();
-        queueMicrotask(() => setSceneError('Your browser could not start the 3D view. Try enabling hardware acceleration or using another browser.'));
-        return { dispose() {}, lock() {}, unlock() {}, retry() {}, configure() {}, key() {}, resetView() {} };
+        queueMicrotask(() => { if (!disposed) setSceneError('Your browser could not start the 3D view. Try enabling hardware acceleration or using another browser.'); });
+        return { dispose() { disposed = true; }, lock() {}, unlock() {}, retry() {}, configure() {}, key() {}, resetView() {} };
     }
+    cleanup.push(() => renderer.dispose());
     const resetInput = () => {
         inputRef.current = createInputState();
         keyboardCodes.clear(); touchCodes.clear();
@@ -188,7 +206,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
             const activeSystem = manager.currentSystem;
 
             const systemEntities = entitiesRef.current.filter(ent =>
-                ent.system === activeSystem && !ent.isSystemProxy && (fictionRef.current || ent.category !== EntityCategory.EASTER_EGG)
+                ent.system === activeSystem && !ent.isSystemProxy && (fictionRef.current || (ent.system === SystemId.SOLAR_SYSTEM && ent.category !== EntityCategory.EASTER_EGG))
             );
 
             if (systemEntities.length > 0) {
@@ -220,6 +238,12 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', resetInput);
     document.addEventListener('visibilitychange', handleVisibility);
+    cleanup.push(() => {
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+        window.removeEventListener('blur', resetInput);
+        document.removeEventListener('visibilitychange', handleVisibility);
+    });
 
     // --- MOUSE WHEEL (Momentum Zoom) ---
     const handleWheel = (e: WheelEvent) => {
@@ -235,8 +259,10 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         zoomVelocity.current += dir * force;
     };
     window.addEventListener('wheel', handleWheel, { passive: false });
+    cleanup.push(() => window.removeEventListener('wheel', handleWheel));
 
     const scene = new THREE.Scene();
+    cleanup.push(() => disposeObject3D(scene));
     scene.background = new THREE.Color(0x000000);
 
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.001, 300000);
@@ -258,6 +284,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     labelRenderer.domElement.style.position = 'absolute';
     labelRenderer.domElement.style.top = '0px';
     labelRenderer.domElement.style.pointerEvents = 'none';
+    cleanup.push(() => mount.replaceChildren());
     mount.replaceChildren(renderer.domElement, labelRenderer.domElement);
     labelRendererRef.current = labelRenderer;
 
@@ -270,6 +297,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         belt, kuiperBelt, dwarfPlanets, explorer, theKyln, solarHeliosphere, solarBeacon, quantumania, orbitPaths,
         alienX, blackHole, cosmicEntity, renderWorld, entities,
     } = createWorld(scene, assets);
+    cleanup.push(() => { quantumania.dispose(); cosmicEntity.dispose(); });
     entitiesRef.current = entities;
     SystemManager.getInstance().updateCurrentSystem(camera.position);
 
@@ -278,6 +306,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     // RADAR INIT - Cache DOM references
     const radarContainer = document.getElementById('radar-container');
     const radarViewport = radarContainer?.querySelector<HTMLElement>('.radar-viewport');
+    cleanup.push(() => { radarBlips.forEach(blip => blip.remove()); radarBlips.clear(); });
     if (radarContainer && radarViewport) {
         // Clear only blips (not the radar-center which is in JSX)
         const existingBlips = radarContainer.querySelectorAll('.radar-blip');
@@ -335,6 +364,13 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     renderer.domElement.addEventListener('pointercancel', handleMouseUp);
     renderer.domElement.addEventListener('lostpointercapture', handleMouseUp);
     renderer.domElement.addEventListener('pointermove', handleMouseMove);
+    cleanup.push(() => {
+        renderer.domElement.removeEventListener('pointerdown', handleMouseDown);
+        renderer.domElement.removeEventListener('pointerup', handleMouseUp);
+        renderer.domElement.removeEventListener('pointercancel', handleMouseUp);
+        renderer.domElement.removeEventListener('lostpointercapture', handleMouseUp);
+        renderer.domElement.removeEventListener('pointermove', handleMouseMove);
+    });
 
     const onWinResize = () => {
         if (cameraRef.current) {
@@ -345,10 +381,10 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener('resize', onWinResize);
+    cleanup.push(() => window.removeEventListener('resize', onWinResize));
 
     let elapsedTime = 0;
     let statsElapsed = 0;
-    let disposed = false;
     let appliedQuality: QualityLevel | null = null;
     const targetPosition = new THREE.Vector3();
     const referencePosition = new THREE.Vector3();
@@ -363,6 +399,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         setSceneError('The 3D view lost its graphics connection. Reload to continue exploring.');
     };
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+    cleanup.push(() => renderer.domElement.removeEventListener('webglcontextlost', onContextLost));
     retryAssetsRef.current = () => {
         assets.retryTextures();
         quantumania.retryFailedModels();
@@ -656,6 +693,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         }
     });
 
+    cleanup.push(stopAnimation);
     const dispose = () => {
         if (disposed) return;
         disposed = true;

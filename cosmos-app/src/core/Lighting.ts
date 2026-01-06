@@ -3,7 +3,7 @@ import { EntityCategory, type EntityInfo } from './Entity';
 import { SystemId } from './SystemId';
 import { UNITS_PER_AU } from './PhysicalScale';
 
-export const DEFAULT_DARK_SIDE_FILL = 0.15;
+export { DEFAULT_DARK_SIDE_FILL } from './Preferences';
 const position = new THREE.Vector3();
 
 /** Meter the nearest astronomical body during flight, or the selected body in orbit. */

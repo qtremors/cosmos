@@ -11,6 +11,7 @@ interface SettingsPanelProps {
     onPauseToggle: () => void;
     autoExposure: boolean; onAutoExposureChange: (value: boolean) => void;
     epoch: number; onEpochChange: (value: number) => void;
+    onNow: () => void;
     showOrbits: boolean; onOrbitsChange: (value: boolean) => void;
     fiction: boolean; onFictionChange: (value: boolean) => void;
     diagnostics: boolean;
@@ -39,7 +40,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     onTimeScaleChange,
     isPaused,
     onPauseToggle,
-    autoExposure, onAutoExposureChange, epoch, onEpochChange, showOrbits, onOrbitsChange, fiction, onFictionChange,
+    autoExposure, onAutoExposureChange, epoch, onEpochChange, onNow, showOrbits, onOrbitsChange, fiction, onFictionChange,
     darkSideFill, onDarkSideFillChange, diagnostics, onDiagnosticsChange,
     quality,
     onQualityChange,
@@ -96,7 +97,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                             if (Number.isFinite(value) && value >= Date.parse('1900-01-01') / 1000 && value <= Date.parse('2100-01-01') / 1000) onEpochChange(value);
                         }} />
                     </label>
-                    <button type="button" className="preset-button" onClick={() => onEpochChange(Date.now() / 1000)}>Now</button>
+                    <button type="button" className="preset-button" onClick={onNow}>Now</button>
 
                     <p className="setting-description">Pause freezes orbits, rotation, ships, model animation, and visual effects. Camera controls and loading stay available. Speed presets advance the dated astronomical model everywhere; decorative motion stays at real-time.</p>
                     <button type="button" className={`pause-button ${isPaused ? 'paused' : ''}`} aria-pressed={isPaused} onClick={onPauseToggle}>{isPaused ? '▶ Play' : '⏸ Pause'}</button>

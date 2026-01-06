@@ -4,8 +4,7 @@ import elements from './SmallBodyElements.json';
 import { eccentricAnomaly } from './OrbitalMechanics';
 import { UNITS_PER_AU, KM_PER_AU, kmToUnits } from './PhysicalScale';
 
-export const MIN_DATE = '1900-01-01';
-export const MAX_DATE = '2100-01-01';
+export { MIN_DATE, MAX_DATE } from './TimeConfig';
 export interface PhysicalState { position: THREE.Vector3; velocity: THREE.Vector3 }
 const rotation = Rotation_EQJ_ECL();
 const radians = Math.PI / 180;

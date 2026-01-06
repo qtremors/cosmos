@@ -1,12 +1,20 @@
 # Cosmos Changelog
 
-> **Project:** Cosmos  
-> **Version:** 0.0.9  
-> **Last Updated:** 2025-12-31
+> **Project:** Cosmos
+>
+> **Version:** 0.1.0
+>
+> **Last Updated:** 2026-01-06
 
 ---
 
-## [Unreleased]
+## [0.1.0] - 2026-01-06
+
+- Remember graphics, lighting, visibility, time, and information-panel preferences in the browser.
+- Restore the black-hole disk at Low quality and keep scene labels behind interface panels.
+- Exclude hidden fictional destinations from keyboard navigation and clean up failed scene startup.
+- Fix the local performance-preview launcher on Windows.
+- Consolidate setup guidance, physical-model limits, and the remaining device-validation backlog.
 
 ## [0.0.9] - 2025-12-31
 

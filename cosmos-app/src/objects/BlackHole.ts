@@ -57,6 +57,7 @@ export class BlackHole extends THREE.Group {
             uniforms: {
                 uTime: { value: 0 },
                 uSteps: { value: 96 },
+                uStepScale: { value: 1 },
                 uCamPos: { value: new THREE.Vector3(0, 5, 18) },
             },
             transparent: true,
@@ -81,7 +82,10 @@ export class BlackHole extends THREE.Group {
     }
 
     setRaySteps(steps: number): void {
-        this.material.uniforms.uSteps.value = Math.max(1, Math.min(150, Math.round(steps)));
+        const count = Math.max(1, Math.min(150, Math.round(steps)));
+        this.material.uniforms.uSteps.value = count;
+        // Preserve the Medium ray extent with fewer Low samples. Medium/High stay unchanged.
+        this.material.uniforms.uStepScale.value = Math.max(1, 96 / count);
     }
 
     update(_time: number, camera: THREE.Camera, independentTime: number): void {

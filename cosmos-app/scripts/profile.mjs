@@ -1,15 +1,18 @@
 import { chromium } from '@playwright/test';
-import { spawn } from 'node:child_process';
+import { startPreview } from './preview.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { platform, arch, cpus } from 'node:os';
 
 // Run against the production preview. Use PROFILE_BASE_URL to profile an existing deployment.
 const baseURL = process.env.PROFILE_BASE_URL ?? 'http://127.0.0.1:5174';
-const preview = process.env.PROFILE_BASE_URL ? null : spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '5174', '--strictPort'], { stdio: 'ignore' });
+const preview = process.env.PROFILE_BASE_URL ? null : startPreview();
+let previewError;
+preview?.once('error', error => { previewError = error; });
 let browser;
 try {
     for (let attempt = 0; attempt < 100; attempt++) {
+        if (previewError) throw new Error('Production preview could not start.', { cause: previewError });
         if (preview?.exitCode !== null && preview?.exitCode !== undefined) throw new Error('Production preview exited. Run npm run build first.');
         try { if ((await fetch(baseURL)).ok) break; } catch { /* Preview is starting. */ }
         if (attempt === 99) throw new Error('Preview did not start');

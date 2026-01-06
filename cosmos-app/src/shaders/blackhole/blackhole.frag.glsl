@@ -1,5 +1,6 @@
 uniform float uTime;
 uniform int uSteps;
+uniform float uStepScale;
 uniform vec3 uCamPos;
 
 varying vec2 vUv;
@@ -78,7 +79,7 @@ void main() {
 
         // Gravitational Lensing
         vec3 toCenter = normalize(-p);
-        float bendStrength = 0.15 / (distToCenter * distToCenter);
+        float bendStrength = 0.15 / (distToCenter * distToCenter) * uStepScale;
         rd = normalize(rd + toCenter * bendStrength);
 
         // Accretion Disk
@@ -109,15 +110,15 @@ void main() {
             vec3 diskColor = mix(coolColor, hotColor, smoothstep(-0.5, 0.5, doppler));
             
             // Accumulation
-            totalAccretion += intensity * 0.15 * topViewBoost;
-            col += diskColor * intensity * 0.2 * topViewBoost * (1.0 - min(glow, 1.0));
+            totalAccretion += intensity * 0.15 * topViewBoost * uStepScale;
+            col += diskColor * intensity * 0.2 * topViewBoost * uStepScale * (1.0 - min(glow, 1.0));
         }
         
         // Glow
         float glowContrib = 1.0 / (distToCenter * distToCenter * 25.0 * max(abs(p.y), 0.05) + 0.05);
-        glow += glowContrib;
+        glow += glowContrib * uStepScale;
 
-        float stepSize = max(0.04, distToCenter * 0.04); 
+        float stepSize = max(0.04, distToCenter * 0.04) * uStepScale;
         p += rd * stepSize;
         d += stepSize;
         
