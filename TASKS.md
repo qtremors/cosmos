@@ -1,93 +1,164 @@
 # Tasks
 
 > **Project:** Cosmos  
-> **Version:** v1.2.0  
-> **Last Updated:** 2026-01-02
+> **Version:** v2.0.0  
+> **Last Updated:** 2026-01-10
 
 ---
 
-##  Medium Priority
+## 🔴 Critical Priority
 
-### [x] Implement Time Controls - 2026-01-02
-- **Problem:** Simulation runs at fixed speed with no pause
-- **Fix:** Added pause button and time scale slider (0.1x to 10x) in Settings Panel
-- **Files:** `App.tsx`, `SettingsPanel.tsx`, `index.css`
+### [ ] Texture Loading Lacks Error Handling
+- **Problem:** All `THREE.TextureLoader.load()` calls lack error callbacks
+- **Risk:** Silent failures if textures fail to load; user sees broken planets
+- **Solution:** Add error callbacks with fallback textures or error states
+- **Files:** `Sun.ts`, `Earth.ts`, `Mars.ts`, `Jupiter.ts`, `Saturn.ts`, `Neptune.ts`, `Uranus.ts`, `Pluto.ts`, `Mercury.ts`, `Venus.ts`
 
-### [ ] Add Rim/Edge Lighting
-- **Problem:** Planets on dark side are invisible
-- **Fix:** Subtle shader glow on edges so silhouettes are always visible
-- **Files:** All planet shaders in `objects/`
+---
 
-### [ ] Object Info Panel
-- **Problem:** No way to learn about objects
-- **Fix:** Click object → popup with facts (size, distance, orbital period)
-- **Files:** `App.tsx`, new `InfoPanel.tsx`
+## 🟠 High Priority
 
-### [x] Elliptical Orbits - 2026-01-03
-- **Problem:** Current orbits are perfect circles
-- **Fix:** Implemented elliptical orbits with NASA eccentricity values
-- **Files:** `SDK.ts`, `OrbitPath.ts`, all planet files
+### [ ] Complete System Independence
+- **Problem:** Solar System, Quantumania, and Interstellar share resources
+- **Goal:** Separate lighting per system (Sun shouldn't affect Quantumania)
+- **Files:** `App.tsx`, `SystemManager.ts`, `QuantumaniaSystem.ts`
+- **Note:** Deferred per user request
+
+### [ ] Per-Frame Vector3 Allocations Causing GC Churn
+- **Problem:** ~15+ object files create `new THREE.Vector3()` inside `update()` every frame
+- **Impact:** Garbage collection stutters on low-end devices
+- **Solution:** Reuse instance-level vectors (like `BlackHole.ts` fix pattern)
+- **Files:** `Sun.ts:101`, `Uranus.ts:112`, `Saturn.ts:188`, `Neptune.ts:110`, `Mars.ts:78`, `Jupiter.ts:140`, `Pluto.ts:141`, `InputHandler.ts:209,241`, `App.tsx:117,729,786,847`
+
+### [ ] ESLint Config Missing TypeScript Support
+- **Problem:** `eslint.config.js` only targets `*.{js,jsx}`, ignoring all TypeScript files
+- **Impact:** No linting for the entire codebase (100% TypeScript)
+- **Solution:** Add `**/*.{ts,tsx}` to files pattern and TypeScript parser
+- **File:** `eslint.config.js`
+
+### [ ] Empty `utils/` Directory
+- **Problem:** Directory exists but is completely empty
+- **Solution:** Either add utility functions or delete the directory
+- **File:** `src/utils/`
+
+---
+
+## 🟡 Medium Priority
+
+### [ ] Accessibility Issues
+
+#### Missing ARIA Labels
+- **Problem:** No `aria-label` on any interactive elements
+- **Affected:** Range sliders in SettingsPanel, close buttons, radar items
+- **Files:** `SettingsPanel.tsx`, `RadarObjectList.tsx`
+
+#### No Focus Management
+- **Problem:** Panels lack keyboard navigation for radar list items
+- **Impact:** Keyboard-only users cannot navigate through object lists
+- **Files:** `RadarObjectList.tsx`
+
+#### No Skip Links
+- **Problem:** 3D canvas traps focus, no skip to controls
+- **Files:** `App.tsx`
+
+### [ ] Magic Numbers → SDK Constants
+- **Problem:** Scattered constants throughout codebase
+  - `4500` visibility range
+  - `500` buffer distance
+  - `1000` fade distance
+  - `100` delay ms in loadModelsSequentially
+- **Solution:** Add `Cosmos.VISIBILITY` and `Cosmos.LOADING` configs
+- **Files:** `App.tsx`, `QuantumaniaSystem.ts`, various objects
+
+### [ ] RadarObjectList Uses Fragile String Matching
+- **Problem:** Filters entities by substring matching labels:
+  ```typescript
+  e.label.startsWith('Mount') || e.label.includes('Station')
+  ```
+- **Risk:** New entities may be miscategorized if naming convention changes
+- **Solution:** Use `EntityCategory` enum (already exists but underutilized)
+- **File:** `RadarObjectList.tsx` lines 181, 196, 209, 222, 233, 243
+
+### [ ] Stats HUD Speed Calculation
+- **Problem:** Uses stale delta due to throttling
+- **Solution:** Track accumulated distance over throttle period
+- **Files:** `App.tsx`
+
+### [ ] Object Info Panel (Feature Request)
+- **Description:** Click object → popup with facts (size, distance, orbital period)
+- **Files:** New `InfoPanel.tsx`, `App.tsx`
+
+### [ ] Rim/Edge Lighting for Dark Side Planets
+- **Description:** Subtle shader glow on edges so silhouettes are visible
+- **Files:** Planet shaders in `objects/solar/`
 
 ---
 
 ## 🟢 Low Priority
 
-### [ ] Add More Moons
-- Ganymede, Callisto, Io for Jupiter; Enceladus for Saturn
+### [ ] CSS `:root` Duplication
+- **Problem:** Two `:root` blocks in index.css (lines 1-6 and 136-148)
+- **Solution:** Consolidate into single `:root` block
+- **File:** `index.css`
 
-### [ ] Move Shaders to External Files
-- Create `.glsl` files with Vite raw imports
+### [ ] Missing `type="button"` on Buttons
+- **Problem:** Buttons inside forms default to `type="submit"`
+- **Risk:** Accidental form submissions
+- **Solution:** Add `type="button"` to all non-submit buttons
+- **Files:** `SettingsPanel.tsx`, `RadarObjectList.tsx`
+
+### [ ] Add More Moons
+- **Description:** Ganymede, Callisto, Io (Jupiter); Enceladus (Saturn)
+- **Files:** New moon classes, `SDK.ts`
 
 ### [ ] Refactor Duplicate Moon Patterns
-- Create generic `Moon` class
+- **Problem:** Each planet with a moon duplicates moon setup code
+- **Solution:** Create generic `Moon` class
+- **Files:** `Earth.ts`, `Jupiter.ts`, `Saturn.ts`, `Pluto.ts`
 
-### [ ] Performance Mode
-- Toggle to reduce asteroid count, simpler shaders
+### [ ] Performance Mode Toggle
+- **Description:** Reduce asteroid count, simpler shaders for low-end devices
+- **Files:** `SDK.ts`, `AsteroidBelt.ts`, new setting in `SettingsPanel.tsx`
+
+### [ ] Test Coverage
+- **Problem:** Only SDK.test.ts (12 tests) exists; no component/object tests
+- **Coverage:** ~5% of codebase
+- **Needs Tests:** `InputHandler.ts`, `SystemManager.ts`, planet classes
+- **File:** `src/__tests__/`
+
+### [ ] TypeScript Strict Mode Compliance
+- **Problem:** Some `as` casts could be replaced with proper type guards
+- **Files:** Various (already fixed in `GLBEntity.ts`, `Nexus.ts`)
 
 ---
 
-## 📋 Backlog
+## 📄 Documentation
+
+### [ ] README Project Structure Outdated
+- **Problem:** Missing directories in structure diagram:
+  - `components/` (RadarObjectList, SettingsPanel)
+  - `utils/` (empty, should be removed or documented)
+  - `objects/solar/` and `objects/quantumania/`
+  - `objects/common/` (Heliosphere, OrbitPath)
+  - `shaders/` (alienx, atmosphere, blackhole, earth, sun)
+  - `__tests__/`
+- **File:** `README.md`
+
+### [ ] README Still References MIT License
+- **Problem:** License badge updated but some text may reference old license
+- **Solution:** Full audit for any "MIT" references
+- **File:** `README.md`
+
+---
+
+## 📋 Backlog (Future Versions)
 
 - Sound Design & Ambient Audio
 - Comet Simulation
 - VR Support (WebXR)
 - More Dwarf Planets (Ceres, Eris)
 - Mobile Touch Controls
-
----
-
-## ✅ Completed (2026-01-03)
-
-- **High-res NASA Textures** - All planets now use 2K resolution texture maps
-- **Earth Day/Night System** - Smooth terminator transition with separate day/night textures + cloud layer
-- **Planet Rings** - Added rings to Uranus (dark, narrow) and Neptune (faint, bluish)
-- **Easter Eggs** - Added 5 hidden objects: Explorer-1 (touring spaceship), ISS, Quant (golden asteroid), Alien X (cosmic entity), Tremors (hidden planet)
-- **Elliptical Orbits** - All planets now use NASA eccentricity values. Pluto visibly crosses inside Neptune's orbit!
-- **Settings Panel** - Moved to radar menu (inline). Aligned height with objects panel. Widened for usability.
-- **Ambient Slider** - Fixed mouse capture issue (stopPropagation).
-- **Progressive Boost** - Holding Shift increases speed multiplier (10x -> 100x max) over time for faster travel.
-
-## ✅ Completed (2026-01-02)
-
-- **Realistic Orbital Mechanics** - True Keplerian physics for all bodies. Scale: Real periods, artistic distances.
-- **Time Controls with Presets** - Real-time, 1m/s, 30m/s... up to Max (Pluto 1min/orbit). Default: 1 Day/sec.
-- **Physics Fixes** - Asteroids scale correctly, Sun shader visuals decoupled from time warp.
-- **Visuals** - Orbit paths are white, Sun looks consistent at high speeds.
-- **Settings Panel UI** - Fixed scrolling, z-index, and layout.
-- **Transparency Fix** - Added logdepthbuf chunks to all planet shaders
-- **Smart Contextual UI** - HUD shows nearest object in free flight
-- **Top-down Start** - Camera now starts in T mode
-- **Rotation Delta Time** - Frame-rate independent rotation
-
-## ✅ Completed (Earlier)
-
-- TypeScript Migration
-- Uranus/Neptune Ice Giants
-- Gamepad Support
-- SDK Utilities
-- Pluto & Charon
-- Orbital Camera Control
-- Stats HUD
-- Radar Menu Overhaul
-- Orbit Path Visualization
-- Input Handler Extraction
+- Bundle Size Optimization (913KB chunk warning)
+  - Code-splitting with dynamic `import()`
+  - `manualChunks` in Vite config for Three.js
+- Web Workers for Physics Calculations

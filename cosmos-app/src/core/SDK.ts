@@ -343,7 +343,7 @@ export class Cosmos {
     // -------------------------------------------------------------------------
 
     static readonly ASTEROIDS: AsteroidsConfig = {
-        COUNT: 4000,
+        COUNT: 2000,
         INNER_RADIUS: 300,
         OUTER_RADIUS: 450,
     };
