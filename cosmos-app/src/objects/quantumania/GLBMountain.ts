@@ -10,6 +10,16 @@ export class GLBMountain extends THREE.Group {
     private floatOffset: number;
     private rotationSpeed: number;
 
+    // Lazy loading state
+    private modelPath: string;
+    private modelScale: number;
+    private layer: number;
+    private placeholder: THREE.Mesh;
+    private placeholderGeo: THREE.BoxGeometry;
+    private placeholderMat: THREE.MeshBasicMaterial;
+    private isLoaded: boolean = false;
+    private isLoading: boolean = false;
+
     constructor(
         position: THREE.Vector3,
         modelPath: string,
@@ -24,59 +34,21 @@ export class GLBMountain extends THREE.Group {
         this.mountainName = name;
         this.radius = radius;
 
+        // Store for lazy loading
+        this.modelPath = modelPath;
+        this.modelScale = scale;
+        this.layer = layer;
+
         // Randomize floating animation parameters
         this.floatOffset = Math.random() * 100;
         this.rotationSpeed = (Math.random() - 0.5) * 0.05;
 
-        // Placeholder (Wireframe Box) to see if it's there before loading
-        const placeholderGeo = new THREE.BoxGeometry(scale, scale, scale);
-        const placeholderMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorHex), wireframe: true, transparent: true, opacity: 0.3 });
-        const placeholder = new THREE.Mesh(placeholderGeo, placeholderMat);
-        placeholder.layers.set(layer);
-        this.add(placeholder);
-
-        // Load Model
-        const loader = new GLTFLoader();
-        loader.load(modelPath, (gltf) => {
-            // Remove placeholder
-            this.remove(placeholder);
-            placeholderGeo.dispose();
-            placeholderMat.dispose();
-
-            this.model = gltf.scene;
-
-            // Standardize scale (Boosted scale based on user feedback)
-            const finalScale = scale * 1.5; // 50% larger
-            this.model.scale.set(finalScale, finalScale, finalScale);
-
-            // Enable shadows and Set Layer
-            this.model.traverse((child) => {
-                child.layers.set(layer); // Set Layer
-                if ((child as THREE.Mesh).isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-
-                    // Optimization: Standard material if needed
-                    const m = child as THREE.Mesh;
-                    if (m.material) {
-                        const mat = m.material as THREE.MeshStandardMaterial;
-                        // Ensure roughness/metalness are reasonable for lighting
-                        mat.roughness = 0.7;
-                        mat.metalness = 0.2;
-                        // Ensure not black
-                        mat.emissive = new THREE.Color(0x222222);
-                        mat.emissiveIntensity = 0.2;
-                    }
-                }
-            });
-
-            this.add(this.model);
-        }, undefined, (error) => {
-            console.error(`Failed to load model: ${modelPath}`, error);
-            // Keep placeholder if failed
-            placeholder.material.opacity = 1.0;
-            (placeholder.material as THREE.MeshBasicMaterial).color.set(0xff0000); // Red error box
-        });
+        // Placeholder (Wireframe Box) - shown until model loads
+        this.placeholderGeo = new THREE.BoxGeometry(scale, scale, scale);
+        this.placeholderMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorHex), wireframe: true, transparent: true, opacity: 0.3 });
+        this.placeholder = new THREE.Mesh(this.placeholderGeo, this.placeholderMat);
+        this.placeholder.layers.set(layer);
+        this.add(this.placeholder);
 
         // Label
         const div = document.createElement('div');
@@ -86,8 +58,79 @@ export class GLBMountain extends THREE.Group {
         div.style.textShadow = `0 0 10px ${colorHex}44`; // Soft glow matching color
         this.label = new CSS2DObject(div);
         this.label.position.set(0, scale * 1.5, 0); // Position label above model
-        this.label.layers.set(layer); // CSS2DObjects also respect layers? (Use visible toggle in App.tsx mainly)
+        this.label.layers.set(layer);
         this.add(this.label);
+
+        // NOTE: Model is NOT loaded here anymore - call loadModel() to load
+    }
+
+    /**
+     * Load the 3D model. Call this when the system becomes visible.
+     * Returns a promise that resolves when loading is complete.
+     */
+    loadModel(): Promise<void> {
+        // Prevent duplicate loads
+        if (this.isLoaded || this.isLoading) {
+            return Promise.resolve();
+        }
+
+        this.isLoading = true;
+
+        return new Promise((resolve, reject) => {
+            const loader = new GLTFLoader();
+            loader.load(this.modelPath, (gltf) => {
+                // Remove placeholder
+                this.remove(this.placeholder);
+                this.placeholderGeo.dispose();
+                this.placeholderMat.dispose();
+
+                this.model = gltf.scene;
+
+                // Standardize scale (Boosted scale based on user feedback)
+                const finalScale = this.modelScale * 1.5; // 50% larger
+                this.model.scale.set(finalScale, finalScale, finalScale);
+
+                // Enable shadows and Set Layer
+                this.model.traverse((child) => {
+                    child.layers.set(this.layer); // Set Layer
+                    if ((child as THREE.Mesh).isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+
+                        // Optimization: Standard material if needed
+                        const m = child as THREE.Mesh;
+                        if (m.material) {
+                            const mat = m.material as THREE.MeshStandardMaterial;
+                            // Ensure roughness/metalness are reasonable for lighting
+                            mat.roughness = 0.7;
+                            mat.metalness = 0.2;
+                            // Ensure not black
+                            mat.emissive = new THREE.Color(0x222222);
+                            mat.emissiveIntensity = 0.2;
+                        }
+                    }
+                });
+
+                this.add(this.model);
+                this.isLoaded = true;
+                this.isLoading = false;
+                resolve();
+            }, undefined, (error) => {
+                console.error(`Failed to load model: ${this.modelPath}`, error);
+                // Keep placeholder if failed, turn it red
+                this.placeholderMat.opacity = 1.0;
+                this.placeholderMat.color.set(0xff0000);
+                this.isLoading = false;
+                reject(error);
+            });
+        });
+    }
+
+    /**
+     * Check if the model has been loaded.
+     */
+    get loaded(): boolean {
+        return this.isLoaded;
     }
 
     /**

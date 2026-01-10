@@ -3,12 +3,11 @@ import { Cosmos } from '../core/SDK';
 
 interface SettingsPanelProps {
     isOpen: boolean;
-    ambientIntensity: number;
-    onAmbientChange: (value: number) => void;
     timeScale: number;
     onTimeScaleChange: (value: number) => void;
     isPaused: boolean;
     onPauseToggle: () => void;
+    currentSystem?: string; // 'Solar System' | 'Quantumania' | 'Interstellar Space'
 }
 
 const TIME_PRESETS = [
@@ -25,13 +24,14 @@ const TIME_PRESETS = [
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     isOpen,
-    ambientIntensity,
-    onAmbientChange,
     timeScale,
     onTimeScaleChange,
     isPaused,
     onPauseToggle,
+    currentSystem = 'Solar System',
 }) => {
+    // Time controls are disabled in Quantumania (forced real-time)
+    const isTimeControlDisabled = currentSystem === 'Quantumania';
     if (!isOpen) return null;
 
     const getActivePreset = () => {
@@ -49,55 +49,45 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 <section className="settings-section">
                     <h3>Time</h3>
 
-                    <div className="settings-row">
-                        <div className="time-controls-row">
-                            <button
-                                className={`pause-button ${isPaused ? 'paused' : ''}`}
-                                onClick={onPauseToggle}
-                            >
-                                {isPaused ? '▶ Play' : '⏸ Pause'}
-                            </button>
+                    {isTimeControlDisabled ? (
+                        <div className="settings-row" style={{ opacity: 0.6 }}>
+                            <span style={{ fontSize: '12px', color: '#888' }}>
+                                ⏱️ Time locked to real-time in Quantumania
+                            </span>
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            <div className="settings-row">
+                                <div className="time-controls-row">
+                                    <button
+                                        className={`pause-button ${isPaused ? 'paused' : ''}`}
+                                        onClick={onPauseToggle}
+                                    >
+                                        {isPaused ? '▶ Play' : '⏸ Pause'}
+                                    </button>
+                                </div>
+                            </div>
 
-                    <div className="settings-row">
-                        <label>Speed: <span className="preset-label">{getActivePreset()}</span></label>
-                        <div className="preset-buttons">
-                            {TIME_PRESETS.map(preset => (
-                                <button
-                                    key={preset.label}
-                                    className={`preset-button ${timeScale === preset.value ? 'active' : ''}`}
-                                    onClick={() => onTimeScaleChange(preset.value)}
-                                    title={preset.description}
-                                >
-                                    {preset.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                            <div className="settings-row">
+                                <label>Speed: <span className="preset-label">{getActivePreset()}</span></label>
+                                <div className="preset-buttons">
+                                    {TIME_PRESETS.map(preset => (
+                                        <button
+                                            key={preset.label}
+                                            className={`preset-button ${timeScale === preset.value ? 'active' : ''}`}
+                                            onClick={() => onTimeScaleChange(preset.value)}
+                                            title={preset.description}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </section>
 
-                {/* Graphics Section */}
-                <section className="settings-section">
-                    <h3>Graphics</h3>
 
-                    <div className="settings-row">
-                        <label>Ambient Light</label>
-                        <div className="slider-container">
-                            <input
-                                type="range"
-                                min="0"
-                                max="0.5"
-                                step="0.01"
-                                value={ambientIntensity}
-                                onChange={(e) => onAmbientChange(parseFloat(e.target.value))}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                            />
-                            <span className="slider-value">{(ambientIntensity * 100).toFixed(0)}%</span>
-                        </div>
-                    </div>
-                </section>
 
                 {/* Controls Reference */}
                 <section className="settings-section">

@@ -6,7 +6,8 @@ import { SystemId } from '../core/SystemManager';
 interface RadarObjectListProps {
     isOpen: boolean;
     entities: EntityInfo[];
-    currentSystem: string; // 'Solar System' | 'Quantumania'
+    currentSystem: string; // 'Solar System' | 'Quantumania' | 'Interstellar Space'
+    lockedEntity?: EntityInfo | null; // Currently locked entity
     onLockConfig: (mesh: THREE.Object3D, radius: number) => void;
     onToggle: () => void;
 }
@@ -15,17 +16,24 @@ export const RadarObjectList: React.FC<RadarObjectListProps> = ({
     isOpen,
     entities,
     currentSystem,
+    lockedEntity,
     onLockConfig,
     onToggle
 }) => {
-    // We can add local search state here if needed later
-
     if (!isOpen) return null;
 
-    // Filter Logic
+    // Filter entities by system
     const solarEntities = entities.filter(e => e.system === SystemId.SOLAR_SYSTEM);
     const quantumEntities = entities.filter(e => e.system === SystemId.QUANTUMANIA);
-    const isSolar = currentSystem === 'Solar System';
+
+    // Determine which system we're in - with lock exception
+    // If locked onto an object, show that object's system
+    const lockedSystem = lockedEntity?.system;
+
+    const isSolar = currentSystem === 'Solar System' || lockedSystem === SystemId.SOLAR_SYSTEM;
+    const isQuantumania = currentSystem === 'Quantumania' || lockedSystem === SystemId.QUANTUMANIA;
+    // Show interstellar navigation when in interstellar space OR when locked onto an interstellar object
+    const isInterstellar = currentSystem === 'Interstellar Space' || lockedSystem === SystemId.INTERSTELLAR;
 
     return (
         <div className="radar-panel">
@@ -54,25 +62,47 @@ export const RadarObjectList: React.FC<RadarObjectListProps> = ({
                         ))}
                 </div>
 
-                {/* System Links */}
-                {isSolar ? (
+                {isSolar && (
                     <div className="object-item system-link" onClick={(e) => {
                         e.stopPropagation();
-                        const proxy = entities.find(e => e.isSystemProxy && e.system === SystemId.QUANTUMANIA);
+                        // Find Quantumania proxy
+                        const proxy = entities.find(e => e.id === 'quantumania-proxy-blip');
                         if (proxy) onLockConfig(proxy.mesh, proxy.radius);
                     }}>
                         <span className="dot" style={{ backgroundColor: '#aa88ff' }}></span>
                         <span className="name">Quantumania System</span>
                     </div>
-                ) : (
+                )}
+                {isQuantumania && (
                     <div className="object-item system-link" onClick={(e) => {
                         e.stopPropagation();
-                        const proxy = entities.find(e => e.label === 'Sun');
+                        // Find Solar System proxy
+                        const proxy = entities.find(e => e.id === 'solar-proxy-blip');
                         if (proxy) onLockConfig(proxy.mesh, proxy.radius);
                     }}>
                         <span className="dot" style={{ backgroundColor: '#fc3' }}></span>
                         <span className="name">Return to Solar System</span>
                     </div>
+                )}
+                {isInterstellar && (
+                    <>
+                        <div className="object-item system-link" onClick={(e) => {
+                            e.stopPropagation();
+                            const proxy = entities.find(e => e.id === 'solar-proxy-blip');
+                            if (proxy) onLockConfig(proxy.mesh, proxy.radius);
+                        }}>
+                            <span className="dot" style={{ backgroundColor: '#fc3' }}></span>
+                            <span className="name">Solar System</span>
+                        </div>
+                        <div className="object-item system-link" onClick={(e) => {
+                            e.stopPropagation();
+                            const proxy = entities.find(e => e.id === 'quantumania-proxy-blip');
+                            if (proxy) onLockConfig(proxy.mesh, proxy.radius);
+                        }}>
+                            <span className="dot" style={{ backgroundColor: '#aa88ff' }}></span>
+                            <span className="name">Quantumania System</span>
+                        </div>
+                    </>
                 )}
 
                 {/* 2. SYSTEM SPECIFIC CONTENT */}
@@ -131,7 +161,7 @@ export const RadarObjectList: React.FC<RadarObjectListProps> = ({
                     </>
                 )}
 
-                {!isSolar && (
+                {isQuantumania && (
                     <>
                         <div className="category-header" style={{ color: '#aa88ff' }}>Quantumania</div>
 

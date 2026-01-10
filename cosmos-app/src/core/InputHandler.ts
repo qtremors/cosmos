@@ -254,7 +254,13 @@ export function applyInputToCamera(
         }
 
         const desiredPos = targetPos.clone().add(offset);
-        camera.position.lerp(desiredPos, Cosmos.CAMERA.LERP_FACTOR);
+
+        // Distance-adaptive lerp: slower for large distances creates smooth "warp travel" effect
+        const travelDist = camera.position.distanceTo(desiredPos);
+        const lerpFactor = travelDist > 100
+            ? Math.max(0.01, Math.min(0.05, 100 / travelDist))  // Slower for large distances (min 0.01, max 0.05)
+            : Cosmos.CAMERA.LERP_FACTOR;  // Normal fast lerp for close targets
+        camera.position.lerp(desiredPos, lerpFactor);
 
         // Instant lookAt keeps locked target stable on screen
         camera.lookAt(targetPos);

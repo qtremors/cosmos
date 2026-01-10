@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.5] - 2026-01-10
+### UI/HUD System Awareness
+- **System-Aware Stats HUD:** Distance now shows "From Sun" / "From Nexus" / "From Origin" depending on entity system
+- **Conditional Orbital Speed:** Only shown for Solar System objects (Kepler's laws don't apply to Quantumania)
+- **Filtered Nearest Object:** HUD now only searches current system + interstellar (no more "Sun" in Quantumania)
+- **Settings Panel:** Time controls disabled in Quantumania with "⏱️ Time locked to real-time" message
+
+### Camera Improvements
+- **Distance-Adaptive Transitions:** Long-distance travel now uses slower lerp (0.01-0.05) for smooth "warp" effect
+- **System-Aware Lock Distance:** Quantumania objects use 1.5x radius (closer camera) vs 3.0x for planets
+
+### Performance & Build
+- **Lazy Model Loading:** 38 Quantumania GLB models (~57MB) now load only when system is entered
+- **Sequential Loading:** Center Nexus loads first, then Mountains → Structures → Ships → Inhabitants
+- **Wireframe Placeholders:** Models show as wireframes until downloaded
+- **Fixed Gitignore:** Removed rule ignoring `public/models/` to enable Vercel deployment
+
+### Removed
+- **Ambient Light Slider:** Removed non-functional graphics setting (shader materials don't respond to THREE.js ambient light)
+
+---
+
 ## [1.9.0] - 2026-01-05
 ### Code Quality & Testing
 - **Test Suite:** Added Vitest with 12 unit tests for SDK orbital mechanics (smoothstep, orbital angles, elliptical distance, glare opacity, constants validation)

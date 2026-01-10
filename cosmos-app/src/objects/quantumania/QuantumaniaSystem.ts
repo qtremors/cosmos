@@ -173,9 +173,61 @@ export class QuantumaniaSystem extends THREE.Group {
     /**
      * Set external visibility (controlled by App.tsx based on current system).
      * When false, the entire system is hidden regardless of camera distance.
+     * When true, triggers sequential model loading if not already loaded.
      */
     setVisible(visible: boolean): void {
+        const wasVisible = this.isExternallyVisible;
         this.isExternallyVisible = visible;
+
+        // Trigger lazy loading when first becoming visible
+        if (visible && !wasVisible) {
+            this.loadModelsSequentially();
+        }
+    }
+
+    /**
+     * Load all 3D models sequentially with priority order.
+     * Loads center first, then spreads outward.
+     */
+    private async loadModelsSequentially(): Promise<void> {
+        console.log('[Quantumania] Starting sequential model loading...');
+
+        // 1. Load Nexus (center) first - most important
+        try {
+            await this.nexus.loadModel();
+            console.log('[Quantumania] Nexus loaded');
+        } catch (e) {
+            console.error('[Quantumania] Failed to load Nexus:', e);
+        }
+
+        // 2. Load other categories with small delays to prevent network flooding
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Mountains
+        for (const item of this.mountains.items) {
+            await delay(100); // 100ms between each
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+        }
+
+        // Structures
+        for (const item of this.structures.items) {
+            await delay(100);
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+        }
+
+        // Ships
+        for (const item of this.ships.items) {
+            await delay(100);
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+        }
+
+        // Inhabitants (last priority)
+        for (const item of this.inhabitants.items) {
+            await delay(100);
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+        }
+
+        console.log('[Quantumania] All models loaded');
     }
 
     /**

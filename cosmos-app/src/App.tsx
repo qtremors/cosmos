@@ -74,13 +74,20 @@ export default function App() {
     const [showUI, setShowUI] = useState(true);
     const [showRadarList, setShowRadarList] = useState(false);
     const [cameraSpeed, setCameraSpeed] = useState(0);
-    const [lockedInfo, setLockedInfo] = useState<{ name: string; orbitalSpeed: number; sunDist: number } | null>(null);
-    const [ambientIntensity, setAmbientIntensity] = useState(Cosmos.LIGHTING.AMBIENT_INTENSITY);
+    const [lockedInfo, setLockedInfo] = useState<{
+        name: string;
+        orbitalSpeed: number;
+        refDist: number;
+        refName: string;  // "Sun", "Nexus", or "Origin"
+        showOrbitalSpeed: boolean; // Only true for Solar System objects
+    } | null>(null);
+
     const [nearestObject, setNearestObject] = useState<{ name: string; distance: number } | null>(null);
     const [timeScale, setTimeScale] = useState(Cosmos.DEFAULT_TIME_SCALE);
     const [isPaused, setIsPaused] = useState(false);
     const [currentSystem, setCurrentSystem] = useState<string>('Solar System');
     const [uiSystem, setUiSystem] = useState<string>('Solar System');
+    const [lockedEntity, setLockedEntity] = useState<EntityInfo | null>(null);
 
     const labelRendererRef = useRef<CSS2DRenderer | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -97,13 +104,19 @@ export default function App() {
     const mouseDelta = useRef({ x: 0, y: 0 });
     const lastCameraPos = useRef(new THREE.Vector3());
     const statsFrameCount = useRef(0);
-    const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+
     const timeScaleRef = useRef(timeScale);
     const isPausedRef = useRef(isPaused);
     const teleportIndexRef = useRef(0);
 
     // Lock functions exposed via refs instead of window globals
     const lockOnTarget = useRef((mesh: THREE.Object3D, radius: number) => {
+        // Determine lock distance - closer for Quantumania objects to avoid clutter
+        const entity = entitiesRef.current.find(e => e.mesh === mesh);
+        const isQuantumania = entity?.system === SystemId.QUANTUMANIA;
+        const lockMultiplier = isQuantumania ? 1.5 : Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER;
+        const goalDistance = radius * lockMultiplier;
+
         // Calculate initial spherical coordinates based on CURRENT camera position relative to target
         // This prevents the camera from "snapping" to a default angle/distance
         if (cameraRef.current) {
@@ -120,7 +133,7 @@ export default function App() {
 
             lockRef.current = {
                 mesh,
-                distance: radius * Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER, // Set GOAL distance to fly towards
+                distance: goalDistance, // Set GOAL distance to fly towards
                 isTop: false,
                 theta: theta,       // Start at current angle to avoid rotation snap
                 phi: phi
@@ -129,7 +142,7 @@ export default function App() {
             // Fallback if camera not ready
             lockRef.current = {
                 mesh,
-                distance: radius * Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER,
+                distance: goalDistance,
                 isTop: false,
                 theta: Math.PI / 4,
                 phi: 0.3
@@ -140,6 +153,7 @@ export default function App() {
 
     const unlockCamera = useRef(() => {
         lockRef.current = null;
+        setLockedEntity(null);
     });
 
     const toggleTopView = useRef((camera: THREE.PerspectiveCamera) => {
@@ -263,7 +277,8 @@ export default function App() {
         scene.add(sunLight);
 
         const ambientLight = new THREE.AmbientLight(Cosmos.LIGHTING.AMBIENT_COLOR, Cosmos.LIGHTING.AMBIENT_INTENSITY);
-        ambientLightRef.current = ambientLight;
+        // Enable ambient light on all layers so it affects all objects
+        ambientLight.layers.enableAll();
         scene.add(ambientLight);
 
         // LABELS
@@ -720,32 +735,60 @@ export default function App() {
                     const targetPos = new THREE.Vector3();
                     lockRef.current.mesh.getWorldPosition(targetPos);
 
-                    // Distance from Sun in AU then convert to millions of km
-                    const sunDistAU = targetPos.length() / AU;
-                    const sunDistMillionKm = sunDistAU * 150; // 1 AU = 150 million km
+                    // Find entity to determine which system it belongs to
+                    const entity = entitiesRef.current.find(e => e.mesh === lockRef.current?.mesh);
+                    const entitySystem = entity?.system || SystemId.SOLAR_SYSTEM;
 
-                    // Calculate orbital speed (approximation based on distance - Kepler's law)
+                    // Determine reference point and name based on system
+                    let refPoint: THREE.Vector3;
+                    let refName: string;
+                    let showOrbitalSpeed = false;
+
+                    if (entitySystem === SystemId.QUANTUMANIA) {
+                        refPoint = SystemManager.QUANTUMANIA_CENTER;
+                        refName = 'Nexus';
+                    } else if (entitySystem === SystemId.INTERSTELLAR) {
+                        refPoint = new THREE.Vector3(0, 0, 0); // Origin
+                        refName = 'Origin';
+                    } else {
+                        // Solar System
+                        refPoint = SystemManager.SOLAR_SYSTEM_CENTER;
+                        refName = 'Sun';
+                        showOrbitalSpeed = true; // Only show orbital speed for Solar System
+                    }
+
+                    // Calculate distance from reference point
+                    const distFromRef = targetPos.distanceTo(refPoint);
+                    const distAU = distFromRef / AU;
+                    const distMillionKm = distAU * 150; // 1 AU = 150 million km
+
+                    // Calculate orbital speed (only meaningful for Solar System)
                     // v = sqrt(GM/r) simplified as v proportional to 1/sqrt(r)
                     // Using Earth as reference (1 AU = 30 km/s orbital speed)
-                    const orbitalSpeedKmS = sunDistAU > 0.1 ? 30 / Math.sqrt(sunDistAU) : 0;
+                    const orbitalSpeedKmS = showOrbitalSpeed && distAU > 0.1 ? 30 / Math.sqrt(distAU) : 0;
 
-                    // Find entity label
-                    const entity = entitiesRef.current.find(e => e.mesh === lockRef.current?.mesh);
                     setLockedInfo({
                         name: entity?.label || 'Unknown',
                         orbitalSpeed: Math.round(orbitalSpeedKmS * 10) / 10,
-                        sunDist: Math.round(sunDistMillionKm)
+                        refDist: Math.round(distMillionKm),
+                        refName,
+                        showOrbitalSpeed
                     });
                     setNearestObject(null);
                 } else {
                     setLockedInfo(null);
 
                     // Calculate nearest object for free flight mode
+                    // Only include entities from current system + interstellar
                     let closest: { name: string; distance: number } | null = null;
                     let minDist = Infinity;
+                    const sysManager = SystemManager.getInstance();
+                    const mySystemId = sysManager.currentSystem;
 
                     entitiesRef.current.forEach(ent => {
-                        if (ent.mesh) {
+                        // Filter to current system + interstellar objects only
+                        if (ent.mesh && !ent.isSystemProxy &&
+                            (ent.system === mySystemId || ent.system === SystemId.INTERSTELLAR)) {
                             const pos = new THREE.Vector3();
                             ent.mesh.getWorldPosition(pos);
                             const dist = camera.position.distanceTo(pos);
@@ -847,12 +890,7 @@ export default function App() {
         };
     }, []);
 
-    // Update ambient light when intensity changes
-    useEffect(() => {
-        if (ambientLightRef.current) {
-            ambientLightRef.current.intensity = ambientIntensity;
-        }
-    }, [ambientIntensity]);
+
 
     // Sync time control refs
     useEffect(() => { timeScaleRef.current = timeScale; }, [timeScale]);
@@ -910,20 +948,25 @@ export default function App() {
                             <RadarObjectList
                                 isOpen={showRadarList}
                                 entities={entitiesRef.current}
-                                currentSystem={uiSystem as any} // Cast to any or helper type if needed, but string match is fine usually, unless strict enum.
-                                onLockConfig={(mesh, radius) => lockOnTarget.current(mesh, radius)}
+                                currentSystem={uiSystem as any}
+                                lockedEntity={lockedEntity}
+                                onLockConfig={(mesh, radius) => {
+                                    // Find the entity for this mesh and set it
+                                    const entity = entitiesRef.current.find(e => e.mesh === mesh);
+                                    setLockedEntity(entity || null);
+                                    lockOnTarget.current(mesh, radius);
+                                }}
                                 onToggle={() => setShowRadarList(false)}
                             />
 
                             {/* Settings Panel */}
                             <SettingsPanel
                                 isOpen={showRadarList}
-                                ambientIntensity={ambientIntensity}
-                                onAmbientChange={setAmbientIntensity}
                                 timeScale={timeScale}
                                 onTimeScaleChange={setTimeScale}
                                 isPaused={isPaused}
                                 onPauseToggle={() => setIsPaused(p => !p)}
+                                currentSystem={uiSystem}
                             />
                         </div>
 
@@ -932,13 +975,15 @@ export default function App() {
                             {lockedInfo ? (
                                 <>
                                     <div className="stats-hud-title">Locked: {lockedInfo.name}</div>
+                                    {lockedInfo.showOrbitalSpeed && (
+                                        <div className="stats-hud-row">
+                                            <span className="stats-hud-label">Orbital Speed:</span>
+                                            <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
+                                        </div>
+                                    )}
                                     <div className="stats-hud-row">
-                                        <span className="stats-hud-label">Orbital Speed:</span>
-                                        <span className="stats-hud-value">{lockedInfo.orbitalSpeed} km/s</span>
-                                    </div>
-                                    <div className="stats-hud-row">
-                                        <span className="stats-hud-label">From Sun:</span>
-                                        <span className="stats-hud-value">{lockedInfo.sunDist}M km</span>
+                                        <span className="stats-hud-label">From {lockedInfo.refName}:</span>
+                                        <span className="stats-hud-value">{lockedInfo.refDist}M km</span>
                                     </div>
                                 </>
                             ) : (
