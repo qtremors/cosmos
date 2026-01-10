@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-01-10
+### Major Refactoring
+- **Naming Consistency Overhaul:** Fixed mismatched file/class/variable names across the codebase
+  - `robonaut` → `alienX` (App.tsx)
+  - `GLBMountain` → `GLBEntity` (6 files)
+  - `mountainName` → `entityName` (6 files)
+  - `NexusMountain` → `Nexus` (2 files)
+  - `MountainEntity` → `QuantumaniaEntity` (1 file)
+
+### Code Cleanup
+- **Comment Cleanup:** Removed verbose inline comments from all object files (~30 files)
+- **Section Headers Preserved:** Kept structural `// === SECTION ===` comments for navigation
+
+### Licensing
+- **Custom License:** Added professional Tremors Source License v1.1
+  - Fork & derivatives allowed with permanent attribution
+  - Commercial use requires written permission
+  - Contributions transfer ownership
+
+### Documentation
+- **CONTEXT.md:** Updated file references to match new names
+- **README:** Version badge updated
+
+---
+
 ## [1.9.5] - 2026-01-10
 ### UI/HUD System Awareness
 - **System-Aware Stats HUD:** Distance now shows "From Sun" / "From Nexus" / "From Origin" depending on entity system

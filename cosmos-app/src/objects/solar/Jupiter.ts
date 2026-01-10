@@ -26,7 +26,6 @@ class Europa extends THREE.Mesh {
         this.castShadow = true;
         this.receiveShadow = true;
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Europa';
@@ -37,17 +36,15 @@ class Europa extends THREE.Mesh {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Europa orbit around Jupiter (realistic: 3.55 days)
         const angle = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.EUROPA,
             this.initialAngle
         );
-        const distance = this.config.DISTANCE; // Use original sim distance
+        const distance = this.config.DISTANCE;
         this.position.x = Math.cos(angle) * distance;
         this.position.z = Math.sin(angle) * distance;
 
-        // Label opacity
         const worldPos = new THREE.Vector3();
         this.getWorldPosition(worldPos);
         const dist = camera.position.distanceTo(worldPos);
@@ -74,14 +71,11 @@ export class Jupiter extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
-        // Load texture
         const loader = new THREE.TextureLoader();
         const texture = loader.load('/textures/2k_jupiter.jpg');
 
-        // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-        // Material with texture
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.4,
@@ -93,11 +87,9 @@ export class Jupiter extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        // Moon: Europa
         this.europa = new Europa(config.MOON!);
         this.add(this.europa);
 
-        // Europa Orbit Path
         const europaOrbitCurve = new THREE.EllipseCurve(
             0, 0,
             config.MOON!.DISTANCE, config.MOON!.DISTANCE,
@@ -116,7 +108,6 @@ export class Jupiter extends THREE.Group {
         const europaOrbitLine = new THREE.LineLoop(europaOrbitGeo, europaOrbitMat);
         this.add(europaOrbitLine);
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Jupiter';
@@ -126,7 +117,6 @@ export class Jupiter extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Orbit (realistic period: 4333 days = ~12 years, elliptical e=0.048)
         const theta = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.JUPITER,
@@ -140,16 +130,13 @@ export class Jupiter extends THREE.Group {
         );
         this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation (realistic: 9.93 hours - fastest planet!)
         this.mesh.rotation.y = Cosmos.getRealisticRotation(
             time,
             Cosmos.ROTATION_PERIODS.JUPITER
         );
 
-        // Moon Update
         this.europa.update(time, camera);
 
-        // Label
         const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
     }

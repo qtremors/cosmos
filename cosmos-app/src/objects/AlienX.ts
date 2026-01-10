@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-// Import external shaders
 import celestialVertexShader from '../shaders/alienx/alienx.vert.glsl?raw';
 import celestialFragmentShader from '../shaders/alienx/alienx.frag.glsl?raw';
 
@@ -27,7 +26,6 @@ export class AlienX extends THREE.Group {
         this.alienGroup = new THREE.Group();
         this.add(this.alienGroup);
 
-        // Load Texture
         const loader = new THREE.TextureLoader();
         const texture = loader.load('/textures/alienx.png');
         texture.wrapS = THREE.RepeatWrapping;
@@ -39,12 +37,6 @@ export class AlienX extends THREE.Group {
             uTexture: { value: texture }
         };
 
-
-
-        // Slight offset if desired, but user complained it wasn't looking at sun. 
-        // Let's keep it direct for now to be safe, or extremely subtle.
-        // this.rotateY(Math.PI / 12); // Just 15 degrees if needed. Removing for now to satisfy "not looking at sun" complaint.
-
         const cosmicMat = new THREE.ShaderMaterial({
             uniforms: this.starUniforms,
             vertexShader: celestialVertexShader,
@@ -53,24 +45,18 @@ export class AlienX extends THREE.Group {
             side: THREE.DoubleSide // Ensure no gaps
         });
 
-        // --- IMPROVED ANATOMY ---
-
-        // 1. Head (More Iconic Shape)
         const headGrp = new THREE.Group();
         headGrp.position.y = 1.55;
 
-        // Main Cranium (Smoother)
         const skull = new THREE.Mesh(new THREE.SphereGeometry(0.24, 64, 64), cosmicMat);
         skull.scale.set(0.95, 1.2, 1.05);
         headGrp.add(skull);
 
-        // Chin (Better integration)
         const chin = new THREE.Mesh(new THREE.SphereGeometry(0.12, 32, 32), cosmicMat);
         chin.position.set(0, -0.25, 0.06);
         chin.scale.set(1, 1.2, 1);
         headGrp.add(chin);
 
-        // Jawline Fillers (To hide the seam between skull and chin)
         const jawL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), cosmicMat);
         jawL.position.set(0.12, -0.15, 0.02);
         headGrp.add(jawL);
@@ -78,13 +64,11 @@ export class AlienX extends THREE.Group {
         jawR.position.set(-0.12, -0.15, 0.02);
         headGrp.add(jawR);
 
-        // Center Horn (Fin-like)
         const hornC = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.55, 32), cosmicMat);
         hornC.position.set(0, 0.4, 0.05);
         hornC.rotation.x = -0.2;
         headGrp.add(hornC);
 
-        // Side Horns (Better Curve approximation)
         const createHorn = (sign: number) => {
             const h = new THREE.Group();
             h.position.set(sign * 0.15, 0.35, -0.05);
@@ -104,7 +88,6 @@ export class AlienX extends THREE.Group {
         headGrp.add(createHorn(1));
         headGrp.add(createHorn(-1));
 
-        // Eyes (Glowing Sprites preserved)
         const eyeGeo = new THREE.SphereGeometry(0.05, 16, 16);
         const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
         const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
@@ -119,7 +102,6 @@ export class AlienX extends THREE.Group {
         eyeR.rotation.z = -0.15;
         headGrp.add(eyeR);
 
-        // Glows
         const glowTexture = this.createGlowTexture();
         const spriteMat = new THREE.SpriteMaterial({
             map: glowTexture,
@@ -136,12 +118,10 @@ export class AlienX extends THREE.Group {
 
         this.alienGroup.add(headGrp);
 
-        // 2. Muscular Torso (V-Taper)
         const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.3, 32), cosmicMat);
         neck.position.y = 1.35;
         this.alienGroup.add(neck);
 
-        // Pecs (Massive)
         const pecGeo = new THREE.SphereGeometry(0.45, 32, 32);
         pecGeo.scale(1, 0.8, 0.5);
         const pecL = new THREE.Mesh(pecGeo, cosmicMat);
@@ -153,49 +133,39 @@ export class AlienX extends THREE.Group {
         pecR.rotation.z = 0.15;
         this.alienGroup.add(pecR);
 
-        // Upper Back/Traps filler
         const upperBack = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.6, 32), cosmicMat);
         upperBack.position.set(0, 1.1, -0.1);
         upperBack.scale.x = 1.2;
         this.alienGroup.add(upperBack);
 
-        // Core/Abs (Tapered Cylinder)
         const core = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.35, 0.8, 32), cosmicMat);
         core.position.y = 0.6;
         core.scale.z = 0.8;
         this.alienGroup.add(core);
 
-        // Hips
         const hips = new THREE.Mesh(new THREE.SphereGeometry(0.38, 32, 32), cosmicMat);
         hips.position.y = 0.1;
         hips.scale.y = 0.8;
         this.alienGroup.add(hips);
 
-        // 3. Limbs (Arms)
         const armL = this.createLimb(1, cosmicMat);
         const armR = this.createLimb(-1, cosmicMat);
         this.alienGroup.add(armL);
         this.alienGroup.add(armR);
 
-        // 4. Limbs (Legs)
         const legL = this.createLeg(1, cosmicMat);
         const legR = this.createLeg(-1, cosmicMat);
         this.alienGroup.add(legL);
         this.alienGroup.add(legR);
 
-        // 5. Omnitrix (Center Chest)
         const badge = this.createOmnitrix();
         badge.position.set(0, 1.15, 0.45);
         badge.rotation.x = -0.15;
         this.alienGroup.add(badge);
         this.glowSprite = badge.userData.glow;
 
-        // Scale up to match the world scale (The provided code was small scale, Cosmos is large scale)
-        // Original AlienX is scaled 0.8. This model seems to be around 2-4 units tall.
-        // I'll scale it similarly.
         this.alienGroup.scale.setScalar(3);
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Alien X';
@@ -204,17 +174,14 @@ export class AlienX extends THREE.Group {
         this.label.position.set(0, 7, 0); // Above head (scaled)
         this.add(this.label);
 
-        // Position: Between Sun and Sagittarius A* (black hole is at angle PI * 0.75, distance 8000)
-        // AlienX is at the same angle but closer (4000 units)
-        const positionAngle = Math.PI * 0.75;  // Same angle as black hole
-        const positionDistance = 4000;          // Halfway to black hole
+        const positionAngle = Math.PI * 0.75;
+        const positionDistance = 4000;
         this.position.set(
             Math.cos(positionAngle) * positionDistance,
-            1000,  // Elevated (reduced from 1500)
+            1000,
             Math.sin(positionAngle) * positionDistance
         );
 
-        // Face the Sun (origin)
         this.alienGroup.lookAt(new THREE.Vector3(0, 0, 0));
     }
 
@@ -222,26 +189,21 @@ export class AlienX extends THREE.Group {
         const grp = new THREE.Group();
         grp.position.set(sign * 0.65, 1.25, 0);
 
-        // Deltoid (Shoulder Cap)
         const delt = new THREE.Mesh(new THREE.SphereGeometry(0.36, 32, 32), mat);
         grp.add(delt);
 
-        // Bicep/Tricep
         const bicep = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.6, 24), mat);
         bicep.position.y = -0.4;
         grp.add(bicep);
 
-        // Elbow Joint
         const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.19, 24, 24), mat);
         elbow.position.y = -0.75;
         grp.add(elbow);
 
-        // Forearm
         const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.7, 24), mat);
         fore.position.y = -1.15;
         grp.add(fore);
 
-        // Hand
         const hand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.25, 0.15), mat);
         hand.position.y = -1.6;
         grp.add(hand);
@@ -252,24 +214,20 @@ export class AlienX extends THREE.Group {
 
     private createLeg(sign: number, mat: THREE.Material): THREE.Group {
         const grp = new THREE.Group();
-        grp.position.set(sign * 0.25, 0.0, 0); // Connected to hips
+        grp.position.set(sign * 0.25, 0.0, 0);
 
-        // Thigh (Quad)
         const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 1.0, 24), mat);
         thigh.position.y = -0.5;
         grp.add(thigh);
 
-        // Knee Joint
         const knee = new THREE.Mesh(new THREE.SphereGeometry(0.23, 24, 24), mat);
         knee.position.y = -1.05;
         grp.add(knee);
 
-        // Calf
         const calf = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.9, 24), mat);
         calf.position.y = -1.55;
         grp.add(calf);
 
-        // Foot
         const foot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.4), mat);
         foot.position.y = -2.1;
         foot.position.z = 0.1;
@@ -281,7 +239,6 @@ export class AlienX extends THREE.Group {
 
     private createOmnitrix(): THREE.Group {
         const group = new THREE.Group();
-        // Use BasicMaterial instead of Standard to be independent of scene lighting
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 16, 32), new THREE.MeshBasicMaterial({ color: 0xcccccc, toneMapped: false }));
         group.add(ring);
         const face = new THREE.Mesh(new THREE.CircleGeometry(0.12, 32), new THREE.MeshBasicMaterial({ color: CONFIG.omnitrixColor, toneMapped: false }));
@@ -316,13 +273,12 @@ export class AlienX extends THREE.Group {
         const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            // Clear canvas to fully transparent first
             ctx.clearRect(0, 0, 64, 64);
 
             const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
             g.addColorStop(0, 'rgba(255,255,255,1)');
             g.addColorStop(0.3, 'rgba(255,255,255,0.5)');
-            g.addColorStop(1, 'rgba(255,255,255,0)'); // Use white with 0 alpha, not black
+            g.addColorStop(1, 'rgba(255,255,255,0)');
             ctx.fillStyle = g;
             ctx.fillRect(0, 0, 64, 64);
         }
@@ -332,26 +288,19 @@ export class AlienX extends THREE.Group {
     update(_time: number, camera: THREE.Camera): void {
         const independentTime = this.clock.getElapsedTime();
         this.starUniforms.uTime.value = independentTime;
-        // Keep resolution updated for aspect ratio correction
         this.starUniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
 
-        // Subtle floating animation
         this.alienGroup.position.y = Math.sin(independentTime * 0.5) * 0.15;
 
-        // Face the Sun (Origin) - Keep upright (look at same Y level)
         this.alienGroup.lookAt(0, this.position.y, 0);
 
-        // Power pulsing
         const power = 1 + Math.sin(independentTime * 3) * 0.01;
-        // Apply power to the base scale (3)
         this.alienGroup.scale.set(3 * power, 3 * power, 3 * power);
 
-        // Glow pulsing
         if (this.glowSprite) {
             this.glowSprite.material.opacity = 0.8 + Math.sin(independentTime * 4) * 0.2;
         }
 
-        // Label opacity based on distance
         const dist = camera.position.distanceTo(this.position);
         this.label.element.style.opacity = String(Math.min(1, 100 / dist));
     }

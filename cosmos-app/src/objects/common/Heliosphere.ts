@@ -28,7 +28,6 @@ export class Heliosphere extends THREE.Mesh {
         center: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
         systemId: SystemId = SystemId.SOLAR_SYSTEM
     ) {
-        // significantly reduced segment count for "sparse" wireframe look
         const geometry = new THREE.SphereGeometry(radius, 24, 16);
 
         const material = new THREE.MeshBasicMaterial({
@@ -47,7 +46,6 @@ export class Heliosphere extends THREE.Mesh {
         this.center = center.clone();
         this.radius = radius;
 
-        // Position the heliosphere at its center
         this.position.copy(center);
         this.renderOrder = 50;
     }
@@ -56,22 +54,17 @@ export class Heliosphere extends THREE.Mesh {
      * Update the heliosphere each frame.
      * Checks distance to edge and fades in if close.
      */
-    update(time: number, camera: THREE.Camera): void {
+    update(_time: number, camera: THREE.Camera): void {
         const distToCenter = camera.position.distanceTo(this.center);
         const distToEdge = Math.abs(distToCenter - this.radius);
 
-        // Visibility ranges
-        const FADE_START_DIST = 1000; // Start fading in 1000 units from edge
+        const FADE_START_DIST = 1000;
 
-        // If we are close to the edge (from inside or outside)
         if (distToEdge < FADE_START_DIST) {
-            // Calculate opacity: 0 at FADE_START_DIST, up to MAX_OPACITY at 0 distance
             const t = 1.0 - (distToEdge / FADE_START_DIST);
 
-            // Non-linear fade for smoother feel
             const fade = t * t;
 
-            // Cap max opacity to keep it subtle
             this.materialRef.opacity = Math.min(0.3, fade * 0.3);
             this.visible = true;
         } else {

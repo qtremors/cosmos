@@ -14,7 +14,6 @@ export class OrbitPath extends THREE.LineLoop {
         for (let i = 0; i <= segments; i++) {
             const angle = (i / segments) * Math.PI * 2;
 
-            // Use elliptical orbit formula: r = a(1-e²) / (1 + e*cos(θ))
             const pos = Cosmos.getEllipticalOrbitalPosition(
                 semiMajorAxis,
                 eccentricity,

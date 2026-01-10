@@ -37,7 +37,6 @@ import { RadarObjectList } from './components/RadarObjectList';
 // TYPES
 // =============================================================================
 
-// Entity categories for radar filtering
 export enum EntityCategory {
     STAR = 'star',
     PLANET = 'planet',
@@ -45,7 +44,6 @@ export enum EntityCategory {
     ASTEROID = 'asteroid',
     EASTER_EGG = 'easter_egg',
     PROXY = 'proxy',
-    // Quantumania categories
     NEXUS = 'nexus',
     MOUNTAIN = 'mountain',
     STRUCTURE = 'structure',
@@ -59,9 +57,9 @@ export interface EntityInfo {
     color: string;
     label: string;
     radius: number;
-    system?: SystemId; // Which system this entity belongs to
-    isSystemProxy?: boolean; // If true, this entity represents the entire system from afar
-    category?: EntityCategory; // Category for radar filtering
+    system?: SystemId;
+    isSystemProxy?: boolean;
+    category?: EntityCategory;
 }
 
 // =============================================================================
@@ -95,7 +93,6 @@ export default function App() {
     const radarBlipsRef = useRef<Map<string, HTMLElement>>(new Map());
     const showLabelsRef = useRef(showLabels);
 
-    // Logic refs
     const lockRef = useRef<LockTarget | null>(null);
     const inputRef = useRef<InputState>(createInputState());
     const zoomVelocity = useRef(0);
@@ -111,24 +108,21 @@ export default function App() {
 
     // Lock functions exposed via refs instead of window globals
     const lockOnTarget = useRef((mesh: THREE.Object3D, radius: number) => {
-        // Determine lock distance - closer for Quantumania objects to avoid clutter
         const entity = entitiesRef.current.find(e => e.mesh === mesh);
         const isQuantumania = entity?.system === SystemId.QUANTUMANIA;
         const lockMultiplier = isQuantumania ? 1.5 : Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER;
         const goalDistance = radius * lockMultiplier;
 
-        // Calculate initial spherical coordinates based on CURRENT camera position relative to target
-        // This prevents the camera from "snapping" to a default angle/distance
         if (cameraRef.current) {
             const targetPos = new THREE.Vector3();
             mesh.getWorldPosition(targetPos);
 
             const camPos = cameraRef.current.position.clone();
-            const relPos = camPos.sub(targetPos); // Vector from Target to Camera
+            const relPos = camPos.sub(targetPos);
 
-            // Convert Cartesian to Spherical
             const distance = relPos.length();
-            const phi = Math.asin(relPos.y / distance);
+            const safeDist = Math.max(distance, 1e-6);
+            const phi = Math.asin(Math.max(-1, Math.min(1, relPos.y / safeDist)));
             const theta = Math.atan2(relPos.x, relPos.z);
 
             lockRef.current = {
@@ -442,10 +436,10 @@ export default function App() {
         });
 
         // OTHER EASTER EGGS (Layer 1 to capture Sun light?)
-        const robonaut = new AlienX();
-        robonaut.layers.set(1);
-        robonaut.traverse(c => c.layers.set(1));
-        scene.add(robonaut);
+        const alienX = new AlienX();
+        alienX.layers.set(1);
+        alienX.traverse(c => c.layers.set(1));
+        scene.add(alienX);
 
         const blackHole = new BlackHole();
         blackHole.layers.set(1);
@@ -477,7 +471,7 @@ export default function App() {
         ];
 
         const interstellarEntities: EntityInfo[] = [
-            { mesh: robonaut, id: 'robonaut-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
+            { mesh: alienX, id: 'alienX-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
             { mesh: blackHole, id: 'blackhole-blip', color: '#ff6600', label: 'Black Hole', radius: 100, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
         ];
 
@@ -688,7 +682,7 @@ export default function App() {
             ]);
 
             // Interstellar Easter Eggs (always visible/updated)
-            robonaut.update(time, camera);
+            alienX.update(time, camera);
             blackHole.update(time, camera);
 
             // 2. INPUT PROCESSING
@@ -897,17 +891,7 @@ export default function App() {
     useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
     return (
-        <div className="container" onKeyDown={e => {
-            if (e.key === 't' || e.key === 'T') {
-                if (cameraRef.current) toggleTopView.current(cameraRef.current);
-            }
-            if (e.key === 'h' || e.key === 'H') {
-                setShowUI(prev => !prev);
-            }
-            if (e.key === 'l' || e.key === 'L') {
-                setShowLabels(prev => !prev);
-            }
-        }} tabIndex={0} style={{ outline: 'none', width: '100%', height: '100%' }}>
+        <div className="container" tabIndex={0} style={{ outline: 'none', width: '100%', height: '100%' }}>
 
             <div ref={mountRef} className="canvas-container" style={{ position: 'relative' }} />
 
@@ -948,7 +932,7 @@ export default function App() {
                             <RadarObjectList
                                 isOpen={showRadarList}
                                 entities={entitiesRef.current}
-                                currentSystem={uiSystem as any}
+                                currentSystem={uiSystem}
                                 lockedEntity={lockedEntity}
                                 onLockConfig={(mesh, radius) => {
                                     // Find the entity for this mesh and set it

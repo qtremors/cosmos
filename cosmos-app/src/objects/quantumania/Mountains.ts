@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { GLBMountain } from './GLBMountain';
+import { GLBEntity } from './GLBEntity';
 
 export class Mountains extends THREE.Group {
-    public readonly items: GLBMountain[] = [];
+    public readonly items: GLBEntity[] = [];
 
     constructor(center: THREE.Vector3) {
         super();
@@ -26,7 +26,7 @@ export class Mountains extends THREE.Group {
                 center.z + Math.sin(cfg.angle) * cfg.distance
             );
 
-            const mountain = new GLBMountain(pos, cfg.file, cfg.name, cfg.scale, 50, cfg.color, 2);
+            const mountain = new GLBEntity(pos, cfg.file, cfg.name, cfg.scale, 50, cfg.color, 2);
             this.add(mountain);
             this.items.push(mountain);
         });
@@ -34,15 +34,8 @@ export class Mountains extends THREE.Group {
 
     update(time: number, camera: THREE.Camera, independentTime: number): void {
         this.items.forEach(item => {
-            // LOD logic managed here or in System?
-            // System has the global LOD logic (4000 units). 
-            // It's cleaner to keep it here so System just calls update.
-
             const dist = camera.position.distanceTo(item.position);
-            const isVisible = dist < 4000;
-
-            // "Nexus" check is not needed here as these are all mountains
-            item.visible = isVisible;
+            item.visible = dist < 4000;
 
             if (item.visible) {
                 item.update(time, camera, independentTime);

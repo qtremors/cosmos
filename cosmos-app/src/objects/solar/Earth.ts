@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos } from '../../core/SDK';
 
-// Import external shaders
 import vertexShader from '../../shaders/earth/earth.vert.glsl?raw';
 import fragmentShader from '../../shaders/earth/earth.frag.glsl?raw';
 
@@ -27,14 +26,12 @@ export class Earth extends THREE.Group {
         this.radius = data.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
-        // Load textures
         const loader = new THREE.TextureLoader();
         const dayTexture = loader.load('/textures/2k_earth_daymap.jpg');
         const nightTexture = loader.load('/textures/2k_earth_nightmap.jpg');
         const cloudsTexture = loader.load('/textures/2k_earth_clouds.jpg');
         const moonTexture = loader.load('/textures/2k_moon.jpg');
 
-        // --- PLANET ---
         const geometry = new THREE.SphereGeometry(data.RADIUS, 64, 64);
         const material = new THREE.ShaderMaterial({
             uniforms: {
@@ -52,7 +49,6 @@ export class Earth extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        // --- CLOUDS LAYER ---
         const cloudsGeo = new THREE.SphereGeometry(data.RADIUS * 1.01, 64, 64);
         const cloudsMat = new THREE.MeshStandardMaterial({
             map: cloudsTexture,
@@ -64,7 +60,6 @@ export class Earth extends THREE.Group {
         this.clouds = new THREE.Mesh(cloudsGeo, cloudsMat);
         this.add(this.clouds);
 
-        // --- MOON ---
         const moonGeo = new THREE.SphereGeometry(data.MOON.RADIUS * 1.5, 32, 32);
         const moonMat = new THREE.MeshStandardMaterial({
             map: moonTexture,
@@ -76,11 +71,9 @@ export class Earth extends THREE.Group {
         this.moon.receiveShadow = true;
         this.add(this.moon);
 
-        // Moonlight
         const moonLight = new THREE.PointLight(Cosmos.LIGHTING.MOON_COLOR, 0.5, 30);
         this.moon.add(moonLight);
 
-        // Moon Label
         const moonDiv = document.createElement('div');
         moonDiv.className = 'label';
         moonDiv.textContent = 'Moon';
@@ -89,7 +82,6 @@ export class Earth extends THREE.Group {
         this.moonLabel.position.set(0, data.MOON.RADIUS * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
         this.moon.add(this.moonLabel);
 
-        // --- MOON ORBIT PATH ---
         const moonOrbitCurve = new THREE.EllipseCurve(
             0, 0,
             data.MOON.DISTANCE, data.MOON.DISTANCE,
@@ -108,7 +100,6 @@ export class Earth extends THREE.Group {
         const moonOrbitLine = new THREE.LineLoop(moonOrbitGeo, moonOrbitMat);
         this.add(moonOrbitLine);
 
-        // --- EARTH LABEL ---
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Earth';

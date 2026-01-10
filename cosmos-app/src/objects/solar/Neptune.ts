@@ -21,14 +21,11 @@ export class Neptune extends THREE.Group {
     this.radius = config.RADIUS;
     this.initialAngle = Math.random() * Math.PI * 2;
 
-    // Load texture
     const loader = new THREE.TextureLoader();
     const texture = loader.load('/textures/2k_neptune.jpg');
 
-    // Geometry
     const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-    // Material with texture
     const material = new THREE.MeshStandardMaterial({
       map: texture,
       roughness: 0.6,
@@ -40,11 +37,9 @@ export class Neptune extends THREE.Group {
     this.mesh.receiveShadow = true;
     this.add(this.mesh);
 
-    // Rings (Neptune has faint ring arcs)
     this.rings = this.createRings();
     this.add(this.rings);
 
-    // Label
     const div = document.createElement('div');
     div.className = 'label';
     div.textContent = 'Neptune';
@@ -54,12 +49,10 @@ export class Neptune extends THREE.Group {
   }
 
   private createRings(): THREE.Mesh {
-    // Neptune rings are very faint
     const innerRadius = this.radius * 1.7;
     const outerRadius = this.radius * 2.5;
     const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
 
-    // Very faint, bluish ring texture
     const size = 256;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -96,7 +89,6 @@ export class Neptune extends THREE.Group {
   }
 
   update(time: number, camera: THREE.Camera): void {
-    // Orbit (realistic period: 60190 days = ~165 years, elliptical e=0.009)
     const theta = Cosmos.getRealisticOrbitalAngle(
       time,
       Cosmos.ORBITAL_PERIODS.NEPTUNE,
@@ -110,13 +102,11 @@ export class Neptune extends THREE.Group {
     );
     this.position.set(pos.x, pos.y, pos.z);
 
-    // Rotation (realistic: 16.11 hours)
     this.mesh.rotation.y = Cosmos.getRealisticRotation(
       time,
       Cosmos.ROTATION_PERIODS.NEPTUNE
     );
 
-    // Label
     const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
     this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
   }

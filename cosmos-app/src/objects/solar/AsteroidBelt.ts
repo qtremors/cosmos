@@ -27,7 +27,6 @@ export class AsteroidBelt extends THREE.Group {
         const config = Cosmos.ASTEROIDS;
         const count = config.COUNT;
 
-        // InstancedMesh for performance
         const geometry = new THREE.DodecahedronGeometry(0.8, 0);
         const material = new THREE.MeshStandardMaterial({
             color: 0x888888,
@@ -42,7 +41,6 @@ export class AsteroidBelt extends THREE.Group {
         this.asteroids = [];
 
         for (let i = 0; i < count; i++) {
-            // Random position within the belt
             const angle = Math.random() * Math.PI * 2;
             const radius = THREE.MathUtils.lerp(config.INNER_RADIUS, config.OUTER_RADIUS, Math.random());
 
@@ -50,7 +48,6 @@ export class AsteroidBelt extends THREE.Group {
             const z = Math.sin(angle) * radius;
             const y = (Math.random() - 0.5) * 10;
 
-            // Random scale
             const scale = 0.5 + Math.random() * 2.0;
 
             this.dummy.position.set(x, y, z);
@@ -60,7 +57,6 @@ export class AsteroidBelt extends THREE.Group {
 
             this.mesh.setMatrixAt(i, this.dummy.matrix);
 
-            // Store orbit data for animation
             this.asteroids.push({
                 index: i,
                 initialAngle: angle,
@@ -86,15 +82,10 @@ export class AsteroidBelt extends THREE.Group {
         for (let i = 0; i < this.asteroids.length; i++) {
             const data = this.asteroids[i];
 
-            // Kepler's 3rd Law: Period^2 proportional to Radius^3
-            // Reference: Earth at R=30 has P=1 year
-            // Period (years) = (Radius / 30)^1.5
-            const earthDistance = Cosmos.PLANETS.EARTH.DISTANCE; // should be ~30
+            const earthDistance = Cosmos.PLANETS.EARTH.DISTANCE;
             const periodYears = Math.pow(data.radius / earthDistance, 1.5);
-            // 1 Year in seconds = 365.25 days * 86400 seconds/day
             const periodSeconds = periodYears * 365.25 * 86400;
 
-            // Orbital angle
             const theta = data.initialAngle + (time / periodSeconds) * 2 * Math.PI;
 
             const x = Math.cos(theta) * data.radius;
@@ -102,7 +93,6 @@ export class AsteroidBelt extends THREE.Group {
 
             this.dummy.position.set(x, data.y, z);
 
-            // Self rotation based on simulation time (not frame-based)
             this.dummy.rotation.set(
                 data.rotationSpeed.x * time * 0.5,
                 data.rotationSpeed.y * time * 0.5,

@@ -11,7 +11,6 @@ import coronaFragmentShaderRaw from '../../shaders/sun/corona.frag.glsl?raw';
 import glareVertexShader from '../../shaders/sun/glare.vert.glsl?raw';
 import glareFragmentShader from '../../shaders/sun/glare.frag.glsl?raw';
 
-// Inject noise functions into shaders that need them
 const surfaceFragmentShader = surfaceFragmentShaderRaw.replace('// NOISE_FUNCTIONS_PLACEHOLDER', noiseFunctions);
 const coronaFragmentShader = coronaFragmentShaderRaw.replace('// NOISE_FUNCTIONS_PLACEHOLDER', noiseFunctions);
 
@@ -35,11 +34,9 @@ export class Sun extends THREE.Group {
     super();
     this.radius = radius;
 
-    // Load sun texture
     const loader = new THREE.TextureLoader();
     const sunTexture = loader.load('/textures/2k_sun.jpg');
 
-    // 1. Surface
     const sunGeo = new THREE.SphereGeometry(radius, 64, 64);
     this.sunMat = new THREE.ShaderMaterial({
       uniforms: {
@@ -52,10 +49,9 @@ export class Sun extends THREE.Group {
       depthTest: true,
     });
     this.surface = new THREE.Mesh(sunGeo, this.sunMat);
-    this.surface.renderOrder = 0; // Render first to write depth
+    this.surface.renderOrder = 0;
     this.add(this.surface);
 
-    // 2. Corona
     const coronaGeo = new THREE.SphereGeometry(radius * 1.06, 64, 64);
     this.coronaMat = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 } },
@@ -67,10 +63,9 @@ export class Sun extends THREE.Group {
       depthWrite: false,
     });
     this.corona = new THREE.Mesh(coronaGeo, this.coronaMat);
-    this.corona.renderOrder = 10; // Render after opaque objects
+    this.corona.renderOrder = 10;
     this.add(this.corona);
 
-    // 3. Glare
     const glareGeo = new THREE.PlaneGeometry(radius * 8, radius * 8);
     this.glareMat = new THREE.ShaderMaterial({
       uniforms: { uOpacity: { value: 1.0 } },
@@ -82,10 +77,9 @@ export class Sun extends THREE.Group {
       depthTest: true,  // Respect depth so it doesn't render on top of objects in front
     });
     this.glare = new THREE.Mesh(glareGeo, this.glareMat);
-    this.glare.renderOrder = 20; // Render last
+    this.glare.renderOrder = 20;
     this.add(this.glare);
 
-    // 4. Label
     const div = document.createElement('div');
     div.className = 'label';
     div.textContent = 'Sun';
@@ -95,25 +89,19 @@ export class Sun extends THREE.Group {
   }
 
   update(time: number, camera: THREE.Camera): void {
-    // Rotation (realistic: ~25 days)
     this.surface.rotation.y = Cosmos.getRealisticRotation(time, Cosmos.ROTATION_PERIODS.SUN);
-    this.corona.rotation.y = Cosmos.getRealisticRotation(time, Cosmos.ROTATION_PERIODS.SUN * 1.5); // Corona rotates slower/differently
+    this.corona.rotation.y = Cosmos.getRealisticRotation(time, Cosmos.ROTATION_PERIODS.SUN * 1.5);
 
-    // Uniforms
-    // Use REAL TIME for surface turbulence so it doesn't turn into static at high speeds
     const realTime = performance.now() * 0.001;
     this.sunMat.uniforms.uTime.value = realTime;
     this.coronaMat.uniforms.uTime.value = realTime;
 
-    // Glare Billboarding
     this.glare.lookAt(camera.position);
 
-    // SDK: Adaptive Glare
     const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
     const opacity = Cosmos.getAdaptiveGlareOpacity(dist, this.radius);
     this.glareMat.uniforms.uOpacity.value = opacity;
 
-    // SDK: Label Opacity
     const labelOpacity = Cosmos.getLabelOpacity(dist, this.radius);
     this.label.element.style.opacity = String(labelOpacity);
   }

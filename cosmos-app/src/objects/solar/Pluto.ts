@@ -26,7 +26,6 @@ class Charon extends THREE.Mesh {
         this.castShadow = true;
         this.receiveShadow = true;
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Charon';
@@ -37,17 +36,15 @@ class Charon extends THREE.Mesh {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Charon orbit around Pluto (realistic: 6.39 days, tidally locked)
         const angle = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.CHARON,
             this.initialAngle
         );
-        const distance = this.config.DISTANCE; // Use original sim distance
+        const distance = this.config.DISTANCE;
         this.position.x = Math.cos(angle) * distance;
         this.position.z = Math.sin(angle) * distance;
 
-        // Label opacity
         const worldPos = new THREE.Vector3();
         this.getWorldPosition(worldPos);
         const dist = camera.position.distanceTo(worldPos);
@@ -74,14 +71,11 @@ export class Pluto extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
-        // Load texture
         const loader = new THREE.TextureLoader();
         const texture = loader.load('/textures/Pluto.jpg');
 
-        // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 32, 32);
 
-        // Material with texture
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.7,
@@ -93,11 +87,9 @@ export class Pluto extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        // Moon: Charon
         this.charon = new Charon(config.MOON!);
         this.add(this.charon);
 
-        // Charon Orbit Path
         const charonOrbitCurve = new THREE.EllipseCurve(
             0, 0,
             config.MOON!.DISTANCE, config.MOON!.DISTANCE,
@@ -116,7 +108,6 @@ export class Pluto extends THREE.Group {
         const charonOrbitLine = new THREE.LineLoop(charonOrbitGeo, charonOrbitMat);
         this.add(charonOrbitLine);
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Pluto';
@@ -126,14 +117,12 @@ export class Pluto extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Orbit (realistic period: 90560 days = ~248 years, elliptical with e=0.248)
         const orbitalAngle = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.PLUTO,
             this.initialAngle
         );
 
-        // Use elliptical orbit with eccentricity and inclination
         const pos = Cosmos.getEllipticalOrbitalPosition(
             Cosmos.PLANETS.PLUTO.DISTANCE,
             Cosmos.ECCENTRICITY.PLUTO,
@@ -142,16 +131,13 @@ export class Pluto extends THREE.Group {
         );
         this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation (realistic: 153.29 hours = 6.39 days, retrograde)
         this.mesh.rotation.y = Cosmos.getRealisticRotation(
             time,
             Cosmos.ROTATION_PERIODS.PLUTO
         );
 
-        // Moon
         this.charon.update(time, camera);
 
-        // Label
         const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
     }

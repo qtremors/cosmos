@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { GLBMountain } from './GLBMountain';
+import { GLBEntity } from './GLBEntity';
 
 export class Inhabitants extends THREE.Group {
-    public readonly items: GLBMountain[] = [];
+    public readonly items: GLBEntity[] = [];
 
     constructor(center: THREE.Vector3) {
         super();
@@ -22,7 +22,6 @@ export class Inhabitants extends THREE.Group {
             { file: '/models/BlackholeSkeleton.glb', name: 'BlackholeSkeleton', scale: 40 },
         ];
 
-        // Ring 1: Radius 800-1200
         const minR = 800;
         const maxR = 1200;
         const heightVar = 400;
@@ -38,7 +37,7 @@ export class Inhabitants extends THREE.Group {
             const colors = ['#aaddff', '#ccaaff', '#88ffff', '#ffffff', '#aaaaff'];
             const color = colors[Math.floor(Math.random() * colors.length)];
 
-            const entity = new GLBMountain(pos, item.file, item.name, item.scale, 20, color, 2);
+            const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2);
             this.add(entity);
             this.items.push(entity);
         });

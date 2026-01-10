@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import { SystemManager, SystemId } from '../../core/SystemManager';
 import { Heliosphere } from '../common/Heliosphere';
-import { NexusMountain } from './NexusMountain';
+import { Nexus } from './Nexus';
 import { Mountains } from './Mountains';
 import { Structures } from './Structures';
 import { Ships } from './Ships';
 import { Inhabitants } from './Inhabitants';
-import { GLBMountain } from './GLBMountain';
+import { GLBEntity } from './GLBEntity';
 
 /**
  * Entity info for radar tracking
  */
-export interface MountainEntity {
+export interface QuantumaniaEntity {
     mesh: THREE.Object3D;
     id: string;
     color: string;
@@ -26,17 +26,15 @@ export interface MountainEntity {
  */
 export class QuantumaniaSystem extends THREE.Group {
     public readonly heliosphere: Heliosphere;
-    public readonly nexus: NexusMountain;
+    public readonly nexus: Nexus;
     public readonly mountains: Mountains;
     public readonly structures: Structures;
     public readonly ships: Ships;
     public readonly inhabitants: Inhabitants;
 
-    // For direct access if needed, but categories are cleaner
     public readonly allItems: THREE.Group[] = [];
-
     private distantBeacon: THREE.Sprite;
-    private isExternallyVisible: boolean = true; // Controlled by App.tsx
+    private isExternallyVisible: boolean = true;
     private clock: THREE.Clock;
 
     private center: THREE.Vector3;
@@ -47,7 +45,6 @@ export class QuantumaniaSystem extends THREE.Group {
         this.center = SystemManager.QUANTUMANIA_CENTER.clone();
         this.clock = new THREE.Clock();
 
-        // Create Quantumania heliosphere (light purple)
         this.heliosphere = new Heliosphere(
             SystemManager.QUANTUMANIA_RADIUS,
             SystemManager.QUANTUMANIA_COLOR,
@@ -56,28 +53,22 @@ export class QuantumaniaSystem extends THREE.Group {
         );
         this.add(this.heliosphere);
 
-        // 1. NEUXS (Center)
-        this.nexus = new NexusMountain(this.center.clone());
+        this.nexus = new Nexus(this.center.clone());
         this.add(this.nexus);
         this.allItems.push(this.nexus);
 
-        // 2. MOUNTAINS (Floating Islands)
         this.mountains = new Mountains(this.center);
         this.add(this.mountains);
 
-        // 3. STRUCTURES (Stations)
         this.structures = new Structures(this.center);
         this.add(this.structures);
 
-        // 4. SHIPS (Defense Net)
         this.ships = new Ships(this.center);
         this.add(this.ships);
 
-        // 5. INHABITANTS (Creatures)
         this.inhabitants = new Inhabitants(this.center);
         this.add(this.inhabitants);
 
-        // 6. DISTANT BEACON
         this.distantBeacon = this.createDistantBeacon();
         this.add(this.distantBeacon);
     }
@@ -112,7 +103,7 @@ export class QuantumaniaSystem extends THREE.Group {
         beacon.position.copy(this.center);
         beacon.scale.set(300, 300, 1);
         beacon.renderOrder = 200;
-        beacon.visible = false; // Initially hidden
+        beacon.visible = false;
         return beacon;
     }
 
@@ -123,50 +114,40 @@ export class QuantumaniaSystem extends THREE.Group {
      * 2. Camera is APPROACHING from outside (within 500 units of boundary)
      */
     update(time: number, camera: THREE.Camera): void {
-        // Independent time for this system's animations (Realtime)
-        // so it floats calmly even if the solar system is zooming.
         const independentTime = this.clock.getElapsedTime();
 
-        // If externally hidden (camera is in another system), SHOW beacon as distant light
         if (!this.isExternallyVisible) {
             this.heliosphere.visible = false;
 
-            // Hide all categories
             this.nexus.visible = false;
             this.mountains.visible = false;
             this.structures.visible = false;
             this.ships.visible = false;
             this.inhabitants.visible = false;
 
-            // Show pulsing beacon as distant light
             this.distantBeacon.visible = true;
             const pulse = 0.6 + Math.sin(independentTime * 1.5) * 0.3;
             this.distantBeacon.material.opacity = pulse;
             this.distantBeacon.scale.set(400, 400, 1);
 
-            // Also stop their internal updates if needed, but visibility check handles part of it
             return;
         }
 
         this.heliosphere.update(time, camera);
 
-        // Show categories
         this.nexus.visible = true;
         this.mountains.visible = true;
         this.structures.visible = true;
         this.ships.visible = true;
         this.inhabitants.visible = true;
 
-        // Update Nexus (always visible if system is visible)
         this.nexus.update(time, camera, independentTime);
 
-        // Update Categories (they handle their own LOD/Visibility)
         this.mountains.update(time, camera, independentTime);
         this.structures.update(time, camera, independentTime);
         this.ships.update(time, camera, independentTime);
         this.inhabitants.update(time, camera, independentTime);
 
-        // Beacon hidden when inside the system
         this.distantBeacon.visible = false;
     }
 
@@ -179,7 +160,6 @@ export class QuantumaniaSystem extends THREE.Group {
         const wasVisible = this.isExternallyVisible;
         this.isExternallyVisible = visible;
 
-        // Trigger lazy loading when first becoming visible
         if (visible && !wasVisible) {
             this.loadModelsSequentially();
         }
@@ -192,7 +172,6 @@ export class QuantumaniaSystem extends THREE.Group {
     private async loadModelsSequentially(): Promise<void> {
         console.log('[Quantumania] Starting sequential model loading...');
 
-        // 1. Load Nexus (center) first - most important
         try {
             await this.nexus.loadModel();
             console.log('[Quantumania] Nexus loaded');
@@ -200,31 +179,26 @@ export class QuantumaniaSystem extends THREE.Group {
             console.error('[Quantumania] Failed to load Nexus:', e);
         }
 
-        // 2. Load other categories with small delays to prevent network flooding
         const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // Mountains
         for (const item of this.mountains.items) {
-            await delay(100); // 100ms between each
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+            await delay(100);
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
         }
 
-        // Structures
         for (const item of this.structures.items) {
             await delay(100);
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
         }
 
-        // Ships
         for (const item of this.ships.items) {
             await delay(100);
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
         }
 
-        // Inhabitants (last priority)
         for (const item of this.inhabitants.items) {
             await delay(100);
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.mountainName}:`, e));
+            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
         }
 
         console.log('[Quantumania] All models loaded');
@@ -233,10 +207,9 @@ export class QuantumaniaSystem extends THREE.Group {
     /**
      * Get entity list for radar.
      */
-    getEntities(): MountainEntity[] {
-        const entities: MountainEntity[] = [];
+    getEntities(): QuantumaniaEntity[] {
+        const entities: QuantumaniaEntity[] = [];
 
-        // Nexus
         entities.push({
             mesh: this.nexus,
             id: 'quantumania-nexus',
@@ -246,14 +219,13 @@ export class QuantumaniaSystem extends THREE.Group {
             system: SystemId.QUANTUMANIA,
         });
 
-        // Helper to add items
-        const addItems = (items: GLBMountain[], category: string) => {
+        const addItems = (items: GLBEntity[], category: string) => {
             items.forEach((item, index) => {
                 entities.push({
                     mesh: item,
-                    id: `quantumania-${category}-${item.mountainName}-${index}`,
-                    color: item.mountainName === 'MountForest' ? '#4a8c3f' : '#ffffff', // Simplified color logic or we can store color on GLBMountain
-                    label: item.mountainName,
+                    id: `quantumania-${category}-${item.entityName}-${index}`,
+                    color: item.entityName === 'MountForest' ? '#4a8c3f' : '#ffffff',
+                    label: item.entityName,
                     radius: item.radius,
                     system: SystemId.QUANTUMANIA,
                 });

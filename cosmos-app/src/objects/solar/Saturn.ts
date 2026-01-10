@@ -26,7 +26,6 @@ class Titan extends THREE.Mesh {
         this.castShadow = true;
         this.receiveShadow = true;
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Titan';
@@ -37,17 +36,15 @@ class Titan extends THREE.Mesh {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Titan orbit around Saturn (realistic: 15.95 days)
         const angle = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.TITAN,
             this.initialAngle
         );
-        const distance = this.config.DISTANCE; // Use original sim distance
+        const distance = this.config.DISTANCE;
         this.position.x = Math.cos(angle) * distance;
         this.position.z = Math.sin(angle) * distance;
 
-        // Label opacity
         const worldPos = new THREE.Vector3();
         this.getWorldPosition(worldPos);
         const dist = camera.position.distanceTo(worldPos);
@@ -75,14 +72,11 @@ export class Saturn extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
-        // Load textures
         const loader = new THREE.TextureLoader();
         const texture = loader.load('/textures/2k_saturn.jpg');
 
-        // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-        // Material
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.5,
@@ -94,15 +88,12 @@ export class Saturn extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        // Rings (procedural)
         this.rings = this.createRings(config.RING!);
         this.add(this.rings);
 
-        // Moon: Titan
         this.titan = new Titan(config.MOON!);
         this.add(this.titan);
 
-        // Titan Orbit Path
         const titanOrbitCurve = new THREE.EllipseCurve(
             0, 0,
             config.MOON!.DISTANCE, config.MOON!.DISTANCE,
@@ -121,7 +112,6 @@ export class Saturn extends THREE.Group {
         const titanOrbitLine = new THREE.LineLoop(titanOrbitGeo, titanOrbitMat);
         this.add(titanOrbitLine);
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Saturn';
@@ -129,7 +119,6 @@ export class Saturn extends THREE.Group {
         this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
         this.add(this.label);
 
-        // Tilt Saturn
         this.mesh.rotation.x = Math.PI * 0.15;
         this.rings.rotation.x = Math.PI * 0.15;
         this.rotation.z = Math.PI * 0.15;
@@ -138,7 +127,6 @@ export class Saturn extends THREE.Group {
     private createRings(config: RingConfig): THREE.Mesh {
         const geometry = new THREE.RingGeometry(config.INNER_RADIUS, config.OUTER_RADIUS, 128);
 
-        // Procedural Ring Texture
         const size = 512;
         const canvas = document.createElement('canvas');
         canvas.width = size;
@@ -177,7 +165,6 @@ export class Saturn extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Orbit (realistic period: 10759 days = ~29 years, elliptical e=0.054)
         const theta = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.SATURN,
@@ -191,16 +178,13 @@ export class Saturn extends THREE.Group {
         );
         this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation (realistic: 10.66 hours)
         this.mesh.rotation.y = Cosmos.getRealisticRotation(
             time,
             Cosmos.ROTATION_PERIODS.SATURN
         );
 
-        // Moon
         this.titan.update(time, camera);
 
-        // Label
         const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
     }

@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 
-// Import external shaders
 import vertexShader from '../shaders/atmosphere/atmosphere.vert.glsl?raw';
 import fragmentShader from '../shaders/atmosphere/atmosphere.frag.glsl?raw';
 
@@ -23,22 +22,12 @@ export class Atmosphere extends THREE.Mesh {
             },
             vertexShader: vertexShader,
             fragmentShader: fragmentShader,
-            side: THREE.BackSide, // BackSide so we see it when inside? Or FrontSide with blending?
-            // If we are outside, FrontSide is better.
-            // If we want to fly INSIDE, we probably need BackSide or DoubleSide.
-            // But standard Fresnel is ViewDir dependent.
-            // Let's stick to FrontSide for the "Glow" look from outside.
-            // For "Inside" look (fog), we handle that with scene.fog in App.tsx.
-            // But user wants "Atmosphere File".
-            // Let's enable Transparent/Blending.
+            side: THREE.BackSide,
             transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
 
         super(geometry, material);
-
-        // Scale slightly to avoid z-fighting if radius is close to planet
-        // The geometry radius handles this, but strict layering helps.
     }
 }

@@ -21,14 +21,11 @@ export class Venus extends THREE.Group {
     this.radius = this.data.RADIUS;
     this.initialAngle = Math.random() * Math.PI * 2;
 
-    // Load texture
     const loader = new THREE.TextureLoader();
     const texture = loader.load('/textures/2k_venus_atmosphere.jpg');
 
-    // Geometry
     const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-    // Material with texture (using MeshStandardMaterial for consistent lighting)
     const material = new THREE.MeshStandardMaterial({
       map: texture,
       roughness: 0.8,
@@ -40,7 +37,6 @@ export class Venus extends THREE.Group {
     this.mesh.receiveShadow = true;
     this.add(this.mesh);
 
-    // Label
     const div = document.createElement('div');
     div.className = 'label';
     div.textContent = 'Venus';
@@ -50,7 +46,6 @@ export class Venus extends THREE.Group {
   }
 
   update(time: number, camera: THREE.Camera): void {
-    // Orbital Position (realistic period: 224.7 days, elliptical e=0.007)
     const theta = Cosmos.getRealisticOrbitalAngle(
       time,
       Cosmos.ORBITAL_PERIODS.VENUS,
@@ -64,13 +59,11 @@ export class Venus extends THREE.Group {
     );
     this.position.set(pos.x, pos.y, pos.z);
 
-    // Rotation (realistic: 243 days retrograde - spins backwards!)
     this.mesh.rotation.y = Cosmos.getRealisticRotation(
       time,
       Cosmos.ROTATION_PERIODS.VENUS
     );
 
-    // Label Opacity
     const dist = camera.position.distanceTo(this.position);
     const labelOpacity = Cosmos.getLabelOpacity(dist, this.radius);
     this.label.element.style.opacity = String(labelOpacity);

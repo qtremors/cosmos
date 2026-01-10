@@ -7,8 +7,8 @@
 
 Explore the solar system with **2K NASA textures**, realistic orbital mechanics, and a cinematic camera system with gamepad support.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.9.0-green.svg)
+![License](https://img.shields.io/badge/License-Tremors_Source-purple.svg)
+![Version](https://img.shields.io/badge/Version-2.0.0-green.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
 ![React](https://img.shields.io/badge/React-19.2-61dafb.svg)
 ![Three.js](https://img.shields.io/badge/Three.js-0.182-black.svg)
@@ -23,7 +23,7 @@ Explore the solar system with **2K NASA textures**, realistic orbital mechanics,
 - **Saturn:** Procedural ring system
 - **Uranus & Neptune:** Subtle ring systems
 - **4 Moons:** Moon, Europa, Titan, Charon
-- **Asteroid Belt:** 4000 instanced asteroids
+- **Asteroid Belt:** 2000 instanced asteroids
 
 ### 🏔️ Quantumania System (NEW in v1.6.0)
 - **Floating mountains** - 11 unique mountains with distinct themes
@@ -147,15 +147,18 @@ See [TASKS.md](TASKS.md) for open issues.
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 **Recent:**
-- **v1.9.0** - Test suite (Vitest), documentation cleanup
-- **v1.8.0** - Cosmic Glass UI overhaul, resizable side-by-side panels
-- **v1.7.0** - Performance & optimization, cinematic transitions
+- **v2.0.0** - Naming consistency overhaul, custom license, comment cleanup
+- **v1.9.5** - System-aware HUD, lazy model loading, camera transitions
+- **v1.9.0** - Test suite (Vitest), shader extraction
 
 ---
 
 ## 📄 License
 
-MIT License. See [LICENSE](LICENSE).
+Tremors Source License v1.1. See [LICENSE](LICENSE).
+
+- ✅ Fork & build with **permanent attribution**
+- ❌ Commercial use requires written permission
 
 ---
 

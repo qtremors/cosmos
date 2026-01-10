@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { GLBMountain } from './GLBMountain';
+import { GLBEntity } from './GLBEntity';
 
 export class Ships extends THREE.Group {
-    public readonly items: GLBMountain[] = [];
+    public readonly items: GLBEntity[] = [];
 
     constructor(center: THREE.Vector3) {
         super();
@@ -20,7 +20,6 @@ export class Ships extends THREE.Group {
             { file: '/models/Jet.glb', name: 'Jet', scale: 15 },
         ];
 
-        // Ring 2: Radius 1200-1500
         const minR = 1200;
         const maxR = 1500;
         const heightVar = 600;
@@ -36,7 +35,7 @@ export class Ships extends THREE.Group {
             const colors = ['#aaddff', '#ccaaff', '#88ffff', '#ffffff', '#aaaaff'];
             const color = colors[Math.floor(Math.random() * colors.length)];
 
-            const entity = new GLBMountain(pos, item.file, item.name, item.scale, 20, color, 2);
+            const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2);
             this.add(entity);
             this.items.push(entity);
         });
@@ -49,7 +48,6 @@ export class Ships extends THREE.Group {
             item.visible = isVisible;
 
             if (item.visible) {
-                // Add some extra movement for ships? (Maybe later)
                 item.update(time, camera, independentTime);
             }
         });

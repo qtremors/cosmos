@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { GLBMountain } from './GLBMountain';
+import { GLBEntity } from './GLBEntity';
 
 export class Structures extends THREE.Group {
-    public readonly items: GLBMountain[] = [];
+    public readonly items: GLBEntity[] = [];
 
     constructor(center: THREE.Vector3) {
         super();
@@ -16,7 +16,6 @@ export class Structures extends THREE.Group {
             { file: '/models/Station5.glb', name: 'Station5', scale: 60 },
         ];
 
-        // Ring 3: Radius 1600-2000
         const minR = 1600;
         const maxR = 2000;
         const heightVar = 800;
@@ -32,7 +31,7 @@ export class Structures extends THREE.Group {
             const colors = ['#aaddff', '#ccaaff', '#88ffff', '#ffffff', '#aaaaff'];
             const color = colors[Math.floor(Math.random() * colors.length)];
 
-            const entity = new GLBMountain(pos, item.file, item.name, item.scale, 20, color, 2);
+            const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2);
             this.add(entity);
             this.items.push(entity);
         });
@@ -41,8 +40,7 @@ export class Structures extends THREE.Group {
     update(time: number, camera: THREE.Camera, independentTime: number): void {
         this.items.forEach(item => {
             const dist = camera.position.distanceTo(item.position);
-            const isVisible = dist < 4000;
-            item.visible = isVisible;
+            item.visible = dist < 4000;
 
             if (item.visible) {
                 item.update(time, camera, independentTime);

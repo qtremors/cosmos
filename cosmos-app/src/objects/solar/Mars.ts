@@ -21,14 +21,11 @@ export class Mars extends THREE.Group {
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
-        // Load texture
         const loader = new THREE.TextureLoader();
         const texture = loader.load('/textures/2k_mars.jpg');
 
-        // Geometry
         const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
-        // Material with texture
         const material = new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.8,
@@ -40,7 +37,6 @@ export class Mars extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        // Atmosphere (Thin)
         const atmoGeo = new THREE.SphereGeometry(this.radius * 1.02, 64, 64);
         const atmoMat = new THREE.MeshBasicMaterial({
             color: 0xc1440e,
@@ -52,7 +48,6 @@ export class Mars extends THREE.Group {
         this.atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
         this.add(this.atmosphere);
 
-        // Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Mars';
@@ -62,7 +57,6 @@ export class Mars extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // Orbit (realistic period: 687 days, elliptical e=0.093)
         const theta = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.MARS,
@@ -76,13 +70,11 @@ export class Mars extends THREE.Group {
         );
         this.position.set(pos.x, pos.y, pos.z);
 
-        // Rotation (realistic: 24.62 hours - almost same as Earth!)
         this.mesh.rotation.y = Cosmos.getRealisticRotation(
             time,
             Cosmos.ROTATION_PERIODS.MARS
         );
 
-        // Label
         const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
     }

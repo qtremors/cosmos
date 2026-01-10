@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-// Import external shaders
 import vertexShader from '../shaders/blackhole/blackhole.vert.glsl?raw';
 import fragmentShader from '../shaders/blackhole/blackhole.frag.glsl?raw';
 
@@ -10,34 +9,35 @@ import fragmentShader from '../shaders/blackhole/blackhole.frag.glsl?raw';
 // =============================================================================
 
 const CONFIG = {
-    // Position (galactic center relative to solar system)
     DISTANCE: 8000,
     HEIGHT: 2000,
-
-    // Visual sizes
     BILLBOARD_SIZE: 600,
-    CORE_RADIUS: 65,  // Solid black sphere for event horizon - sized to match shader visual
+    CORE_RADIUS: 65,
 };
 
 // =============================================================================
-// SAGITTARIUS A* CLASS
+// BLACK HOLE CLASS
 // =============================================================================
 
 export class BlackHole extends THREE.Group {
     public readonly radius: number = CONFIG.BILLBOARD_SIZE / 2;
 
     private billboard: THREE.Mesh;
-    private core: THREE.Mesh;  // Solid black sphere
+    private core: THREE.Mesh;
     private label: CSS2DObject;
     private material: THREE.ShaderMaterial;
     private clock: THREE.Clock;
+
+    // Reusable vectors to avoid per-frame allocations
+    private tmpBlackHoleWorldPos = new THREE.Vector3();
+    private tmpCamWorldPos = new THREE.Vector3();
+    private tmpRelativePos = new THREE.Vector3();
 
     constructor() {
         super();
 
         this.clock = new THREE.Clock();
 
-        // Position at galactic center
         const angle = Math.PI * 0.75;
         this.position.set(
             Math.cos(angle) * CONFIG.DISTANCE,
@@ -45,7 +45,6 @@ export class BlackHole extends THREE.Group {
             Math.sin(angle) * CONFIG.DISTANCE
         );
 
-        // 1. SOLID BLACK CORE (Event Horizon) - renders after billboard to cover distant glares
         const coreGeometry = new THREE.SphereGeometry(CONFIG.CORE_RADIUS, 32, 32);
         const coreMaterial = new THREE.MeshBasicMaterial({
             color: 0x000000,
@@ -57,7 +56,6 @@ export class BlackHole extends THREE.Group {
         this.core.renderOrder = 101;  // Render after billboard (100) to cover distant glares
         this.add(this.core);
 
-        // 2. ACCRETION DISK BILLBOARD - renders after core
         const geometry = new THREE.PlaneGeometry(CONFIG.BILLBOARD_SIZE, CONFIG.BILLBOARD_SIZE);
 
         this.material = new THREE.ShaderMaterial({
@@ -76,10 +74,9 @@ export class BlackHole extends THREE.Group {
         });
 
         this.billboard = new THREE.Mesh(geometry, this.material);
-        this.billboard.renderOrder = 100;  // Render after core
+        this.billboard.renderOrder = 102;  // Render after core (101)
         this.add(this.billboard);
 
-        // 3. Label
         const div = document.createElement('div');
         div.className = 'label';
         div.textContent = 'Black Hole';
@@ -94,18 +91,16 @@ export class BlackHole extends THREE.Group {
 
         this.material.uniforms.uTime.value = independentTime;
 
-        // Billboard always faces camera
         this.billboard.lookAt(camera.position);
 
-        // Calculate camera position relative to black hole
-        const blackHoleWorldPos = this.getWorldPosition(new THREE.Vector3());
-        const relativePos = new THREE.Vector3().subVectors(camera.position, blackHoleWorldPos);
-        const distance = relativePos.length();
+        this.getWorldPosition(this.tmpBlackHoleWorldPos);
+        camera.getWorldPosition(this.tmpCamWorldPos);
+        this.tmpRelativePos.subVectors(this.tmpCamWorldPos, this.tmpBlackHoleWorldPos);
+        const distance = this.tmpRelativePos.length();
 
-        // Map world distance to shader space with MINIMUM distance to prevent distortion
         const shaderRadius = Math.max(14, Math.min(30, distance / 20));
 
-        const dir = relativePos.normalize();
+        const dir = this.tmpRelativePos.normalize();
 
         this.material.uniforms.uCamPos.value.set(
             dir.x * shaderRadius,
@@ -113,24 +108,20 @@ export class BlackHole extends THREE.Group {
             dir.z * shaderRadius
         );
 
-        // Scale billboard larger when closer so the full effect stays visible
-        // At distance 600, scale = 1. At distance 300, scale = 2, etc.
         const baseDistance = 600;
         const billboardScale = Math.max(1, baseDistance / Math.max(distance, 100));
         this.billboard.scale.setScalar(billboardScale);
 
-        // Scale core proportionally and position it slightly behind the billboard
-        // so it always stays inside the disk effect at all viewing angles
         this.core.scale.setScalar(billboardScale);
-        const corePushBack = 10 * billboardScale;  // Push core away from camera
+        const corePushBack = 10 * billboardScale;
         this.core.position.set(
             -dir.x * corePushBack,
             -dir.y * corePushBack,
             -dir.z * corePushBack
         );
 
-        // Label opacity
-        const labelOpacity = Math.min(1, 800 / distance);
+        const safeDist = Math.max(distance, 1e-6);
+        const labelOpacity = Math.min(1, 800 / safeDist);
         this.label.element.style.opacity = String(labelOpacity);
     }
 }
