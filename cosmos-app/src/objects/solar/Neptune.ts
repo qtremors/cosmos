@@ -2,9 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos } from '../../core/SDK';
 
-// =============================================================================
-// NEPTUNE CLASS
-// =============================================================================
+
 
 export class Neptune extends THREE.Group {
   public readonly radius: number;

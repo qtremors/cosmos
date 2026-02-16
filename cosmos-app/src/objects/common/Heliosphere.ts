@@ -1,27 +1,13 @@
 import * as THREE from 'three';
 import { SystemId } from '../../core/SystemManager';
 
-/**
- * Heliosphere - A visual boundary bubble around a star system.
- * 
- * Visuals:
- * - Sparse wireframe grid (low poly).
- * - Invisible by default.
- * - Fades in only when camera is close to the boundary.
- */
+
 export class Heliosphere extends THREE.Mesh {
     public readonly systemId: SystemId;
     private center: THREE.Vector3;
     private radius: number;
     private materialRef: THREE.MeshBasicMaterial;
 
-    /**
-     * Create a heliosphere boundary bubble.
-     * @param radius - Radius of the system boundary
-     * @param color - Color of the heliosphere
-     * @param center - Center position of the system
-     * @param systemId - Identifier for which system this belongs to
-     */
     constructor(
         radius: number = 2500,
         color: THREE.Color = new THREE.Color(0x6699ff),
@@ -50,10 +36,6 @@ export class Heliosphere extends THREE.Mesh {
         this.renderOrder = 50;
     }
 
-    /**
-     * Update the heliosphere each frame.
-     * Checks distance to edge and fades in if close.
-     */
     update(_time: number, camera: THREE.Camera): void {
         const distToCenter = camera.position.distanceTo(this.center);
         const distToEdge = Math.abs(distToCenter - this.radius);
@@ -73,16 +55,10 @@ export class Heliosphere extends THREE.Mesh {
         }
     }
 
-    /**
-     * Set the bubble color.
-     */
     setColor(color: THREE.Color): void {
         this.materialRef.color.copy(color);
     }
 
-    /**
-     * Get the system center position.
-     */
     getCenter(): THREE.Vector3 {
         return this.center.clone();
     }

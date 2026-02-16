@@ -22,6 +22,7 @@ import { BlackHole } from './objects/BlackHole';
 import { Cosmos } from './core/SDK';
 import { SystemManager, SystemId } from './core/SystemManager';
 import { QuantumaniaSystem } from './objects/quantumania/QuantumaniaSystem';
+import { CosmicEntity } from './objects/CosmicEntity';
 import {
     InputState,
     LockTarget,
@@ -76,8 +77,8 @@ export default function App() {
         name: string;
         orbitalSpeed: number;
         refDist: number;
-        refName: string;  // "Sun", "Nexus", or "Origin"
-        showOrbitalSpeed: boolean; // Only true for Solar System objects
+        refName: string;
+        showOrbitalSpeed: boolean;
     } | null>(null);
 
     const [nearestObject, setNearestObject] = useState<{ name: string; distance: number } | null>(null);
@@ -106,7 +107,6 @@ export default function App() {
     const isPausedRef = useRef(isPaused);
     const teleportIndexRef = useRef(0);
 
-    // Lock functions exposed via refs instead of window globals
     const lockOnTarget = useRef((mesh: THREE.Object3D, radius: number) => {
         const entity = entitiesRef.current.find(e => e.mesh === mesh);
         const isQuantumania = entity?.system === SystemId.QUANTUMANIA;
@@ -127,13 +127,12 @@ export default function App() {
 
             lockRef.current = {
                 mesh,
-                distance: goalDistance, // Set GOAL distance to fly towards
+                distance: goalDistance,
                 isTop: false,
-                theta: theta,       // Start at current angle to avoid rotation snap
+                theta: theta,
                 phi: phi
             };
         } else {
-            // Fallback if camera not ready
             lockRef.current = {
                 mesh,
                 distance: goalDistance,
@@ -163,27 +162,22 @@ export default function App() {
         }
     });
 
-    // Keep ref in sync with state for use in animate loop
     useEffect(() => {
         showLabelsRef.current = showLabels;
     }, [showLabels]);
 
-    // Auto-update UI system when physically entering a new system
     useEffect(() => {
         setUiSystem(currentSystem);
     }, [currentSystem]);
 
     useEffect(() => {
-        // --- KEYBOARD HANDLERS ---
         const handleKeyDown = (e: KeyboardEvent) => {
             updateInputKey(inputRef.current, e.code, true);
 
-            // TAB TELEPORT (Cycle through system entities)
             if (e.key === 'Tab') {
                 e.preventDefault();
 
                 // Get entities for current system (excluding proxies)
-                // Use SystemManager to avoid stale closure
                 const manager = SystemManager.getInstance();
                 const activeSystem = manager.currentSystem;
 
@@ -192,7 +186,6 @@ export default function App() {
                 );
 
                 if (systemEntities.length > 0) {
-                    // Cycle index
                     teleportIndexRef.current = (teleportIndexRef.current + 1) % systemEntities.length;
                     const target = systemEntities[teleportIndexRef.current];
 
@@ -228,7 +221,7 @@ export default function App() {
             // Don't capture wheel events inside radar panels (allow scrolling)
             const target = e.target as HTMLElement;
             if (target.closest('.ui-panels-container') || target.closest('.radar-panel') || target.closest('.settings-panel-inline')) {
-                return; // Let the panel scroll naturally
+                return;
             }
 
             e.preventDefault();
@@ -238,7 +231,6 @@ export default function App() {
         };
         window.addEventListener('wheel', handleWheel, { passive: false });
 
-        // --- ENGINE INIT ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
@@ -256,18 +248,17 @@ export default function App() {
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        // LIGHTING
         const sunLight = new THREE.PointLight(
             Cosmos.LIGHTING.SUN_COLOR,
             Cosmos.LIGHTING.SUN_INTENSITY,
-            0, 0 // Infinite range (REALISTIC)
+            0, 0
         );
         sunLight.position.set(0, 0, 0);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 4096;
         sunLight.shadow.mapSize.height = 4096;
         sunLight.shadow.bias = -0.00001;
-        sunLight.layers.set(1); // Layer 1: Solar System Only
+        sunLight.layers.set(1);
         scene.add(sunLight);
 
         const ambientLight = new THREE.AmbientLight(Cosmos.LIGHTING.AMBIENT_COLOR, Cosmos.LIGHTING.AMBIENT_INTENSITY);
@@ -280,7 +271,7 @@ export default function App() {
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
         labelRenderer.domElement.style.position = 'absolute';
         labelRenderer.domElement.style.top = '0px';
-        labelRenderer.domElement.style.pointerEvents = 'none'; // Click-through
+        labelRenderer.domElement.style.pointerEvents = 'none';
         if (mountRef.current) {
             mountRef.current.innerHTML = '';
             mountRef.current.appendChild(renderer.domElement);
@@ -288,10 +279,9 @@ export default function App() {
         }
         labelRendererRef.current = labelRenderer;
 
-        // ENABLE LAYERS (Camera is already created)
-        camera.layers.enable(0); // Default
-        camera.layers.enable(1); // Solar System
-        camera.layers.enable(2); // Quantumania
+        camera.layers.enable(0);
+        camera.layers.enable(1);
+        camera.layers.enable(2);
 
         // =====================================================================
         // OBJECTS
@@ -303,7 +293,7 @@ export default function App() {
         scene.add(sun);
 
         const stars = new Stars(8000, 5000);
-        scene.add(stars); // Stars are generic (Layer 0)
+        scene.add(stars);
 
         const mercury = new Mercury();
         mercury.layers.set(1);
@@ -350,18 +340,15 @@ export default function App() {
         pluto.traverse(c => c.layers.set(1));
         scene.add(pluto);
 
-        // Asteroid Belt (Points)
         const belt = new AsteroidBelt();
         belt.layers.set(1);
         scene.add(belt);
 
-        // Easter Eggs related to Solar System
         const explorer = new Explorer();
         explorer.layers.set(1);
         explorer.traverse(c => c.layers.set(1));
         scene.add(explorer);
 
-        // "The Kyln" (Prison) - Placed in Solar System for now
         const theKyln = new TheKyln('The Kyln');
         theKyln.layers.set(1);
         theKyln.traverse(c => c.layers.set(1));
@@ -375,11 +362,9 @@ export default function App() {
             SystemId.SOLAR_SYSTEM
         );
         solarHeliosphere.layers.set(1);
-        // Heliosphere mesh itself needs to be on Layer 1
         solarHeliosphere.traverse(c => c.layers.set(1));
         scene.add(solarHeliosphere);
 
-        // SOLAR BEACON (Distant LOD)
         const createSolarBeacon = () => {
             const canvas = document.createElement('canvas');
             canvas.width = 64;
@@ -405,13 +390,12 @@ export default function App() {
             });
             const sprite = new THREE.Sprite(material);
             sprite.scale.set(600, 600, 1);
-            sprite.visible = false; // Hidden by default (start inside)
+            sprite.visible = false;
             return sprite;
         };
         const solarBeacon = createSolarBeacon();
         scene.add(solarBeacon);
 
-        // QUANTUMANIA SYSTEM - Floating mountains (Layer 2)
         const quantumania = new QuantumaniaSystem();
         // quantumania layer setup is handled inside its class, or we do it here:
         quantumania.layers.set(2);
@@ -435,7 +419,6 @@ export default function App() {
             scene.add(path);
         });
 
-        // OTHER EASTER EGGS (Layer 1 to capture Sun light?)
         const alienX = new AlienX();
         alienX.layers.set(1);
         alienX.traverse(c => c.layers.set(1));
@@ -446,7 +429,10 @@ export default function App() {
         blackHole.traverse(c => c.layers.set(1));
         scene.add(blackHole);
 
-        // SOLAR SYSTEM ENTITIES (Radar)
+        const cosmicEntity = new CosmicEntity();
+        scene.add(cosmicEntity);
+
+
         const solarSystemEntities: EntityInfo[] = [
             { mesh: sun, id: 'sun-blip', color: Cosmos.RADAR.COLORS.SUN, label: 'Sun', radius: Cosmos.UNITS.SOLAR_RADIUS * 4, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.STAR },
             { mesh: mercury, id: 'mercury-blip', color: Cosmos.RADAR.COLORS.MERCURY, label: 'Mercury', radius: 10, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
@@ -463,7 +449,7 @@ export default function App() {
             { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
             { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
             { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON },
-            // Easter Eggs (Solar System)
+            // NASA data attribution remains here if any (none in this block)
             { mesh: explorer, id: 'explorer-blip', color: '#00aaff', label: 'Explorer', radius: 5, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.EASTER_EGG },
             { mesh: theKyln, id: 'kyln-blip', color: '#4488cc', label: 'The Kyln', radius: 8, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.EASTER_EGG },
             // Solar System Proxy (only visible from afar)
@@ -473,6 +459,9 @@ export default function App() {
         const interstellarEntities: EntityInfo[] = [
             { mesh: alienX, id: 'alienX-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
             { mesh: blackHole, id: 'blackhole-blip', color: '#ff6600', label: 'Black Hole', radius: 100, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
+            // Target the HEAD for lock/radar
+            // Increased radius (1500) to keep camera at a safe distance from the massive model
+            { mesh: cosmicEntity.head, id: 'architect-blip', color: '#00ffff', label: 'Cosmic Entity', radius: 1500, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
         ];
 
         // QUANTUMANIA ENTITIES
@@ -523,7 +512,6 @@ export default function App() {
         camera.fov = Cosmos.CONTROLS.FOV_DEFAULT;
         camera.updateProjectionMatrix();
 
-        // MOUSE LOOK
         const handleMouseDown = (e: MouseEvent) => {
             e.preventDefault();
             if (e.button === 0) {
@@ -551,7 +539,6 @@ export default function App() {
         window.addEventListener('mouseup', handleMouseUp);
         window.addEventListener('mousemove', handleMouseMove);
 
-        // RESIZE LISTENER
         const onWinResize = () => {
             if (cameraRef.current) {
                 cameraRef.current.aspect = window.innerWidth / window.innerHeight;
@@ -562,7 +549,6 @@ export default function App() {
         };
         window.addEventListener('resize', onWinResize);
 
-        // LOOP
         const clock = new THREE.Clock();
         let simTime = 0; // Accumulated simulation time
 
@@ -609,13 +595,11 @@ export default function App() {
             solarObjects.forEach(obj => obj.visible = showSolarSystem);
             orbitPaths.forEach(p => p.visible = showSolarSystem);
 
-            // Beacon is visible when 3D system is HIDDEN
             solarBeacon.visible = !showSolarSystem;
             if (solarBeacon.visible) {
-                // Pulse beacon
                 const p = 0.8 + Math.sin(time * 2) * 0.2;
                 solarBeacon.material.opacity = p;
-                solarBeacon.lookAt(camera.position); // Always face camera
+                solarBeacon.lookAt(camera.position);
             }
 
             // Heliosphere Visibility Rule: Hide when locked onto an object inside the system
@@ -652,7 +636,6 @@ export default function App() {
                 theKyln.update(time, camera);
             }
             solarHeliosphere.update(time, camera);
-            // ENFORCE VISIBILITY: Override Heliosphere.update logic which auto-shows it
             if (!showSolarSystem || isLockedToSolar) {
                 solarHeliosphere.visible = false;
             }
@@ -684,6 +667,7 @@ export default function App() {
             // Interstellar Easter Eggs (always visible/updated)
             alienX.update(time, camera);
             blackHole.update(time, camera);
+            cosmicEntity.update(time, camera);
 
             // 2. INPUT PROCESSING
             const pad = pollGamepad();
@@ -715,12 +699,11 @@ export default function App() {
             if (statsFrameCount.current >= 10) {
                 statsFrameCount.current = 0;
 
-                const AU = Cosmos.UNITS.AU; // 200 sim units = 1 AU
-                const KM_PER_AU = 150000000; // 150 million km per AU
+                const AU = Cosmos.UNITS.AU;
+                const KM_PER_AU = 150000000;
 
-                // Calculate camera speed (in km/s)
                 const speedRaw = camera.position.distanceTo(lastCameraPos.current) / (delta * 10);
-                const speedKmS = (speedRaw / AU) * (KM_PER_AU / 1000); // Convert to thousands of km/s for readability
+                const speedKmS = (speedRaw / AU) * (KM_PER_AU / 1000);
                 lastCameraPos.current.copy(camera.position);
                 setCameraSpeed(Math.round(speedKmS));
 
@@ -751,14 +734,10 @@ export default function App() {
                         showOrbitalSpeed = true; // Only show orbital speed for Solar System
                     }
 
-                    // Calculate distance from reference point
                     const distFromRef = targetPos.distanceTo(refPoint);
-                    const distAU = distFromRef / AU;
-                    const distMillionKm = distAU * 150; // 1 AU = 150 million km
+                    const distAU = distFromRef / Cosmos.UNITS.AU;
+                    const distMillionKm = distAU * 150;
 
-                    // Calculate orbital speed (only meaningful for Solar System)
-                    // v = sqrt(GM/r) simplified as v proportional to 1/sqrt(r)
-                    // Using Earth as reference (1 AU = 30 km/s orbital speed)
                     const orbitalSpeedKmS = showOrbitalSpeed && distAU > 0.1 ? 30 / Math.sqrt(distAU) : 0;
 
                     setLockedInfo({

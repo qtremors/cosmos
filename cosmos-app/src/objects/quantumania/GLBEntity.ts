@@ -8,7 +8,8 @@ export class GLBEntity extends THREE.Group {
     public readonly entityName: string;
     public readonly radius: number;
     private floatOffset: number;
-    private rotationSpeed: number;
+    public rotationSpeed: number;
+    public floating: boolean = true;
     private modelPath: string;
     private modelScale: number;
     private layer: number;
@@ -113,7 +114,9 @@ export class GLBEntity extends THREE.Group {
 
     update(_simTime: number, camera: THREE.Camera, independentTime: number): void {
         if (this.model) {
-            this.model.position.y = Math.sin(independentTime * 0.5 + this.floatOffset) * 10;
+            if (this.floating) {
+                this.model.position.y = Math.sin(independentTime * 0.5 + this.floatOffset) * 10;
+            }
             this.model.rotation.y = independentTime * this.rotationSpeed;
         }
 

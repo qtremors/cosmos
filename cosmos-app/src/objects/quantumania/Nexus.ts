@@ -2,9 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-/**
- * The Nexus - Central light source of Quantumania.
- */
+
 export class Nexus extends THREE.Group {
     private model: THREE.Group | null = null;
     private label: CSS2DObject;
@@ -69,7 +67,7 @@ export class Nexus extends THREE.Group {
                     }
                 });
 
-                this.model.scale.set(50, 50, 50);
+                this.model.scale.set(300, 300, 300);
                 this.add(this.model);
 
                 this.isLoaded = true;

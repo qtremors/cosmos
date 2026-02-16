@@ -3,7 +3,6 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { noiseFunctions } from '../../materials/Noise';
 import { Cosmos } from '../../core/SDK';
 
-// Import external shaders
 import surfaceVertexShader from '../../shaders/sun/surface.vert.glsl?raw';
 import surfaceFragmentShaderRaw from '../../shaders/sun/surface.frag.glsl?raw';
 import coronaVertexShader from '../../shaders/sun/corona.vert.glsl?raw';
@@ -14,9 +13,7 @@ import glareFragmentShader from '../../shaders/sun/glare.frag.glsl?raw';
 const surfaceFragmentShader = surfaceFragmentShaderRaw.replace('// NOISE_FUNCTIONS_PLACEHOLDER', noiseFunctions);
 const coronaFragmentShader = coronaFragmentShaderRaw.replace('// NOISE_FUNCTIONS_PLACEHOLDER', noiseFunctions);
 
-// =============================================================================
-// SUN CLASS
-// =============================================================================
+
 
 export class Sun extends THREE.Group {
   public readonly radius: number;
@@ -74,7 +71,7 @@ export class Sun extends THREE.Group {
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      depthTest: true,  // Respect depth so it doesn't render on top of objects in front
+      depthTest: true,
     });
     this.glare = new THREE.Mesh(glareGeo, this.glareMat);
     this.glare.renderOrder = 20;

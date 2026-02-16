@@ -8,9 +8,7 @@ import { Ships } from './Ships';
 import { Inhabitants } from './Inhabitants';
 import { GLBEntity } from './GLBEntity';
 
-/**
- * Entity info for radar tracking
- */
+
 export interface QuantumaniaEntity {
     mesh: THREE.Object3D;
     id: string;
@@ -20,10 +18,6 @@ export interface QuantumaniaEntity {
     system: SystemId;
 }
 
-/**
- * QuantumaniaSystem - Container for the floating mountains system.
- * Creates the heliosphere and all mountains.
- */
 export class QuantumaniaSystem extends THREE.Group {
     public readonly heliosphere: Heliosphere;
     public readonly nexus: Nexus;
@@ -73,9 +67,6 @@ export class QuantumaniaSystem extends THREE.Group {
         this.add(this.distantBeacon);
     }
 
-    /**
-     * Create a glowing beacon visible from far distances.
-     */
     private createDistantBeacon(): THREE.Sprite {
         const canvas = document.createElement('canvas');
         canvas.width = 64;
@@ -107,12 +98,6 @@ export class QuantumaniaSystem extends THREE.Group {
         return beacon;
     }
 
-    /**
-     * Update all mountains with strict visibility rules.
-     * System only renders when:
-     * 1. Camera is INSIDE the system (within radius)
-     * 2. Camera is APPROACHING from outside (within 500 units of boundary)
-     */
     update(time: number, camera: THREE.Camera): void {
         const independentTime = this.clock.getElapsedTime();
 
@@ -151,11 +136,6 @@ export class QuantumaniaSystem extends THREE.Group {
         this.distantBeacon.visible = false;
     }
 
-    /**
-     * Set external visibility (controlled by App.tsx based on current system).
-     * When false, the entire system is hidden regardless of camera distance.
-     * When true, triggers sequential model loading if not already loaded.
-     */
     setVisible(visible: boolean): void {
         const wasVisible = this.isExternallyVisible;
         this.isExternallyVisible = visible;
@@ -165,10 +145,6 @@ export class QuantumaniaSystem extends THREE.Group {
         }
     }
 
-    /**
-     * Load all 3D models sequentially with priority order.
-     * Loads center first, then spreads outward.
-     */
     private async loadModelsSequentially(): Promise<void> {
         console.log('[Quantumania] Starting sequential model loading...');
 
@@ -204,9 +180,6 @@ export class QuantumaniaSystem extends THREE.Group {
         console.log('[Quantumania] All models loaded');
     }
 
-    /**
-     * Get entity list for radar.
-     */
     getEntities(): QuantumaniaEntity[] {
         const entities: QuantumaniaEntity[] = [];
 

@@ -2,9 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos, MoonConfig } from '../../core/SDK';
 
-// =============================================================================
-// EUROPA MOON CLASS
-// =============================================================================
+
 
 class Europa extends THREE.Mesh {
     public readonly config: MoonConfig;
@@ -52,9 +50,7 @@ class Europa extends THREE.Mesh {
     }
 }
 
-// =============================================================================
-// JUPITER CLASS
-// =============================================================================
+
 
 export class Jupiter extends THREE.Group {
     public readonly radius: number;

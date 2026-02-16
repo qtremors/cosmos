@@ -6,7 +6,7 @@ import * as THREE from 'three';
 export enum SystemId {
     SOLAR_SYSTEM = 'solar_system',
     QUANTUMANIA = 'quantumania',
-    INTERSTELLAR = 'interstellar', // Outside all systems (Alien X, Black Hole)
+    INTERSTELLAR = 'interstellar',
 }
 
 /**
@@ -21,10 +21,7 @@ export interface SystemConfig {
 }
 
 /**
- * SystemManager - Manages multiple star systems and tracks camera position.
- * 
- * Determines which system the camera is currently in and provides
- * entity filtering based on system membership.
+ * SystemManager - Tracks camera position across multiple star systems.
  */
 export class SystemManager {
     private static instance: SystemManager;
@@ -37,11 +34,11 @@ export class SystemManager {
     public static readonly SOLAR_SYSTEM_RADIUS = 2500;
 
     public static readonly QUANTUMANIA_CENTER = new THREE.Vector3(18000, 0, 0);
-    public static readonly QUANTUMANIA_RADIUS = 2000; // 20% smaller
+    public static readonly QUANTUMANIA_RADIUS = 2000;
 
     // Colors
-    public static readonly SOLAR_SYSTEM_COLOR = new THREE.Color(0x6699ff); // Light blue
-    public static readonly QUANTUMANIA_COLOR = new THREE.Color(0xbb88ff); // Light purple
+    public static readonly SOLAR_SYSTEM_COLOR = new THREE.Color(0x6699ff);
+    public static readonly QUANTUMANIA_COLOR = new THREE.Color(0xbb88ff);
 
     private constructor() {
         // Initialize Solar System

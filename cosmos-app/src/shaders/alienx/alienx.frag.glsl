@@ -4,7 +4,7 @@ uniform sampler2D uTexture;
 varying vec3 vWorldPosition;
 varying vec3 vNormal;
 
-// Simplex Noise (The "Perfect" Organic Look)
+
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -34,17 +34,16 @@ float snoise(vec2 v) {
 }
 
 void main() {
-    // View-based mapping (Original "Window to Space" effect)
-    // Causes some stretching at grazing angles, but preserves the specific motion user liked.
+
     vec3 viewDir = normalize(vWorldPosition - cameraPosition);
     
-    // Simple planar projection of view direction
+
     vec2 skyUV = viewDir.xy * 0.9 + vec2(0.5); 
 
-    // Sample the cosmic texture
+
     vec3 color = texture2D(uTexture, skyUV).rgb;
 
-    // Rim Light is unchanged
+
     float NdotV = dot(vNormal, -viewDir);
     float rim = 1.0 - max(NdotV, 0.0);
     rim = pow(rim, 3.0); 

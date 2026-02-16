@@ -1,91 +1,93 @@
 <p align="center">
-  <img src="cosmos-app/public/cosmos.png" alt="Cosmos Logo" width="128">
-  <h1 align="center"><a href="https://cosmox.vercel.app/">Cosmos</a></h1>
+  <img src="cosmos-app/public/cosmos.png" alt="Cosmos Logo" width="120"/>
 </p>
 
-> **Experience the infinite.** A modular, high-performance 3D solar system simulation running directly in your browser.
+<h1 align="center"><a href="https://cosmox.vercel.app/">Cosmos</a></h1>
 
-Explore the solar system with **2K NASA textures**, realistic orbital mechanics, and a cinematic camera system with gamepad support.
+<p align="center">
+  <b>Experience the infinite.</b> A 3D space exploration simulator featuring the Solar System, the Quantumania realm, and cosmic easter eggs — built with Three.js and custom GLSL shaders.
+</p>
 
-![License](https://img.shields.io/badge/License-Tremors_Source-purple.svg)
-![Version](https://img.shields.io/badge/Version-2.0.0-green.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
-![React](https://img.shields.io/badge/React-19.2-61dafb.svg)
-![Three.js](https://img.shields.io/badge/Three.js-0.182-black.svg)
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19.2-61dafb?logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Three.js-0.182-black?logo=three.js" alt="Three.js">
+  <img src="https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Vite-7-646cff?logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/Vitest-4-yellow?logo=vitest" alt="Vitest">
+  <img src="https://img.shields.io/badge/License-TSL-red" alt="License">
+</p>
+
+> [!NOTE]
+> **Personal Project** 🎯 I've always been fascinated by space and the vastness of the cosmos. That passion inspired me to build this project. Feel free to explore and learn from it!
 
 ---
 
 ## ✨ Features
 
-### 🌍 Complete Solar System
-- **9 Planets** with 2K NASA texture maps
-- **Earth:** Day/night cycle with cloud layer
-- **Saturn:** Procedural ring system
-- **Uranus & Neptune:** Subtle ring systems
-- **4 Moons:** Moon, Europa, Titan, Charon
-- **Asteroid Belt:** 2000 instanced asteroids
-
-### 🏔️ Quantumania System (NEW in v1.6.0)
-- **Floating mountains** - 11 unique mountains with distinct themes
-- **The Nexus** - Central hub of Quantumania
-- **Local lighting** - Volcanic glow, crystal lights, city lights
-- **Distant beacon** - Purple pulsing light visible from Solar System
-- **Teleportation** - Click radar tabs to travel between systems
-
-### 🎨 Custom Shaders
-- **Sun:** Granulation + animated noise + corona
-- **Rocky Planets:** Surface textures with lighting
-- **Gas/Ice Giants:** Atmospheric effects and rings
-
-### 🥚 Easter Eggs
-- **Explorer-1:** Smart touring spaceship with collision avoidance
-- **The Kyln:** Massive Nova Corps prison from Guardians of the Galaxy
-- **Alien X:** Cosmic entity outside the solar system
-- **Sagittarius A\*:** Supermassive black hole at the galactic center with raymarched accretion disk
-
-### 🎮 Controls
-| Action | Keyboard | Gamepad |
-|--------|----------|---------|
-| Move | WASD + R/F | Left Stick |
-| Look | Arrows / Mouse Drag | Right Stick |
-| Roll | Q/E | L1/R1 |
-| Boost | Shift (hold) | RT |
-| Zoom | Scroll | D-Pad |
-| Labels | L | - |
-| HUD | H | - |
-| Top View | T | - |
-| Unlock | Escape | - |
+| Feature | Description |
+|---------|-------------|
+| 🌍 **Solar System** | 9 planets with 2K NASA textures, 4 moons, 2000 asteroids |
+| 🏔️ **Quantumania** | Secondary realm with 38 floating 3D models — mountains, structures, ships, and inhabitants |
+| 🎨 **Custom Shaders** | Sun granulation, Earth day/night cycle, raymarched black hole |
+| 🎮 **6-DOF Controls** | Keyboard, mouse, and full gamepad support |
+| 🥚 **Easter Eggs** | Black Hole, The Kyln, Explorer, Alien X |
+| 👾 **Arishem** | Massive 3D Cosmic Entity (The Architect) with interior details |
+| 📡 **Radar System** | Minimap with entity tracking and teleportation |
 
 ---
 
-## 🚀 Getting Started
+## Live Website 
+
+**➡️ [cosmox.vercel.app](https://cosmox.vercel.app/)**
+
+> [!WARNING]
+> **Resource Intensive**: This project can consume **6-7 GB of RAM** when running on devices without an external dedicated GPU. Ensure you have sufficient system resources before launching.
+
+> **Live Website Limitations**: Performance depends on device GPU capabilities.
+
+---
+
+## 🚀 Quick Start
 
 ```bash
+# Clone and navigate
 git clone https://github.com/qtremors/cosmos.git
 cd cosmos/cosmos-app
+
+# Install dependencies
 npm install
+
+# Run the project
 npm run dev
 ```
 
-Open `http://localhost:5173`
+Visit **http://localhost:5173** 🎉
 
-### Production Build
+---
 
-```bash
-npm run build
-npm run preview
-```
+## 🎮 Controls
+
+| Action | Keyboard | Gamepad |
+|--------|----------|---------|
+| Move | WASD + R/F | Left Stick |
+| Look | Arrows / Mouse | Right Stick |
+| Roll | Q/E | L1/R1 |
+| Boost | Shift (hold) | RT |
+| Teleport | Tab | - |
+| Labels | L | - |
+| HUD | H | - |
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Framework | React 19 |
-| 3D Engine | Three.js |
-| Language | TypeScript |
-| Build | Vite 7 |
+| Layer | Technology |
+|-------|------------|
+| **Framework** | React 19 |
+| **3D Engine** | Three.js 0.182 |
+| **Language** | TypeScript 5.9 |
+| **Build** | Vite 7 |
+| **Testing** | Vitest |
 
 ---
 
@@ -93,75 +95,68 @@ npm run preview
 
 ```
 cosmos/
-├── README.md           # This file (source of truth)
-├── TASKS.md            # Development tasks
-├── CHANGELOG.md        # Version history
-└── cosmos-app/
-    ├── src/
-    │   ├── App.tsx         # Main scene, input, radar
-    │   ├── core/
-    │   │   ├── SDK.ts      # Physics constants & utilities
-    │   │   └── InputHandler.ts
-    │   ├── objects/        # All celestial bodies
-    │   └── materials/
-    │       └── Noise.ts    # Shared GLSL
-    └── public/
-        └── textures/       # 2K NASA textures
+├── cosmos-app/
+│   ├── src/
+│   │   ├── App.tsx              # Main scene and animation loop
+│   │   ├── main.tsx             # Entry point
+│   │   ├── index.css            # Global styles
+│   │   ├── core/                # SDK, InputHandler, SystemManager
+│   │   ├── objects/             # Component-based 3D entities
+│   │   │   ├── solar/           # Planets and moons
+│   │   │   ├── quantumania/     # Realm-specific models
+│   │   │   └── common/          # Shared 3D objects
+│   │   ├── shaders/             # Custom GLSL (sun, earth, blackhole, etc.)
+│   │   ├── materials/           # Shared material logic
+│   │   ├── components/          # React UI components
+│   │   ├── assets/              # Static SVG/Image assets
+│   │   ├── utils/               # Shared utilities
+│   │   └── __tests__/           # Vitest unit tests
+│   └── public/
+│       ├── textures/            # 2K NASA textures
+│       └── models/              # 38+ GLB models
+├── DEVELOPMENT.md               # Architecture & setup
+├── CHANGELOG.md                 # Version history
+├── TASKS.md                     # Roadmap & backlog
+└── LICENSE.md                   # TSL License
 ```
 
----
+## 📊 System Resource usage and impact
 
-## ⚙️ Configuration
+- **CPU**: Moderate (calculation heavy)
+- **RAM**: 6-7 GB (High, especially without dGPU)
+- **Disk**: ~60MB (Assets)
 
-All parameters in `src/core/SDK.ts`:
-
-| Config | Purpose |
-|--------|---------|
-| `UNITS` | Solar radius, AU scale |
-| `PLANETS` | Radius, distance, speed, eccentricity |
-| `CONTROLS` | Fly speed, boost, FOV |
-| `RADAR` | Range, entity colors |
-| `LIGHTING` | Sun intensity, ambient |
 
 ---
 
-## 👷 Contributing
+## 📚 Documentation
 
-See [TASKS.md](TASKS.md) for open issues.
-
-**Branch Policy:**
-- Work on `ag-dev` branch
-- Only maintainer merges to `main`
-
-**Adding a Celestial Body:**
-1. Add config to `SDK.ts` → `PLANETS`
-2. Create class in `src/objects/`
-3. Add to scene in `App.tsx`
-4. Add to radar entities
-5. Update docs
+| Document | Description |
+|----------|-------------|
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Architecture, configuration, contributing |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [TASKS.md](TASKS.md) | Current and planned development tasks |
+| [LICENSE.md](LICENSE.md) | License terms and attribution |
 
 ---
 
-## 📝 Changelog
+## 🧪 Testing
 
-See [CHANGELOG.md](CHANGELOG.md) for full history.
-
-**Recent:**
-- **v2.0.0** - Naming consistency overhaul, custom license, comment cleanup
-- **v1.9.5** - System-aware HUD, lazy model loading, camera transitions
-- **v1.9.0** - Test suite (Vitest), shader extraction
+```bash
+cd cosmos-app
+npm test
+```
 
 ---
 
 ## 📄 License
 
-Tremors Source License v1.1. See [LICENSE](LICENSE).
+**Tremors Source License (TSL)** - Source-available license allowing viewing, forking, and derivative works with **mandatory attribution**. Commercial use requires written permission.
 
-- ✅ Fork & build with **permanent attribution**
-- ❌ Commercial use requires written permission
+See [LICENSE.md](LICENSE.md) for full terms.
 
 ---
 
 <p align="center">
-  Made with 💖 by <a href="https://github.com/qtremors">Tremors</a>
+  Made with ❤️ by <a href="https://github.com/qtremors">Tremors</a>
 </p>
