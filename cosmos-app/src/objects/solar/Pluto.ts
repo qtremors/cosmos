@@ -2,9 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos, MoonConfig } from '../../core/SDK';
 
-// =============================================================================
-// CHARON MOON CLASS
-// =============================================================================
+
 
 class Charon extends THREE.Mesh {
     public readonly config: MoonConfig;
@@ -52,9 +50,7 @@ class Charon extends THREE.Mesh {
     }
 }
 
-// =============================================================================
-// PLUTO CLASS
-// =============================================================================
+
 
 export class Pluto extends THREE.Group {
     public readonly radius: number;

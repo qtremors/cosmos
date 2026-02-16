@@ -25,14 +25,13 @@ export interface LockTarget {
     mesh: THREE.Object3D;
     distance: number;
     isTop: boolean;
-    theta: number;  // Horizontal orbit angle (radians)
-    phi: number;    // Vertical orbit angle (radians)
+    theta: number;
+    phi: number;
 }
 
-// Progressive boost state
 interface BoostState {
-    holdTime: number;      // How long boost has been held (seconds)
-    lastUpdateTime: number; // Timestamp for tracking
+    holdTime: number;
+    lastUpdateTime: number;
 }
 
 const boostState: BoostState = {
@@ -83,9 +82,7 @@ export function pollGamepad(): Gamepad | null {
 }
 
 /**
- * Calculate current boost multiplier based on how long boost has been held.
- * Starts at base multiplier (10x), increases by 10x every 2 seconds.
- * Max: 100x
+ * Calculate current boost multiplier based on hold time.
  */
 function getProgressiveBoostMultiplier(delta: number, isBoosting: boolean): number {
     if (!isBoosting) {
@@ -138,7 +135,6 @@ export function applyInputToCamera(
             camera.rotateY(-mouseDelta.x * SENSITIVITY);
             camera.rotateX(-mouseDelta.y * SENSITIVITY);
         } else {
-            // Store for orbit control
             orbitX = mouseDelta.x * SENSITIVITY;
             orbitY = mouseDelta.y * SENSITIVITY;
         }
@@ -176,7 +172,6 @@ export function applyInputToCamera(
     // Check if any movement key is pressed (for auto-unlock)
     const isMoving = moveFwd || moveBack || moveLeft || moveRight || moveUp || moveDown;
 
-    // Calculate progressive boost multiplier (increases every 2 seconds while held)
     const boostMultiplier = getProgressiveBoostMultiplier(delta, doBoost);
 
     // Apply to camera (free flight mode)
@@ -244,7 +239,6 @@ export function applyInputToCamera(
             offset.set(0, dist, 0);
             camera.up.set(0, 0, -1);
         } else {
-            // Spherical coordinates for orbital camera
             offset.set(
                 dist * Math.cos(lockTarget.phi) * Math.sin(lockTarget.theta),
                 dist * Math.sin(lockTarget.phi),
@@ -258,8 +252,8 @@ export function applyInputToCamera(
         // Distance-adaptive lerp: slower for large distances creates smooth "warp travel" effect
         const travelDist = camera.position.distanceTo(desiredPos);
         const lerpFactor = travelDist > 100
-            ? Math.max(0.01, Math.min(0.05, 100 / travelDist))  // Slower for large distances (min 0.01, max 0.05)
-            : Cosmos.CAMERA.LERP_FACTOR;  // Normal fast lerp for close targets
+            ? Math.max(0.01, Math.min(0.05, 100 / travelDist))
+            : Cosmos.CAMERA.LERP_FACTOR;
         camera.position.lerp(desiredPos, lerpFactor);
 
         // Instant lookAt keeps locked target stable on screen

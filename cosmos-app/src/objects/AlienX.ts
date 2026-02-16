@@ -4,9 +4,8 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import celestialVertexShader from '../shaders/alienx/alienx.vert.glsl?raw';
 import celestialFragmentShader from '../shaders/alienx/alienx.frag.glsl?raw';
 
-// --- Configuration ---
 const CONFIG = {
-    bgColor: 0x010101, // Pure black void
+    bgColor: 0x010101,
     eyeColor: 0xccffcc,
     omnitrixColor: 0x55ff55
 };
@@ -22,7 +21,7 @@ export class AlienX extends THREE.Group {
     constructor() {
         super();
 
-        this.clock = new THREE.Clock(); // Independent clock
+        this.clock = new THREE.Clock();
         this.alienGroup = new THREE.Group();
         this.add(this.alienGroup);
 
@@ -41,8 +40,8 @@ export class AlienX extends THREE.Group {
             uniforms: this.starUniforms,
             vertexShader: celestialVertexShader,
             fragmentShader: celestialFragmentShader,
-            toneMapped: false, // Independent of global tone mapping
-            side: THREE.DoubleSide // Ensure no gaps
+            toneMapped: false,
+            side: THREE.DoubleSide
         });
 
         const headGrp = new THREE.Group();
@@ -72,7 +71,7 @@ export class AlienX extends THREE.Group {
         const createHorn = (sign: number) => {
             const h = new THREE.Group();
             h.position.set(sign * 0.15, 0.35, -0.05);
-            h.rotation.z = sign * -0.5; // Base angle
+            h.rotation.z = sign * -0.5;
             h.rotation.x = -0.2;
 
             const seg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 16), cosmicMat);
@@ -81,7 +80,7 @@ export class AlienX extends THREE.Group {
 
             const seg2 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.3, 16), cosmicMat);
             seg2.position.set(sign * 0.05, 0.35, 0);
-            seg2.rotation.z = sign * 0.3; // Curve inward
+            seg2.rotation.z = sign * 0.3;
             h.add(seg2);
             return h;
         };
@@ -110,7 +109,7 @@ export class AlienX extends THREE.Group {
             opacity: 0.9,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
-            depthTest: false, // Don't test depth - always render on top of what's behind
+            depthTest: false,
             toneMapped: false
         });
         const glowL = new THREE.Sprite(spriteMat); glowL.scale.set(0.5, 0.5, 1); glowL.renderOrder = 200; eyeL.add(glowL);
@@ -171,7 +170,7 @@ export class AlienX extends THREE.Group {
         div.textContent = 'Alien X';
         div.style.color = '#55ff55';
         this.label = new CSS2DObject(div);
-        this.label.position.set(0, 7, 0); // Above head (scaled)
+        this.label.position.set(0, 7, 0);
         this.add(this.label);
 
         const positionAngle = Math.PI * 0.75;

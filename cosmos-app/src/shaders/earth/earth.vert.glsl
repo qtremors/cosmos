@@ -8,7 +8,7 @@ varying vec3 vWorldPosition;
 
 void main() {
     vUv = uv;
-    // Transform normal to WORLD space (not view space)
+
     vNormal = normalize(mat3(modelMatrix) * normal);
     vPosition = position;
     vec4 worldPos = modelMatrix * vec4(position, 1.0);

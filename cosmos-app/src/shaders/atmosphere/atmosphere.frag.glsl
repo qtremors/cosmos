@@ -10,7 +10,7 @@ void main() {
     float rim = 1.0 - max(0.0, dot(vNormal, viewDir));
     rim = pow(rim, uPower);
     
-    // Soft fade out at edges
+
     float alpha = rim * uIntensity;
     
     gl_FragColor = vec4(uColor, alpha);

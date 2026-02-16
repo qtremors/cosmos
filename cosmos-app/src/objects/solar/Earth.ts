@@ -5,9 +5,7 @@ import { Cosmos } from '../../core/SDK';
 import vertexShader from '../../shaders/earth/earth.vert.glsl?raw';
 import fragmentShader from '../../shaders/earth/earth.frag.glsl?raw';
 
-// =============================================================================
-// EARTH CLASS
-// =============================================================================
+
 
 export class Earth extends THREE.Group {
     public readonly radius: number;
@@ -109,7 +107,6 @@ export class Earth extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        // 1. Orbit Sun (realistic period: 365.25 days, elliptical e=0.017)
         const theta = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.EARTH,
@@ -123,15 +120,13 @@ export class Earth extends THREE.Group {
         );
         this.position.set(pos.x, pos.y, pos.z);
 
-        // 2. Planet Rotation (realistic: 23.93 hours)
         const rotation = Cosmos.getRealisticRotation(
             time,
             Cosmos.ROTATION_PERIODS.EARTH
         );
         this.mesh.rotation.y = rotation;
-        this.clouds.rotation.y = rotation * 1.05; // Clouds rotate slightly faster
+        this.clouds.rotation.y = rotation * 1.05;
 
-        // 3. Moon Orbit (realistic period: 27.32 days, original sim distance)
         const moonAngle = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.MOON
@@ -140,7 +135,6 @@ export class Earth extends THREE.Group {
         this.moon.position.x = Math.cos(moonAngle) * moonDistance;
         this.moon.position.z = Math.sin(moonAngle) * moonDistance;
 
-        // 4. Labels
         const dist = camera.position.distanceTo(this.position);
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
 

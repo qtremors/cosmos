@@ -4,9 +4,7 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import vertexShader from '../shaders/blackhole/blackhole.vert.glsl?raw';
 import fragmentShader from '../shaders/blackhole/blackhole.frag.glsl?raw';
 
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
+
 
 const CONFIG = {
     DISTANCE: 8000,
@@ -15,9 +13,7 @@ const CONFIG = {
     CORE_RADIUS: 65,
 };
 
-// =============================================================================
-// BLACK HOLE CLASS
-// =============================================================================
+
 
 export class BlackHole extends THREE.Group {
     public readonly radius: number = CONFIG.BILLBOARD_SIZE / 2;
@@ -28,7 +24,6 @@ export class BlackHole extends THREE.Group {
     private material: THREE.ShaderMaterial;
     private clock: THREE.Clock;
 
-    // Reusable vectors to avoid per-frame allocations
     private tmpBlackHoleWorldPos = new THREE.Vector3();
     private tmpCamWorldPos = new THREE.Vector3();
     private tmpRelativePos = new THREE.Vector3();
@@ -49,11 +44,11 @@ export class BlackHole extends THREE.Group {
         const coreMaterial = new THREE.MeshBasicMaterial({
             color: 0x000000,
             toneMapped: false,
-            depthTest: true,   // Respect accretion disk depth
-            depthWrite: true,  // Write to depth buffer
+            depthTest: true,
+            depthWrite: true,
         });
         this.core = new THREE.Mesh(coreGeometry, coreMaterial);
-        this.core.renderOrder = 101;  // Render after billboard (100) to cover distant glares
+        this.core.renderOrder = 9991;
         this.add(this.core);
 
         const geometry = new THREE.PlaneGeometry(CONFIG.BILLBOARD_SIZE, CONFIG.BILLBOARD_SIZE);
@@ -68,13 +63,13 @@ export class BlackHole extends THREE.Group {
             transparent: true,
             side: THREE.DoubleSide,
             depthWrite: false,
-            depthTest: true,
+            depthTest: false,
             toneMapped: false,
             blending: THREE.AdditiveBlending,
         });
 
         this.billboard = new THREE.Mesh(geometry, this.material);
-        this.billboard.renderOrder = 102;  // Render after core (101)
+        this.billboard.renderOrder = 9992;
         this.add(this.billboard);
 
         const div = document.createElement('div');

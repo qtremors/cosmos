@@ -2,11 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos } from '../../core/SDK';
 
-/**
- * The Kyln - A massive space prison featured in Guardians of the Galaxy.
- * Located in the asteroid belt, it's a towering industrial structure
- * with multiple spires, docking bays, and an ominous glow.
- */
+
 export class TheKyln extends THREE.Group {
     private structure: THREE.Group;
     private label: CSS2DObject;

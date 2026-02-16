@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 
-/**
- * Background starfield using point particles
- */
+
 export class Stars extends THREE.Points {
     constructor(count: number = 2000, radius: number = 800) {
         const geo = new THREE.BufferGeometry();

@@ -57,8 +57,8 @@ void main() {
     vec3 p = ro;
     float d = 0.0;
 
-    // Black hole parameters - core is handled by separate mesh
-    float accretionMin = 3.0;  // Inner edge closer to core
+    // Black hole parameters
+    float accretionMin = 3.0;
     float accretionMax = 14.0;
     
     // Boost brightness when viewing from top/bottom (camera Y dominates)
@@ -68,7 +68,7 @@ void main() {
     for(int i = 0; i < 150; i++) {
         float distToCenter = length(p);
         
-        // Skip the core area (handled by solid sphere mesh)
+        // Core area
         if (distToCenter < 2.5) {
             break;
         }
@@ -78,7 +78,7 @@ void main() {
         float bendStrength = 0.15 / (distToCenter * distToCenter);
         rd = normalize(rd + toCenter * bendStrength);
 
-        // ENHANCED Accretion Disk
+        // Accretion Disk
         float planeDist = abs(p.y);
         
         if (distToCenter > accretionMin && distToCenter < accretionMax && planeDist < 0.6) {
@@ -99,18 +99,18 @@ void main() {
             
             float intensity = density * fade * verticalFade;
 
-            // Original Doppler colors
+            // Doppler colors
             float doppler = dot(normalize(cross(vec3(0.0, 1.0, 0.0), p)), normalize(ro - p));
-            vec3 coolColor = vec3(1.0, 0.4, 0.1);   // Orange
-            vec3 hotColor = vec3(0.3, 0.6, 1.0);    // Blue
+            vec3 coolColor = vec3(1.0, 0.4, 0.1);
+            vec3 hotColor = vec3(0.3, 0.6, 1.0);
             vec3 diskColor = mix(coolColor, hotColor, smoothstep(-0.5, 0.5, doppler));
             
-            // Original accumulation levels with top-view boost
+            // Accumulation
             totalAccretion += intensity * 0.15 * topViewBoost;
             col += diskColor * intensity * 0.2 * topViewBoost * (1.0 - min(glow, 1.0));
         }
         
-        // Glow (reduced)
+        // Glow
         float glowContrib = 1.0 / (distToCenter * distToCenter * 25.0 * max(abs(p.y), 0.05) + 0.05);
         glow += glowContrib;
 
@@ -121,7 +121,7 @@ void main() {
         if(d > MAX_DIST) break;
     }
 
-    // Original glow levels
+    // Glow
     col += vec3(1.0, 0.7, 0.4) * glow * 0.05;
     col = 1.0 - exp(-col * 1.8);
     
@@ -129,7 +129,7 @@ void main() {
     float distFromCenter = length(uv);
     float circleMask = 1.0 - smoothstep(0.85, 1.0, distFromCenter);
     
-    // Alpha based on accretion/glow only (core is separate mesh)
+    // Alpha
     float alpha = circleMask * max(totalAccretion * 2.0, glow * 0.15);
     alpha = min(alpha, 1.0);
     

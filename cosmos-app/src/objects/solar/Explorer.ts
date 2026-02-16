@@ -8,8 +8,8 @@ export class Explorer extends THREE.Group {
     private label: CSS2DObject;
     private velocity: THREE.Vector3;
     private targetPosition: THREE.Vector3;
-    private static readonly SPEED = 0.08; // Very slow touring speed
-    private static readonly MIN_PLANET_DISTANCE = 15; // Avoid getting too close
+    private static readonly SPEED = 0.08;
+    private static readonly MIN_PLANET_DISTANCE = 15;
 
     constructor() {
         super();

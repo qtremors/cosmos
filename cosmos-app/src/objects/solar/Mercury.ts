@@ -2,9 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos, PlanetConfig } from '../../core/SDK';
 
-// =============================================================================
-// MERCURY CLASS
-// =============================================================================
+
 
 export class Mercury extends THREE.Group {
   public readonly radius: number;

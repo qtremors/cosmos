@@ -16,22 +16,31 @@ export class Structures extends THREE.Group {
             { file: '/models/Station5.glb', name: 'Station5', scale: 60 },
         ];
 
-        const minR = 1600;
-        const maxR = 2000;
-        const heightVar = 800;
+        const platesDist = 1200;
+        const platesAngle = 0;
+        const platesX = center.x + Math.cos(platesAngle) * platesDist;
+        const platesZ = center.z + Math.sin(platesAngle) * platesDist;
+        
+
+        const spawnRadius = 150;
 
         configs.forEach((item) => {
             const angle = Math.random() * Math.PI * 2;
-            const radius = minR + Math.random() * (maxR - minR);
-            const x = center.x + Math.cos(angle) * radius;
-            const z = center.z + Math.sin(angle) * radius;
-            const y = (Math.random() * heightVar) - (heightVar / 2);
+            const radius = Math.random() * spawnRadius;
+            const x = platesX + Math.cos(angle) * radius;
+            const z = platesZ + Math.sin(angle) * radius;
+            const y = (Math.random() * 100) - 50;
 
             const pos = new THREE.Vector3(x, y, z);
             const colors = ['#aaddff', '#ccaaff', '#88ffff', '#ffffff', '#aaaaff'];
             const color = colors[Math.floor(Math.random() * colors.length)];
 
             const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2);
+            
+
+            entity.floating = false;
+            entity.rotationSpeed = 0;
+
             this.add(entity);
             this.items.push(entity);
         });

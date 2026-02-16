@@ -12,9 +12,7 @@ interface AsteroidData {
     scale: number;
 }
 
-// =============================================================================
-// ASTEROID BELT CLASS
-// =============================================================================
+
 
 export class AsteroidBelt extends THREE.Group {
     private mesh: THREE.InstancedMesh;
