@@ -110,7 +110,8 @@ export function applyInputToCamera(
     mouseDelta: { x: number; y: number },
     zoomVelocity: { current: number },
     lockTarget: LockTarget | null,
-    gamepad: Gamepad | null
+    gamepad: Gamepad | null,
+    flightSpeed = Cosmos.CONTROLS.FLY_SPEED
 ): boolean {
     const DEADZONE = 0.15;
     const SENSITIVITY = 0.002;
@@ -178,7 +179,7 @@ export function applyInputToCamera(
 
     // Apply to camera (free flight mode)
     if (!lockTarget) {
-        const speed = Cosmos.CONTROLS.FLY_SPEED * boostMultiplier * delta;
+        const speed = flightSpeed * boostMultiplier * delta;
         const rotSpeed = Cosmos.CONTROLS.ROLL_SPEED * delta;
 
         if (moveFwd) camera.translateZ(-speed);
@@ -197,14 +198,14 @@ export function applyInputToCamera(
         if (rollL) camera.rotateZ(rotSpeed);
         if (rollR) camera.rotateZ(-rotSpeed);
 
-        camera.translateZ(zoomDistance * 10);
+        camera.translateZ(zoomDistance * flightSpeed / 2);
     } else if (lockTarget.mesh) {
         // Lock-on mode with orbital camera
         const targetPos = targetPosition;
         lockTarget.mesh.getWorldPosition(targetPos);
 
         // Apply zoom
-        lockTarget.distance += zoomDistance * 50;
+        lockTarget.distance *= Math.exp(THREE.MathUtils.clamp(zoomDistance * 0.08, -1, 1));
 
         const minD = Cosmos.getObjectRadius(lockTarget.mesh) * 1.5;
         lockTarget.distance = Math.max(minD, lockTarget.distance);

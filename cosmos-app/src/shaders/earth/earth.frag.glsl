@@ -20,13 +20,14 @@ void main() {
 
     vec3 lightDir = normalize(uSunPos - vWorldPosition);
     vec3 normal = normalize(vNormal);
-    float diff = max(dot(normal, lightDir), 0.0);
+    float signedLight = dot(normal, lightDir);
+    float diff = max(signedLight, 0.0);
     
 
-    float nightBlend = smoothstep(-0.1, 0.2, -diff + 0.1);
+    float nightBlend = 1.0 - smoothstep(-0.05, 0.05, signedLight);
     
 
-    vec3 col = mix(dayColor * (diff + 0.05), nightColor * 1.5, nightBlend);
+    vec3 col = mix(dayColor * diff, nightColor * 1.5, nightBlend);
     
 
     col += dayColor * uFill * 0.2;
@@ -44,4 +45,6 @@ void main() {
     col += cAtmo * rim * 0.5 * max(diff, 0.1);
 
     gl_FragColor = vec4(col, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
 }

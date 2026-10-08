@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { noiseFunctions } from '../../materials/Noise';
+import { bodyOrientation } from '../../core/Ephemeris';
 import { Cosmos } from '../../core/SDK';
 
 import surfaceVertexShader from '../../shaders/sun/surface.vert.glsl?raw';
@@ -88,8 +89,8 @@ export class Sun extends THREE.Group {
   }
 
   update(time: number, camera: THREE.Camera, effectTime: number): void {
-    this.surface.rotation.y = Cosmos.getRealisticRotation(time, Cosmos.ROTATION_PERIODS.SUN);
-    this.corona.rotation.y = Cosmos.getRealisticRotation(time, Cosmos.ROTATION_PERIODS.SUN * 1.5);
+    this.surface.quaternion.copy(bodyOrientation('Sun', time));
+    this.corona.quaternion.copy(this.surface.quaternion);
 
     this.sunMat.uniforms.uTime.value = effectTime;
     this.coronaMat.uniforms.uTime.value = effectTime;

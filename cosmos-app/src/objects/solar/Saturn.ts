@@ -1,4 +1,5 @@
 import { Moon, addMoonOrbit } from '../common/Moon';
+import { bodyState, bodyOrientation } from '../../core/Ephemeris';
 import { BODY_DATA } from '../../core/BodyData';
 import * as THREE from 'three';
 import { SceneAssets } from '../../core/SceneAssets';
@@ -16,14 +17,14 @@ export class Saturn extends THREE.Group {
     private mesh: THREE.Mesh;
     private rings: THREE.Mesh;
     private label: CSS2DObject;
-    private initialAngle: number;
+    readonly moons: Moon[] = [];
 
     constructor(assets = new SceneAssets()) {
         super();
 
         const config = Cosmos.PLANETS.SATURN;
         this.radius = config.RADIUS;
-        this.initialAngle = Math.random() * Math.PI * 2;
+
 
         const loader = assets;
         const texture = loader.loadTexture('/textures/2k_saturn.jpg');
@@ -39,15 +40,21 @@ export class Saturn extends THREE.Group {
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
+        this.mesh.scale.y = BODY_DATA.Saturn.polarKm! / BODY_DATA.Saturn.equatorialKm!;
         this.add(this.mesh);
 
         this.rings = this.createRings(config.RING!);
         this.add(this.rings);
 
-        this.titan = new Moon({ name: 'Titan', radius: config.MOON.RADIUS, distance: config.MOON.DISTANCE, color: 0xe6d4be });
-        this.enceladus = new Moon({ name: 'Enceladus', radius: 0.5, distance: 26, color: 0xf2f4ff });
+        this.titan = new Moon({ name: 'Titan', color: 0xe6d4be });
+        this.enceladus = new Moon({ name: 'Enceladus', color: 0xf2f4ff });
         addMoonOrbit(this, this.titan);
         addMoonOrbit(this, this.enceladus);
+        this.moons.push(this.titan, this.enceladus);
+        for (const name of ['Mimas', 'Tethys', 'Dione', 'Rhea', 'Iapetus']) {
+            const moon = new Moon({ name, color: 0xcac8c2 });
+            addMoonOrbit(this, moon); this.moons.push(moon);
+        }
         this.userData.orbit = { ...BODY_DATA.Saturn, visualAxis: config.DISTANCE };
 
         const div = document.createElement('div');
@@ -57,33 +64,27 @@ export class Saturn extends THREE.Group {
         this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
         this.add(this.label);
 
-        this.mesh.rotation.x = Math.PI * 0.15;
-        this.rings.rotation.x = Math.PI * 0.15;
-        this.rotation.z = Math.PI * 0.15;
+
     }
 
     private createRings(config: RingConfig): THREE.Mesh {
         const geometry = new THREE.RingGeometry(config.INNER_RADIUS, config.OUTER_RADIUS, 128);
 
-        const size = 512;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
+        // D/C/B/A/F ring extents and the Cassini division, in kilometres.
+        const size = 1024;
+        const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = 1;
         const ctx = canvas.getContext('2d')!;
-
-        const centerX = size / 2;
-        const centerY = size / 2;
-        const gradient = ctx.createRadialGradient(centerX, centerY, size / 6, centerX, centerY, size / 2);
-        gradient.addColorStop(0.3, 'rgba(0,0,0,0)');
-        gradient.addColorStop(0.4, 'rgba(200, 180, 150, 0.8)');
-        gradient.addColorStop(0.5, 'rgba(200, 180, 150, 0.4)');
-        gradient.addColorStop(0.6, 'rgba(200, 180, 150, 0.9)');
-        gradient.addColorStop(0.7, 'rgba(200, 180, 150, 0.1)');
-        gradient.addColorStop(0.8, 'rgba(200, 180, 150, 0.5)');
-        gradient.addColorStop(1.0, 'rgba(0,0,0,0)');
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, size, size);
+        for (let index = 0; index < size; index++) {
+            const radius = 66900 + index / (size - 1) * (140180 - 66900);
+            const opacity = radius < 74510 ? 0.06 : radius < 92000 ? 0.28 : radius < 117580 ? 0.9 : radius < 122170 ? 0.025 : radius < 136775 ? 0.65 : radius > 140000 ? 0.45 : 0.01;
+            const band = 0.9 + 0.1 * Math.sin(index * 0.9);
+            ctx.fillStyle = `rgba(205,190,165,${opacity * band})`; ctx.fillRect(index, 0, 1, 1);
+        }
+        const uv = geometry.getAttribute('uv'), position = geometry.getAttribute('position');
+        for (let index = 0; index < uv.count; index++) {
+            const radius = Math.hypot(position.getX(index), position.getY(index));
+            uv.setXY(index, (radius - config.INNER_RADIUS) / (config.OUTER_RADIUS - config.INNER_RADIUS), 0.5);
+        }
 
         const tex = new THREE.CanvasTexture(canvas);
 
@@ -91,7 +92,7 @@ export class Saturn extends THREE.Group {
             map: tex,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.9,
+            opacity: 1.0,
         });
 
         const rings = new THREE.Mesh(geometry, material);
@@ -103,27 +104,13 @@ export class Saturn extends THREE.Group {
     }
 
     update(time: number, camera: THREE.Camera): void {
-        const theta = Cosmos.getRealisticOrbitalAngle(
-            time,
-            Cosmos.ORBITAL_PERIODS.SATURN,
-            this.initialAngle,
-            Cosmos.ECCENTRICITY.SATURN
-        );
-        const pos = Cosmos.getEllipticalOrbitalPosition(
-            Cosmos.PLANETS.SATURN.DISTANCE,
-            Cosmos.ECCENTRICITY.SATURN,
-            Cosmos.INCLINATION.SATURN,
-            theta
-        );
-        this.position.set(pos.x, pos.y, pos.z);
-
-        this.mesh.rotation.y = Cosmos.getRealisticRotation(
-            time,
-            Cosmos.ROTATION_PERIODS.SATURN
-        );
-
-        this.titan.update(time, camera);
-        this.enceladus.update(time, camera);
+        const state = bodyState('Saturn', time);
+        this.position.copy(state.position);
+        this.userData.orbit.speedKmS = state.velocity.length();
+        this.mesh.quaternion.copy(bodyOrientation('Saturn', time));
+        this.rings.quaternion.copy(bodyOrientation('Saturn', time, false));
+        this.rings.rotateX(-Math.PI / 2);
+        for (const moon of this.moons) moon.update(time, camera);
 
         const dist = camera.position.distanceTo(this.getWorldPosition(this.worldPosition));
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));

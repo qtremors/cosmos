@@ -1,3 +1,4 @@
+import { MIN_DATE, MAX_DATE } from './Ephemeris';
 import { createWorld } from './World';
 import { FrameProfiler, resourceEstimates, type PerformanceSnapshot } from './Performance';
 import { orbitalSpeedKmS } from './OrbitalMechanics';
@@ -20,12 +21,13 @@ import { simulationDistanceToKm, VISIBILITY } from './Simulation';
 
 
 export interface LockedInfo {
-    name: string; orbitalSpeed: number; refDist: number; refName: string; showOrbitalSpeed: boolean;
+    name: string; orbitalSpeed: number; refDist: number; refName: string; showOrbitalSpeed: boolean; viewDistanceKm: number;
 }
 export interface SceneSettings {
-    quality: QualityLevel; showLabels: boolean; timeScale: number; paused: boolean; darkSideFill: number; diagnostics: boolean;
+    quality: QualityLevel; showLabels: boolean; timeScale: number; paused: boolean; darkSideFill: number; diagnostics: boolean; epoch: number; showOrbits: boolean; fiction: boolean; autoExposure: boolean;
 }
 export interface SceneOptions extends SceneSettings {
+    onDate: (date: string) => void;
     radarButton: HTMLButtonElement | null;
     onAssets: (status: AssetStatus) => void;
     onError: (error: string) => void;
@@ -48,6 +50,13 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     const mountRef = cell(mount);
     const radarButtonRef = cell(options.radarButton);
     const qualityRef = cell(options.quality);
+    const showOrbitsRef = cell(options.showOrbits);
+    const fictionRef = cell(options.fiction);
+    const autoExposureRef = cell(options.autoExposure);
+    let epoch = options.epoch;
+    let simTime = epoch;
+    const minTime = Date.parse(MIN_DATE) / 1000;
+    const maxTime = Date.parse(MAX_DATE) / 1000;
     const showLabelsRef = cell(options.showLabels);
     const timeScaleRef = cell(options.timeScale);
     const isPausedRef = cell(options.paused);
@@ -56,6 +65,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     const entitiesRef = cell<EntityInfo[]>([]);
     const radarBlipsRef = cell(new Map<string, HTMLElement>());
     const lockRef = cell<LockTarget | null>(null);
+    const lastLockPosition = new THREE.Vector3();
     const inputRef = cell(createInputState());
     const keyboardCodes = new Set<string>();
     const touchCodes = new Set<string>();
@@ -83,6 +93,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         const camera = cameraRef.current;
         if (!camera) return;
         const targetPos = mesh.getWorldPosition(new THREE.Vector3());
+        lastLockPosition.copy(targetPos);
         const relative = camera.position.clone().sub(targetPos);
         const distance = Math.max(relative.length(), 1e-6);
         lockRef.current = {
@@ -93,6 +104,12 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
             theta: Math.atan2(relative.x, relative.z),
             phi: Math.asin(THREE.MathUtils.clamp(relative.y / distance, -1, 1)),
         };
+        // Instant navigation avoids spending minutes approaching a millimetric target.
+        const lock = lockRef.current;
+        camera.position.copy(targetPos).add(new THREE.Vector3(Math.cos(lock.phi) * Math.sin(lock.theta), Math.sin(lock.phi), Math.cos(lock.phi) * Math.cos(lock.theta)).multiplyScalar(lock.distance));
+        camera.up.set(0, 1, 0); camera.lookAt(targetPos);
+        camera.near = Math.max(1e-8, Math.min(1, radius * 0.02)); camera.updateProjectionMatrix();
+        lastCameraPos.current.copy(camera.position); setCameraSpeed(0);
         setLockedEntity(entity);
         closeRadar();
         mountRef.current?.querySelector('canvas')?.focus();
@@ -169,7 +186,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
             const activeSystem = manager.currentSystem;
 
             const systemEntities = entitiesRef.current.filter(ent =>
-                ent.system === activeSystem && !ent.isSystemProxy
+                ent.system === activeSystem && !ent.isSystemProxy && (fictionRef.current || ent.category !== EntityCategory.EASTER_EGG)
             );
 
             if (systemEntities.length > 0) {
@@ -220,7 +237,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
 
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100000);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.001, 300000);
     // Start in Solar System with a good overview angle
     camera.position.set(0, 500, 800);
     camera.lookAt(0, 0, 0);
@@ -248,13 +265,13 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
 
     const {
         sun, stars, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto,
-        belt, explorer, theKyln, solarHeliosphere, solarBeacon, quantumania, orbitPaths,
+        belt, kuiperBelt, dwarfPlanets, explorer, theKyln, solarHeliosphere, solarBeacon, quantumania, orbitPaths,
         alienX, blackHole, cosmicEntity, renderWorld, entities,
     } = createWorld(scene, assets);
     entitiesRef.current = entities;
     SystemManager.getInstance().updateCurrentSystem(camera.position);
 
-    queueMicrotask(() => { if (!disposed) setEntities(entitiesRef.current); });
+    queueMicrotask(() => { if (!disposed) setEntities(entitiesRef.current.filter(entity => fictionRef.current || (entity.system === SystemId.SOLAR_SYSTEM && entity.category !== EntityCategory.EASTER_EGG))); });
 
     // RADAR INIT - Cache DOM references
     const radarContainer = document.getElementById('radar-container');
@@ -330,7 +347,6 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     };
     window.addEventListener('resize', onWinResize);
 
-    let simTime = 0;
     let elapsedTime = 0;
     let statsElapsed = 0;
     let disposed = false;
@@ -340,7 +356,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
     const radarVector = new THREE.Vector3();
     const inverseRotation = new THREE.Quaternion();
     lastCameraPos.current.copy(camera.position);
-    const solarObjects = [sun, mercury, venus, earth, mars, belt, jupiter, saturn, uranus, neptune, pluto, explorer, theKyln];
+    const solarObjects = [sun, mercury, venus, earth, mars, belt, kuiperBelt, jupiter, saturn, uranus, neptune, pluto, ...dwarfPlanets];
     const planetPositions = [mercury.position, venus.position, earth.position, mars.position, jupiter.position, saturn.position, uranus.position, neptune.position, pluto.position];
     const onContextLost = (event: Event) => {
         event.preventDefault();
@@ -377,21 +393,12 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
                 }
             });
             belt.setCount(preset.asteroids);
+            kuiperBelt.setCount(Math.round(preset.asteroids / 4));
             stars.setCount(preset.stars);
             blackHole.setRaySteps(preset.raySteps);
         }
 
-        // Apply time scale
-        if (!isPausedRef.current) {
-            const sysManager = SystemManager.getInstance();
-            if (sysManager.currentSystem === SystemId.QUANTUMANIA) {
-                // Force Realtime in Quantumania (Walking Simulator Mode)
-                simTime += delta;
-            } else {
-                // Use Time Slider for Solar System (Space Sim Mode)
-                simTime += delta * timeScaleRef.current;
-            }
-        }
+        if (!isPausedRef.current) simTime = Math.min(maxTime, Math.max(minTime, simTime + wallDelta * timeScaleRef.current));
         const time = simTime;
 
 
@@ -400,7 +407,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         // 1. Solar System
         // Show if:
         // - Inside Solar Radius
-        // - Inside extended range (4500) covering Alien X
+        // - Inside the extended solar visibility range
         // - Locked onto any Solar object
         // - Locked specifically onto Alien X (override)
         const sunDist = camera.position.distanceTo(SystemManager.SOLAR_SYSTEM_CENTER);
@@ -412,7 +419,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
 
         // Toggle Solar System (3D Objects vs Beacon)
         solarObjects.forEach(obj => obj.visible = showSolarSystem);
-        orbitPaths.forEach(p => p.visible = showSolarSystem);
+        orbitPaths.forEach(p => { p.update(time); p.visible = showSolarSystem && showOrbitsRef.current; });
 
         solarBeacon.visible = !showSolarSystem;
         if (solarBeacon.visible) {
@@ -429,35 +436,39 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         const isLockedToQuantum = lockedEntity?.system === SystemId.QUANTUMANIA;
 
         // Show if close (Radius + 500 buffer) OR locked onto it
-        const showQuantumania = (nexusDist < SystemManager.QUANTUMANIA_RADIUS + VISIBILITY.QUANTUMANIA_BUFFER) || isLockedToQuantum;
+        const showQuantumania = fictionRef.current && ((nexusDist < SystemManager.QUANTUMANIA_RADIUS + VISIBILITY.QUANTUMANIA_BUFFER) || isLockedToQuantum);
 
         // Hide Quantumania heliosphere if locked onto an object inside it (except proxy)
         // (Enforced after update call below)
 
-        // 1. UPDATE OBJECTS (only if visible)
-        if (showSolarSystem) {
+        // Keep ephemerides current so distant selections/date jumps use the correct state.
+        {
             sun.update(time, camera, elapsedTime);
             mercury.update(time, camera);
             venus.update(time, camera);
             earth.update(time, camera);
             mars.update(time, camera);
-            if (animationDelta > 0) belt.update(time, elapsedTime);
+            belt.update(time);
+            kuiperBelt.update(time);
             jupiter.update(time, camera);
             saturn.update(time, camera);
             uranus.update(time, camera);
             neptune.update(time, camera);
             pluto.update(time, camera);
+            for (const dwarf of dwarfPlanets) dwarf.update(time);
+            explorer.visible = theKyln.visible = fictionRef.current && showSolarSystem;
             explorer.update(time, camera, isPausedRef.current ? 0 : delta);
             theKyln.update(time, camera, animationDelta, elapsedTime);
         }
         solarHeliosphere.update(time, camera);
-        if (!showSolarSystem || isLockedToSolar) {
+        if (!fictionRef.current || !showSolarSystem || isLockedToSolar) {
             solarHeliosphere.visible = false;
         }
 
         // Update Quantumania system (pass visibility flag)
         quantumania.setVisible(showQuantumania);
-        quantumania.update(time, camera, elapsedTime);
+        quantumania.visible = fictionRef.current;
+        if (fictionRef.current) quantumania.update(time, camera, elapsedTime);
         quantumania.updateResidency(wallDelta);
 
         // ENFORCE VISIBILITY for Quantumania
@@ -479,12 +490,33 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
         // Interstellar Easter Eggs (always visible/updated)
         alienX.update(time, camera, elapsedTime);
         blackHole.update(time, camera, elapsedTime);
-        cosmicEntity.update(time, camera, elapsedTime, animationDelta);
+        if (fictionRef.current) cosmicEntity.update(time, camera, elapsedTime, animationDelta);
+        else cosmicEntity.suspend();
+        alienX.visible = blackHole.visible = fictionRef.current;
+        stars.position.copy(camera.position);
+        for (const object of solarObjects) object.traverse(child => { if (child.userData.orbitGuide) child.visible = showOrbitsRef.current; });
         cosmicEntity.updateResidency(wallDelta);
+
+        // Follow the target's translation exactly, including large time/date changes.
+        // Camera smoothing then affects only the relative orbit, not orbital tracking.
+        if (lockRef.current?.mesh) {
+            lockRef.current.mesh.getWorldPosition(targetPosition);
+            camera.position.add(referencePosition.copy(targetPosition).sub(lastLockPosition));
+            lastLockPosition.copy(targetPosition);
+        }
 
         // 2. INPUT PROCESSING
         if (touchCodes.has('ZoomIn')) zoomVelocity.current -= 60 * delta;
         if (touchCodes.has('ZoomOut')) zoomVelocity.current += 60 * delta;
+        // Travel speed and near clipping follow local physical dimensions.
+        let clearance = Infinity;
+        for (const entity of entitiesRef.current) {
+            if (entity.isSystemProxy || !entity.mesh.visible || !('radius' in entity.mesh)) continue;
+            entity.mesh.getWorldPosition(targetPosition);
+            clearance = Math.min(clearance, Math.max(Number(entity.mesh.radius) * 0.1, camera.position.distanceTo(targetPosition) - Number(entity.mesh.radius)));
+        }
+        const flightSpeed = Math.max(1e-6, Math.min(Cosmos.CONTROLS.FLY_SPEED, clearance * 0.5));
+        camera.near = Math.max(1e-8, Math.min(1, clearance * 0.01)); camera.updateProjectionMatrix();
         const pad = pollGamepad();
         const isMoving = applyInputToCamera(
             camera,
@@ -493,7 +525,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
             mouseDelta.current,
             zoomVelocity,
             lockRef.current,
-            pad
+            pad, flightSpeed
         );
 
         // Auto-Unlock on Move
@@ -501,6 +533,8 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
             unlockCamera();
         }
 
+        const exposureDistance = lockedEntity && lockedEntity.system === SystemId.SOLAR_SYSTEM && lockedEntity.category !== EntityCategory.EASTER_EGG ? lockedEntity.mesh.getWorldPosition(targetPosition).length() / Cosmos.UNITS.AU : 1;
+        renderer.toneMappingExposure = autoExposureRef.current ? Math.max(1, exposureDistance ** 2) : 1;
         renderWorld.render(renderer, camera, showSolarSystem, showQuantumania);
 
         // Toggle labels visibility
@@ -511,6 +545,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
 
         // STATS HUD UPDATE (throttled to avoid excessive re-renders)
         if (statsElapsed >= 1 / 6) {
+            options.onDate(new Date(simTime * 1000).toISOString());
             const speedKmS = simulationDistanceToKm(camera.position.distanceTo(lastCameraPos.current)) / statsElapsed;
             statsElapsed = 0;
             lastCameraPos.current.copy(camera.position);
@@ -533,13 +568,14 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
                 else refPoint.copy(entitySystem === SystemId.QUANTUMANIA ? SystemManager.QUANTUMANIA_CENTER : SystemManager.SOLAR_SYSTEM_CENTER);
                 const visualDistance = targetPos.distanceTo(refPoint);
                 const physicalDistance = hasOrbit ? visualDistance / orbit.visualAxis * orbit.axisKm : simulationDistanceToKm(visualDistance);
-                const speed = hasOrbit ? orbitalSpeedKmS(orbit.axisKm, orbit.periodDays, physicalDistance) : 0;
+                const speed = hasOrbit ? (orbit.speedKmS ?? orbitalSpeedKmS(orbit.axisKm, orbit.periodDays, physicalDistance)) : 0;
                 setLockedInfo({
                     name: entity?.label || 'Unknown',
                     orbitalSpeed: Math.round(speed * 100) / 100,
                     refDist: Math.round(physicalDistance / 1000) / 1000,
                     refName,
                     showOrbitalSpeed: Boolean(hasOrbit),
+                    viewDistanceKm: simulationDistanceToKm(camera.position.distanceTo(targetPos)),
                 });
                 setNearestObject(null);
             } else {
@@ -554,7 +590,7 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
 
                 entitiesRef.current.forEach(ent => {
                     // Filter to current system + interstellar objects only
-                    if (ent.mesh && !ent.isSystemProxy &&
+                    if (ent.mesh && !ent.isSystemProxy && (fictionRef.current || (ent.system === SystemId.SOLAR_SYSTEM && ent.category !== EntityCategory.EASTER_EGG)) &&
                         (ent.system === mySystemId || ent.system === SystemId.INTERSTELLAR)) {
                         const pos = targetPosition;
                         ent.mesh.getWorldPosition(pos);
@@ -583,8 +619,9 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
             const blip = radarBlips.get(ent.id);
             if (blip && ent.mesh) {
                 const mySystemId = systemManager.currentSystem;
-                const shouldShow = ent.system === SystemId.INTERSTELLAR ||
-                    (ent.system === mySystemId ? !ent.isSystemProxy : ent.isSystemProxy === true);
+                const allowed = fictionRef.current || (ent.system === SystemId.SOLAR_SYSTEM && ent.category !== EntityCategory.EASTER_EGG);
+                const shouldShow = allowed && (ent.system === SystemId.INTERSTELLAR ||
+                    (ent.system === mySystemId ? !ent.isSystemProxy : ent.isSystemProxy === true));
 
                 // Apply visibility
                 blip.style.display = shouldShow ? 'block' : 'none';
@@ -633,6 +670,8 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
                     modelParseMaxMs: Math.round(assets.metrics.modelParseMaxMs * 100) / 100,
                     residentModels: [...quantumania.getEntities()].filter(entity => 'loaded' in entity.mesh && entity.mesh.loaded).length + cosmicEntity.residentModelCount,
                     cameraPosition: camera.position.toArray(), simulationTime: simTime,
+                    dateUTC: new Date(simTime * 1000).toISOString(), cameraNear: camera.near,
+                    lockedTargetPosition: lockRef.current?.mesh?.getWorldPosition(targetPosition).toArray() ?? null,
                 });
             }
         }
@@ -681,6 +720,17 @@ export function createSceneController(mount: HTMLDivElement, options: SceneOptio
             timeScaleRef.current = settings.timeScale;
             isPausedRef.current = settings.paused;
             darkSideFillRef.current = settings.darkSideFill;
+            autoExposureRef.current = settings.autoExposure;
+            showOrbitsRef.current = settings.showOrbits;
+            if (settings.epoch !== epoch) { epoch = settings.epoch; simTime = Math.min(maxTime, Math.max(minTime, epoch)); }
+            if (settings.fiction !== fictionRef.current) {
+                fictionRef.current = settings.fiction;
+                setEntities(entities.filter(entity => settings.fiction || (entity.system === SystemId.SOLAR_SYSTEM && entity.category !== EntityCategory.EASTER_EGG)));
+                if (!settings.fiction && lockRef.current) {
+                    const locked = entities.find(entity => entity.id === lockRef.current?.entityId);
+                    if (locked?.system !== SystemId.SOLAR_SYSTEM || locked.category === EntityCategory.EASTER_EGG) resetView();
+                }
+            }
         },
         key: setKey,
         resetView,

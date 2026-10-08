@@ -28,9 +28,9 @@ export class SystemManager {
 
     // System positions and configurations
     public static readonly SOLAR_SYSTEM_CENTER = new THREE.Vector3(0, 0, 0);
-    public static readonly SOLAR_SYSTEM_RADIUS = 2500;
+    public static readonly SOLAR_SYSTEM_RADIUS = 30000;
 
-    public static readonly QUANTUMANIA_CENTER = new THREE.Vector3(18000, 0, 0);
+    public static readonly QUANTUMANIA_CENTER = new THREE.Vector3(80000, 0, 0);
     public static readonly QUANTUMANIA_RADIUS = 2000;
 
     // Colors

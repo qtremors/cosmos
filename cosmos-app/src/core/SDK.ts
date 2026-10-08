@@ -1,3 +1,5 @@
+import { kmToUnits } from './PhysicalScale';
+import { BODY_DATA } from './BodyData';
 import { trueAnomaly } from './OrbitalMechanics';
 import { TIME_PRESETS, DEFAULT_TIME_SCALE } from './TimeConfig';
 import * as THREE from 'three';
@@ -132,9 +134,9 @@ export class Cosmos {
     // -------------------------------------------------------------------------
 
     static readonly UNITS: UnitsConfig = {
-        SOLAR_RADIUS: 10.0,
+        SOLAR_RADIUS: kmToUnits(695700),
         AU: 200.0,
-        LIGHT_SPEED: 1.0,
+        LIGHT_SPEED: kmToUnits(299792.458),
     };
 
     // -------------------------------------------------------------------------
@@ -242,80 +244,80 @@ export class Cosmos {
 
     static readonly PLANETS: PlanetsConfig = {
         MERCURY: {
-            RADIUS: 0.8,
-            DISTANCE: 60.0,
+            RADIUS: kmToUnits(BODY_DATA.Mercury.equatorialKm ?? BODY_DATA.Mercury.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Mercury.axisKm!),
             SPEED: 0.5,
             COLOR: PLANET_COLORS.MERCURY,
         },
         VENUS: {
-            RADIUS: 1.9,
-            DISTANCE: 110.0,
+            RADIUS: kmToUnits(BODY_DATA.Venus.equatorialKm ?? BODY_DATA.Venus.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Venus.axisKm!),
             SPEED: 0.35,
             COLOR: PLANET_COLORS.VENUS,
         },
         EARTH: {
-            RADIUS: 2.0,
-            DISTANCE: 150.0,
+            RADIUS: kmToUnits(BODY_DATA.Earth.equatorialKm ?? BODY_DATA.Earth.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Earth.axisKm!),
             SPEED: 0.3,
             COLOR: PLANET_COLORS.EARTH,
             MOON: {
-                RADIUS: 0.5,
-                DISTANCE: 12.0,
+                RADIUS: kmToUnits(BODY_DATA.Moon.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Moon.axisKm!),
                 SPEED: 2.0,
             }
         },
         MARS: {
-            RADIUS: 1.1,
-            DISTANCE: 220.0,
+            RADIUS: kmToUnits(BODY_DATA.Mars.equatorialKm ?? BODY_DATA.Mars.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Mars.axisKm!),
             SPEED: 0.24,
             COLOR: PLANET_COLORS.MARS,
         },
         JUPITER: {
-            RADIUS: 11.0,
-            DISTANCE: 500.0,
+            RADIUS: kmToUnits(BODY_DATA.Jupiter.equatorialKm ?? BODY_DATA.Jupiter.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Jupiter.axisKm!),
             SPEED: 0.13,
             COLOR: PLANET_COLORS.JUPITER,
             MOON: {
-                RADIUS: 1.5,
-                DISTANCE: 30.0,
+                RADIUS: kmToUnits(BODY_DATA.Europa.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Europa.axisKm!),
                 SPEED: 1.5,
             }
         },
         SATURN: {
-            RADIUS: 9.0,
-            DISTANCE: 800.0,
+            RADIUS: kmToUnits(BODY_DATA.Saturn.equatorialKm ?? BODY_DATA.Saturn.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Saturn.axisKm!),
             SPEED: 0.09,
             COLOR: PLANET_COLORS.SATURN,
             RING: {
-                INNER_RADIUS: 12.0,
-                OUTER_RADIUS: 22.0,
+                INNER_RADIUS: kmToUnits(66900),
+                OUTER_RADIUS: kmToUnits(140180),
             },
             MOON: {
-                RADIUS: 2.0,
-                DISTANCE: 40.0,
+                RADIUS: kmToUnits(BODY_DATA.Titan.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Titan.axisKm!),
                 SPEED: 1.0,
             }
         },
         URANUS: {
-            RADIUS: 4.0,
-            DISTANCE: 1200.0,
+            RADIUS: kmToUnits(BODY_DATA.Uranus.equatorialKm ?? BODY_DATA.Uranus.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Uranus.axisKm!),
             SPEED: 0.06,
             COLOR: PLANET_COLORS.URANUS,
         },
         NEPTUNE: {
-            RADIUS: 3.9,
-            DISTANCE: 1600.0,
+            RADIUS: kmToUnits(BODY_DATA.Neptune.equatorialKm ?? BODY_DATA.Neptune.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Neptune.axisKm!),
             SPEED: 0.05,
             COLOR: PLANET_COLORS.NEPTUNE,
         },
         PLUTO: {
-            RADIUS: 0.6,
-            DISTANCE: 2000.0,
+            RADIUS: kmToUnits(BODY_DATA.Pluto.equatorialKm ?? BODY_DATA.Pluto.radiusKm),
+            DISTANCE: kmToUnits(BODY_DATA.Pluto.axisKm!),
             SPEED: 0.04,
             COLOR: PLANET_COLORS.PLUTO,
             MOON: {
-                RADIUS: 0.4,
-                DISTANCE: 8.0,
+                RADIUS: kmToUnits(BODY_DATA.Charon.radiusKm),
+                DISTANCE: kmToUnits(BODY_DATA.Charon.axisKm!),
                 SPEED: 3.0,
             }
         }
@@ -327,8 +329,8 @@ export class Cosmos {
 
     static readonly ASTEROIDS: AsteroidsConfig = {
         COUNT: 2000,
-        INNER_RADIUS: 300,
-        OUTER_RADIUS: 450,
+        INNER_RADIUS: 2.1 * Cosmos.UNITS.AU,
+        OUTER_RADIUS: 3.3 * Cosmos.UNITS.AU,
     };
 
     // -------------------------------------------------------------------------
@@ -576,7 +578,6 @@ export class Cosmos {
      * Scales real radius to simulation units.
      */
     static getSimRadius(radiusEarth: number): number {
-        // Earth radius in sim units = 2.0 (from original config)
-        return radiusEarth * 2.0;
+        return kmToUnits(radiusEarth * 6371);
     }
 }

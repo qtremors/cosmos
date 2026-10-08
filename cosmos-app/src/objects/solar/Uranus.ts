@@ -5,12 +5,16 @@ import * as THREE from 'three';
 export class Uranus extends Planet {
     constructor(assets = new SceneAssets()) {
         super('URANUS', assets, '/textures/2k_uranus.jpg', 0.6);
-        this.add(this.createRings());
-        this.rotation.z = Math.PI / 2;
+        this.addMoon({ name: 'Miranda', color: 0xb5b5b0 });
+        this.addMoon({ name: 'Ariel', color: 0xb5b5b0 });
+        this.addMoon({ name: 'Umbriel', color: 0xb5b5b0 });
+        this.addMoon({ name: 'Titania', color: 0xb5b5b0 });
+        this.addMoon({ name: 'Oberon', color: 0xb5b5b0 });
+        this.bodyFrame.add(this.createRings());
     }
   private createRings(): THREE.Mesh {
-    const innerRadius = this.radius * 1.6;
-    const outerRadius = this.radius * 2.0;
+    const innerRadius = this.radius * 1.635;
+    const outerRadius = this.radius * 2.006;
     const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
 
     const size = 256;

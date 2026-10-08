@@ -14,8 +14,10 @@ interface RadarObjectListProps {
 const GROUPS = [
     { category: EntityCategory.STAR, label: 'Stars' },
     { category: EntityCategory.PLANET, label: 'Planets' },
+    { category: EntityCategory.DWARF_PLANET, label: 'Dwarf planets' },
+    { category: EntityCategory.COMET, label: 'Comets' },
     { category: EntityCategory.MOON, label: 'Moons' },
-    { category: EntityCategory.ASTEROID, label: 'Asteroid Belt' },
+    { category: EntityCategory.ASTEROID, label: 'Small-body belts' },
     { category: EntityCategory.NEXUS, label: 'Nexus' },
     { category: EntityCategory.MOUNTAIN, label: 'Mountains & Terrain' },
     { category: EntityCategory.STRUCTURE, label: 'Structures' },

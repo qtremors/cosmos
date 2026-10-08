@@ -1,5 +1,22 @@
 # Performance measurements
 
+## Scientific-model verification
+
+The current production report is [measurements/cloud-science.json](measurements/cloud-science.json), collected with `PROFILE_SAMPLES=20` on software ANGLE/SwiftShader. All six viewport/quality scenarios and both actual model travel cycles reported no JavaScript/shader errors. Browser regression work overlapped part of the run, and samples include cold-start work: these wall timings are not isolated benchmarks or hardware frame-rate claims.
+
+The Solar System now allocates **0 MiB of cubemap shadows at every preset**, using analytic spherical eclipse masks. Owned geometry buffers are approximately 2.81 MiB and the retained texture estimate is 147 MiB. The extra ephemeris bodies increase geometry; replacing Saturn’s large ring canvas and the Solar cubemap reduces those texture/shadow allocations.
+
+| Destination | Resident models, loaded → evicted → reloaded | Geometry MiB, loaded → evicted | Texture estimate MiB, loaded → evicted |
+|---|---|---|---|
+| Quantumania | 26 → 0 → 26 | 12.29 → 2.81 | 285.66 → 147 |
+| Cosmic Entity | 7 → 0 → 7 | 3.93 → 2.81 | 184.33 → 147 |
+
+The raw report contains frame samples, exact simulation dates/camera positions, and all six preset/viewport results. Physical phone/integrated-GPU validation is still required. The profiling runner explicitly enables fictional extras for travel scenarios.
+
+## Historical reliability/navigation measurements
+
+The tables below precede the scientific-scale update. Do not treat their timings or Solar shadow allocations as current measurements.
+
 Recorded on 2026-10-08 against the production build using Chromium 151.0.7922.173 on Linux x64. The renderer was **ANGLE / SwiftShader**, a software WebGL implementation. Viewport emulation is not a physical phone test. These results validate the measurement and resource lifecycle paths; they do not establish hardware frame-rate targets.
 
 The raw report is [measurements/cloud-webgl.json](measurements/cloud-webgl.json). The run used `PROFILE_SAMPLES=30`; each overview row includes an initial sampling window after texture loading, including startup scheduling/shader work. The p95 values are especially sensitive to startup and cloud scheduling. All six overview scenarios reported no JavaScript page errors.

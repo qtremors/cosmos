@@ -14,10 +14,10 @@ export class Stars extends THREE.Points {
 
         const mat = new THREE.PointsMaterial({
             color: 0xffffff,
-            size: 0.8,
+            size: 1.2,
             transparent: true,
             opacity: 0.8,
-            sizeAttenuation: true,
+            sizeAttenuation: false,
         });
 
         super(geo, mat);

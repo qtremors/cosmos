@@ -23,6 +23,9 @@ export interface PerformanceSnapshot {
     residentModels: number;
     cameraPosition: number[];
     simulationTime: number;
+    dateUTC: string;
+    cameraNear: number;
+    lockedTargetPosition: number[] | null;
 }
 
 /** A bounded sample window; these are CPU/wall timings, not GPU timer-query measurements. */

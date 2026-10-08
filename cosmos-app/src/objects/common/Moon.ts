@@ -2,57 +2,70 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos } from '../../core/SDK';
 import { BODY_DATA } from '../../core/BodyData';
-import { trueAnomaly } from '../../core/OrbitalMechanics';
+import { bodyState, bodyOrientation, orbitPoints } from '../../core/Ephemeris';
+import { kmToUnits } from '../../core/PhysicalScale';
 
 export interface MoonOptions {
-    name: string; radius: number; distance: number; color?: number; map?: THREE.Texture;
+    name: string; color?: number; map?: THREE.Texture;
 }
-/** All satellites share orbit, label, material and synchronous rotation behavior. */
+/** Satellites keep physical lengths and a frame independent of their parent's spin. */
 export class Moon extends THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial> {
     readonly radius: number;
-    private initialAngle = Math.random() * Math.PI * 2;
+    readonly distance: number;
     private label: CSS2DObject;
     private worldPosition = new THREE.Vector3();
-    private data;
+    private guide: THREE.LineLoop | null = null;
+    private guideMonth = NaN;
 
     constructor(readonly options: MoonOptions) {
-        super(new THREE.SphereGeometry(options.radius, 24, 16), new THREE.MeshStandardMaterial({
-            color: options.color ?? 0xffffff, map: options.map, roughness: 0.8, metalness: 0,
+        const data = BODY_DATA[options.name];
+        const radius = kmToUnits(data.radiusKm);
+        super(new THREE.SphereGeometry(radius, 32, 24), new THREE.MeshStandardMaterial({
+            color: options.color ?? 0xffffff, map: options.map ?? null, roughness: 0.8, metalness: 0,
         }));
         this.name = options.name;
-        this.radius = options.radius;
-        this.data = BODY_DATA[options.name];
-        this.userData.orbit = { ...this.data, visualAxis: options.distance };
+        this.radius = radius;
+        this.distance = kmToUnits(data.axisKm!);
+        this.userData.orbit = { ...data, visualAxis: this.distance };
+        if (data.shapeKm) this.scale.set(data.shapeKm[0] / data.radiusKm, data.shapeKm[2] / data.radiusKm, data.shapeKm[1] / data.radiusKm);
         this.castShadow = this.receiveShadow = true;
         const div = document.createElement('div');
         div.className = 'label'; div.textContent = options.name; div.style.fontSize = '10px';
         this.label = new CSS2DObject(div);
-        this.label.position.y = options.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER;
+        this.label.position.y = radius * Cosmos.LABELS.HEIGHT_MULTIPLIER;
         this.add(this.label);
     }
 
+    setGuide(guide: THREE.LineLoop): void { this.guide = guide; }
+
     update(time: number, camera: THREE.Camera): void {
-        const mean = this.initialAngle + time / (this.data.periodDays! * 86400) * Math.PI * 2;
-        const angle = trueAnomaly(mean, this.data.eccentricity ?? 0);
-        const r = Cosmos.getEllipticalDistance(this.options.distance, this.data.eccentricity ?? 0, angle);
-        this.position.set(Math.cos(angle) * r, 0, Math.sin(angle) * r);
-        this.rotation.y = -angle;
+        const state = bodyState(this.name, time);
+        this.position.copy(state.position);
+        this.userData.orbit.speedKmS = state.velocity.length();
+        if (this.name === 'Moon') this.quaternion.copy(bodyOrientation('Moon', time));
+        else {
+            const normal = new THREE.Vector3().crossVectors(state.position, state.velocity).normalize();
+            const facing = state.position.clone().negate().normalize();
+            const tangent = new THREE.Vector3().crossVectors(facing, normal).normalize();
+            this.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(facing, normal, tangent));
+        }
+        const month = Math.floor(time / (86400 * 30));
+        if (this.guide && month !== this.guideMonth) {
+            this.guideMonth = month;
+            const aKm = this.distance / kmToUnits(1);
+            const rKm = state.position.length() / kmToUnits(1);
+            const mu = state.velocity.lengthSq() / (2 / rKm - 1 / aKm);
+            const geometry = new THREE.BufferGeometry().setFromPoints(orbitPoints(state, mu, 96));
+            this.guide.geometry.dispose(); this.guide.geometry = geometry;
+        }
         this.getWorldPosition(this.worldPosition);
         const distance = camera.position.distanceTo(this.worldPosition);
-        this.label.element.style.opacity = String(Cosmos.getLabelOpacity(distance, this.radius));
+        this.label.element.style.opacity = String(distance < this.distance * 8 ? Cosmos.getLabelOpacity(distance, this.radius) : 0);
     }
 }
 
 export function addMoonOrbit(parent: THREE.Object3D, moon: Moon): void {
-    const eccentricity = BODY_DATA[moon.name].eccentricity ?? 0;
-    const positions = new Float32Array(129 * 3);
-    for (let index = 0; index <= 128; index++) {
-        const angle = index / 128 * Math.PI * 2;
-        const r = Cosmos.getEllipticalDistance(moon.options.distance, eccentricity, angle);
-        positions[index * 3] = Math.cos(angle) * r;
-        positions[index * 3 + 2] = Math.sin(angle) * r;
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    parent.add(moon, new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, depthWrite: false })));
+    const guide = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, depthWrite: false }));
+    guide.userData.orbitGuide = true;
+    moon.setGuide(guide); parent.add(moon, guide);
 }

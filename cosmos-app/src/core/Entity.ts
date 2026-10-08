@@ -4,6 +4,8 @@ import type { SystemId } from './SystemManager';
 export enum EntityCategory {
     STAR = 'star',
     PLANET = 'planet',
+    DWARF_PLANET = 'dwarf_planet',
+    COMET = 'comet',
     MOON = 'moon',
     ASTEROID = 'asteroid',
     EASTER_EGG = 'easter_egg',

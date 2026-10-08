@@ -21,6 +21,11 @@ export default function App() {
     const [cameraSpeed, setCameraSpeed] = useState(0);
     const [lockedInfo, setLockedInfo] = useState<LockedInfo | null>(null);
     const [nearestObject, setNearestObject] = useState<{ name: string; distance: number } | null>(null);
+    const [epoch, setEpoch] = useState(() => Date.now() / 1000);
+    const [simulationDate, setSimulationDate] = useState(() => new Date().toISOString());
+    const [showOrbits, setShowOrbits] = useState(true);
+    const [autoExposure, setAutoExposure] = useState(true);
+    const [fiction, setFiction] = useState(true);
     const [timeScale, setTimeScale] = useState(DEFAULT_TIME_SCALE);
     const [isPaused, setIsPaused] = useState(false);
     const [currentSystem, setCurrentSystem] = useState('Solar System');
@@ -34,7 +39,7 @@ export default function App() {
     const [showInfo, setShowInfo] = useState(() => !matchMedia('(max-width: 600px)').matches);
     const [darkSideFill, setDarkSideFill] = useState(0);
     const [starting, setStarting] = useState(true);
-    const settingsRef = useRef({ quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics });
+    const settingsRef = useRef({ quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure });
     const closeRadar = useCallback(() => {
         setShowRadarList(false);
         radarButtonRef.current?.focus();
@@ -62,7 +67,7 @@ export default function App() {
                 onSystem: setCurrentSystem, onLock: setLockedEntity, onCloseRadar: closeRadar,
                 onToggleLabels: () => setShowLabels(value => !value),
                 onToggleHUD: () => setShowUI(value => !value),
-                onPerformance: setPerformanceSnapshot,
+                onPerformance: setPerformanceSnapshot, onDate: setSimulationDate,
             });
             setStarting(false);
         }).catch(() => { if (!cancelled) setSceneError('The exploration view could not start. Reload to try again.'); });
@@ -73,11 +78,11 @@ export default function App() {
         };
     }, [closeRadar]);
     useEffect(() => {
-        const settings = { quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics };
+        const settings = { quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure };
         settingsRef.current = settings;
         controllerRef.current?.configure(settings);
         saveQuality(quality);
-    }, [quality, showLabels, timeScale, isPaused, darkSideFill, diagnostics]);
+    }, [quality, showLabels, timeScale, isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure]);
     return (
         <div className="container">
 
@@ -140,7 +145,10 @@ export default function App() {
                                 onTimeScaleChange={setTimeScale}
                                 isPaused={isPaused}
                                 onPauseToggle={() => setIsPaused(p => !p)}
-                                currentSystem={currentSystem}
+                                autoExposure={autoExposure} onAutoExposureChange={setAutoExposure}
+                                epoch={epoch} onEpochChange={setEpoch}
+                                showOrbits={showOrbits} onOrbitsChange={setShowOrbits}
+                                fiction={fiction} onFictionChange={setFiction}
                                 quality={quality}
                                 onQualityChange={setQuality}
                                 onResetView={resetView}
@@ -154,9 +162,12 @@ export default function App() {
 
                         {/* Stats HUD */}
                         <div className="stats-hud" style={{ pointerEvents: 'auto' }}>
+                            <time className="simulation-date" dateTime={simulationDate}>{simulationDate.slice(0, 19).replace('T', ' ')} UTC</time>
+                            <div className="setting-description">True scale · {isPaused ? 'Paused' : `${timeScale.toLocaleString()}× time`}</div>
                             {lockedInfo ? (
                                 <>
                                     <div className="stats-hud-title">Locked: {lockedInfo.name}</div>
+                                    <div className="stats-hud-row"><span className="stats-hud-label">Camera distance:</span><span className="stats-hud-value">{Math.round(lockedInfo.viewDistanceKm).toLocaleString()} km</span></div>
                                     {lockedInfo.showOrbitalSpeed && (
                                         <div className="stats-hud-row">
                                             <span className="stats-hud-label">Orbital Speed:</span>
@@ -172,7 +183,7 @@ export default function App() {
                                 <>
                                     <div className="stats-hud-title">🚀 Free Flight</div>
                                     <div className="stats-hud-row">
-                                        <span className="stats-hud-label">Speed (visual):</span>
+                                        <span className="stats-hud-label">Camera speed:</span>
                                         <span className="stats-hud-value">{cameraSpeed} km/s</span>
                                     </div>
                                     {nearestObject && (
@@ -182,7 +193,7 @@ export default function App() {
                                                 <span className="stats-hud-value">{nearestObject.name}</span>
                                             </div>
                                             <div className="stats-hud-row">
-                                                <span className="stats-hud-label">Distance (visual):</span>
+                                                <span className="stats-hud-label">Distance:</span>
                                                 <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
                                             </div>
                                         </>

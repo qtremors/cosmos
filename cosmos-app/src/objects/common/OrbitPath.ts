@@ -1,38 +1,18 @@
 import * as THREE from 'three';
-import { Cosmos } from '../../core/SDK';
+import { bodyState, orbitPoints } from '../../core/Ephemeris';
 
+/** Instantaneous osculating orbit in the same frame as the body's ephemeris. */
 export class OrbitPath extends THREE.LineLoop {
-    constructor(
-        semiMajorAxis: number,        // Average distance (a)
-        color: THREE.Color | string | number = 0xffffff,
-        eccentricity: number = 0,     // Orbital eccentricity (0 = circle)
-        inclination: number = 0       // Inclination in degrees
-    ) {
-        const points: THREE.Vector3[] = [];
-        const segments = 128;
-
-        for (let i = 0; i <= segments; i++) {
-            const angle = (i / segments) * Math.PI * 2;
-
-            const pos = Cosmos.getEllipticalOrbitalPosition(
-                semiMajorAxis,
-                eccentricity,
-                inclination,
-                angle
-            );
-
-            points.push(new THREE.Vector3(pos.x, pos.y, pos.z));
-        }
-
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
-        const material = new THREE.LineBasicMaterial({
-            color: color,
-            transparent: true,
-            opacity: 0.15,
-            depthWrite: false,
-        });
-
-        super(geometry, material);
+    private month = NaN;
+    constructor(private body: string) {
+        super(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, depthWrite: false }));
+        this.userData.orbitGuide = true;
+    }
+    update(time: number): void {
+        const month = Math.floor(time / (86400 * 30));
+        if (month === this.month) return;
+        this.month = month;
+        const geometry = new THREE.BufferGeometry().setFromPoints(orbitPoints(bodyState(this.body, time)));
+        this.geometry.dispose(); this.geometry = geometry;
     }
 }

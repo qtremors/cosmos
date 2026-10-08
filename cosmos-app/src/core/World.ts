@@ -4,6 +4,9 @@ import { Cosmos } from './SDK';
 import { SystemManager, SystemId } from './SystemManager';
 import { EntityCategory, type EntityInfo } from './Entity';
 import { SystemRenderer } from './SystemRenderer';
+import { installSolarOcclusion } from './SolarOcclusion';
+import { BODY_DATA } from './BodyData';
+import { DwarfPlanet } from '../objects/solar/DwarfPlanet';
 import { Sun } from '../objects/solar/Sun';
 import { Stars } from '../objects/Stars';
 import { Mercury } from '../objects/solar/Mercury';
@@ -29,11 +32,11 @@ import { CosmicEntity } from '../objects/CosmicEntity';
 export function createWorld(scene: THREE.Scene, assets: SceneAssets) {
     const sunLight = new THREE.PointLight(
         Cosmos.LIGHTING.SUN_COLOR,
-        Cosmos.LIGHTING.SUN_INTENSITY,
-        0, 0
+        Cosmos.LIGHTING.SUN_INTENSITY * Cosmos.UNITS.AU ** 2,
+        0, 2
     );
     sunLight.position.set(0, 0, 0);
-    sunLight.castShadow = true;
+    sunLight.castShadow = false;
     sunLight.shadow.mapSize.width = 512;
     sunLight.shadow.mapSize.height = 512;
     sunLight.shadow.bias = -0.00001;
@@ -53,7 +56,7 @@ export function createWorld(scene: THREE.Scene, assets: SceneAssets) {
     sun.layers.set(1);
     scene.add(sun);
 
-    const stars = new Stars(8000, 5000);
+    const stars = new Stars(8000, 100000);
     scene.add(stars);
 
     const mercury = new Mercury(assets);
@@ -104,6 +107,9 @@ export function createWorld(scene: THREE.Scene, assets: SceneAssets) {
     const belt = new AsteroidBelt();
     belt.layers.set(1);
     scene.add(belt);
+
+    const kuiperBelt = new AsteroidBelt(30 * Cosmos.UNITS.AU, 50 * Cosmos.UNITS.AU, 500, 50);
+    kuiperBelt.traverse(child => child.layers.set(1)); scene.add(kuiperBelt);
 
     const explorer = new Explorer();
     explorer.layers.set(1);
@@ -163,17 +169,9 @@ export function createWorld(scene: THREE.Scene, assets: SceneAssets) {
     scene.add(quantumania);
 
     // ORBIT PATHS (Layer 1)
-    const orbitPaths = [
-        new OrbitPath(Cosmos.PLANETS.MERCURY.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.MERCURY, Cosmos.INCLINATION.MERCURY),
-        new OrbitPath(Cosmos.PLANETS.VENUS.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.VENUS, Cosmos.INCLINATION.VENUS),
-        new OrbitPath(Cosmos.PLANETS.EARTH.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.EARTH, Cosmos.INCLINATION.EARTH),
-        new OrbitPath(Cosmos.PLANETS.MARS.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.MARS, Cosmos.INCLINATION.MARS),
-        new OrbitPath(Cosmos.PLANETS.JUPITER.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.JUPITER, Cosmos.INCLINATION.JUPITER),
-        new OrbitPath(Cosmos.PLANETS.SATURN.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.SATURN, Cosmos.INCLINATION.SATURN),
-        new OrbitPath(Cosmos.PLANETS.URANUS.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.URANUS, Cosmos.INCLINATION.URANUS),
-        new OrbitPath(Cosmos.PLANETS.NEPTUNE.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.NEPTUNE, Cosmos.INCLINATION.NEPTUNE),
-        new OrbitPath(Cosmos.PLANETS.PLUTO.DISTANCE, 0xffffff, Cosmos.ECCENTRICITY.PLUTO, Cosmos.INCLINATION.PLUTO),
-    ];
+    const dwarfPlanets = [new DwarfPlanet('Ceres', 0x99918a), new DwarfPlanet('Eris', 0xebe7df), new DwarfPlanet('Haumea', 0xd7d2c4), new DwarfPlanet('Makemake', 0xb9a08b), new DwarfPlanet('Halley', 0x6c6560)];
+    for (const dwarf of dwarfPlanets) { dwarf.traverse(child => child.layers.set(1)); scene.add(dwarf); }
+    const orbitPaths = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', ...dwarfPlanets.map(dwarf => dwarf.name)].map(name => new OrbitPath(name));
     orbitPaths.forEach(path => {
         path.layers.set(1);
         scene.add(path);
@@ -207,7 +205,7 @@ export function createWorld(scene: THREE.Scene, assets: SceneAssets) {
         { mesh: saturn.titan, id: 'titan-blip', color: '#e6d4be', label: 'Titan', radius: 6, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON },
         { mesh: uranus, id: 'uranus-blip', color: Cosmos.RADAR.COLORS.URANUS, label: 'Uranus', radius: 25, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
         { mesh: neptune, id: 'neptune-blip', color: Cosmos.RADAR.COLORS.NEPTUNE, label: 'Neptune', radius: 25, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
-        { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.PLANET },
+        { mesh: pluto, id: 'pluto-blip', color: Cosmos.RADAR.COLORS.PLUTO, label: 'Pluto', radius: 8, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.DWARF_PLANET },
         { mesh: pluto.charon, id: 'charon-blip', color: '#8a8a8a', label: 'Charon', radius: 4, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON },
         // Physical data and source attribution are maintained in BodyData.
         { mesh: explorer, id: 'explorer-blip', color: '#00aaff', label: 'Explorer', radius: 5, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.EASTER_EGG },
@@ -216,16 +214,26 @@ export function createWorld(scene: THREE.Scene, assets: SceneAssets) {
         { mesh: sun, id: 'solar-proxy-blip', color: '#fc3', label: 'Solar System', radius: Cosmos.UNITS.SOLAR_RADIUS * 10, system: SystemId.SOLAR_SYSTEM, isSystemProxy: true, category: EntityCategory.PROXY },
     ];
 
-    for (const moon of [...jupiter.moons.filter(moon => moon !== jupiter.europa), saturn.enceladus]) {
-        solarSystemEntities.push({ mesh: moon, id: `${moon.name.toLowerCase()}-blip`, label: moon.name, color: '#ddd', radius: Math.max(moon.radius * 3, 3), system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON });
+    for (const entity of solarSystemEntities) {
+        const data = BODY_DATA[entity.label];
+        if (data) entity.radius = 'radius' in entity.mesh ? Number(entity.mesh.radius) : Cosmos.UNITS.SOLAR_RADIUS;
+        if (entity.label === 'Saturn') entity.radius = Cosmos.PLANETS.SATURN.RING.OUTER_RADIUS;
+        if (entity.isSystemProxy) entity.radius = 4000;
     }
+    const extraMoons = [...mars.moons, ...jupiter.moons.filter(moon => moon !== jupiter.europa), ...saturn.moons.filter(moon => moon !== saturn.titan), ...uranus.moons, ...neptune.moons];
+    for (const moon of extraMoons) {
+        solarSystemEntities.push({ mesh: moon, id: `${moon.name.toLowerCase()}-blip`, label: moon.name, color: '#ddd', radius: moon.radius, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.MOON });
+    }
+    for (const dwarf of dwarfPlanets) solarSystemEntities.push({ mesh: dwarf, id: `${dwarf.name.toLowerCase()}-blip`, label: dwarf.name, color: '#bcb4a3', radius: dwarf.radius, system: SystemId.SOLAR_SYSTEM, category: dwarf.name === 'Halley' ? EntityCategory.COMET : EntityCategory.DWARF_PLANET });
+
+    solarSystemEntities.push({ mesh: kuiperBelt, id: 'kuiper-blip', label: 'Kuiper Belt', color: '#869ca8', radius: 3500, system: SystemId.SOLAR_SYSTEM, category: EntityCategory.ASTEROID });
 
     const interstellarEntities: EntityInfo[] = [
         { mesh: alienX, id: 'alienX-blip', color: '#00ff00', label: 'Alien X', radius: 10, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
         { mesh: blackHole, id: 'blackhole-blip', color: '#ff6600', label: 'Black Hole', radius: 100, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
         // Target the HEAD for lock/radar
         // Increased radius (1500) to keep camera at a safe distance from the massive model
-        { mesh: cosmicEntity.head, id: 'architect-blip', color: '#00ffff', label: 'Cosmic Entity', radius: 1500, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
+        { mesh: cosmicEntity.head, id: 'architect-blip', color: '#00ffff', label: 'Arishem (Cosmic Entity)', radius: 1500, system: SystemId.INTERSTELLAR, category: EntityCategory.EASTER_EGG },
     ];
 
     // QUANTUMANIA ENTITIES
@@ -243,17 +251,34 @@ export function createWorld(scene: THREE.Scene, assets: SceneAssets) {
         category: EntityCategory.PROXY
     });
 
-    const solarAmbient = new THREE.AmbientLight(Cosmos.LIGHTING.AMBIENT_COLOR, Cosmos.LIGHTING.AMBIENT_INTENSITY);
+    // Each real body's direct sunlight can be eclipsed by its parent or major moons.
+    const physical = solarSystemEntities.filter(entity => BODY_DATA[entity.label]);
+    for (const entity of physical) {
+        if (entity.label === 'Sun') continue;
+        const data = BODY_DATA[entity.label];
+        const occluders = entity.category === EntityCategory.MOON
+            ? physical.filter(candidate => candidate.label === data.parent).map(candidate => ({ mesh: candidate.mesh, radius: Number((candidate.mesh as THREE.Object3D & { radius: number }).radius) }))
+            : physical.filter(candidate => BODY_DATA[candidate.label].parent === entity.label).map(candidate => ({ mesh: candidate.mesh, radius: candidate.radius }));
+        entity.mesh.traverse(mesh => {
+            if (!(mesh instanceof THREE.Mesh) || mesh.userData.orbit) return;
+            // Moon meshes themselves are handled below, not again through their parent.
+            const ringOccluders = mesh.geometry instanceof THREE.RingGeometry ? [{ mesh: entity.mesh, radius: Number((entity.mesh as THREE.Object3D & { radius: number }).radius) }] : occluders;
+            installSolarOcclusion(mesh, ringOccluders);
+        });
+        if (entity.mesh instanceof THREE.Mesh) installSolarOcclusion(entity.mesh, occluders);
+    }
+
+    const solarAmbient = new THREE.AmbientLight(0xffffff, 0);
     const quantumAmbient = new THREE.AmbientLight(0xffffff, 0.25);
     const renderWorld = new SystemRenderer(scene,
-        [sunLight, solarAmbient, sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, belt, explorer, theKyln, solarHeliosphere, ...orbitPaths],
+        [sunLight, solarAmbient, sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, ...dwarfPlanets, belt, kuiperBelt, explorer, theKyln, solarHeliosphere, ...orbitPaths],
         [quantumania, quantumAmbient],
         [ambientLight, stars, solarBeacon, alienX, blackHole, cosmicEntity]);
 
     const entities = [...solarSystemEntities, ...quantumaniaEntities, ...interstellarEntities];
     return {
         sun, stars, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto,
-        belt, explorer, theKyln, solarHeliosphere, solarBeacon, quantumania, orbitPaths,
+        belt, kuiperBelt, dwarfPlanets, explorer, theKyln, solarHeliosphere, solarBeacon, quantumania, orbitPaths,
         alienX, blackHole, cosmicEntity, renderWorld, entities,
     };
 }

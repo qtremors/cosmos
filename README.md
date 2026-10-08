@@ -26,7 +26,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🌍 **Solar System** | 8 planets and Pluto, 8 moons, NASA textures, up to 2000 asteroids |
+| 🌍 **Solar System** | True scale, dated positions, 8 planets, 5 dwarf planets, 21 moons, Halley and two belts |
 | 🏔️ **Quantumania** | Secondary realm with 26 model entities — mountains, structures, ships, and inhabitants |
 | 🎨 **Custom Shaders** | Sun granulation, Earth day/night cycle, raymarched black hole |
 | 🎮 **6-DOF Controls** | Keyboard, mouse, gamepad, and touch flight controls |
@@ -40,7 +40,7 @@
 
 **➡️ [cosmox.vercel.app](https://cosmox.vercel.app/)**
 
-Graphics settings offer **Low**, **Medium**, and **High** quality. Start with Low on slower devices; actual performance depends on GPU and browser support. The default Medium preset uses 512-pixel shadows, and large models load when their area is approached or selected.
+Graphics settings offer **Low**, **Medium**, and **High** quality. Start with Low on slower devices; actual performance depends on GPU and browser support. Solar eclipses use analytic shadows at every quality level. Large fictional models load when their area is approached or selected.
 
 On touch devices, hold the flight/boost/roll/zoom buttons and drag the view to look. The object list also provides direct travel. Home or Settings → Reset view returns to the Solar System overview. Selecting an object offers information with NASA sources for astronomical bodies; on narrow screens, tap Object information to keep the view clear.
 
@@ -86,6 +86,7 @@ Visit **http://localhost:5173** 🎉
 |-------|------------|
 | **Framework** | React 19 |
 | **3D Engine** | Three.js 0.182 |
+| **Ephemeris** | Astronomy Engine 2.1.19 |
 | **Language** | TypeScript 5.9 |
 | **Build** | Vite 7 |
 | **Testing** | Vitest |
@@ -126,15 +127,17 @@ Open the radar to access Settings. Quality choices persist in the browser and ap
 
 | Setting | Low | Medium (default) | High |
 |---------|-----|------------------|------|
-| Shadows | Off | 512 px | 1024 px |
-| Asteroids | 500 | 1000 | 2000 |
+| Solar eclipses | Analytic | Analytic | Analytic |
+| Main / Kuiper belt representatives | 500 / 125 | 1000 / 250 | 2000 / 500 |
 | Stars | 2000 | 5000 | 8000 |
 | Black-hole raymarch steps | 48 | 96 | 150 |
 | Maximum pixel ratio | 1 | 1 | 1.5 |
 
 Public assets occupy about 65 MiB on disk; decoded CPU/GPU memory is larger and depends on quality, travel, and the browser. Distant Quantumania/Arishem models are evicted after 30 active seconds away and reload on return. Solar textures remain shared for immediate return travel.
 
-Pause freezes simulation and cosmetic animation while camera controls and loading remain available. Time presets scale Solar System orbits and spin; while visiting Quantumania, both clocks run at real-time. Decorative animation stays independent of the presets. Planet/moon HUD readings use physical orbital data rather than the compressed drawing scale. The scene is a two-body illustration with randomized starting phases, not a live ephemeris.
+The Solar System starts at the current UTC date at real-time speed, with consistent physical sizes and distances. Settings provides a date selector, accelerated time, orbit guides, automatic exposure and a Fictional extras toggle. The original Quantumania models, Arishem (Cosmic Entity), and Solar System easter eggs remain available by default; turn the toggle off for an astronomy-only view. The object list jumps directly to correctly scaled close-ups; tiny bodies are not enlarged. Pause freezes both clocks while camera controls and loading remain available. Astronomical time advances consistently in every destination.
+
+Planetary/lunar/Galilean positions use Astronomy Engine; the added moons and small bodies use approximate JPL Horizons two-body elements. See [SCIENCE.md](SCIENCE.md) for the reference frame, sources, precision, shape/spin/ring models, tests and omissions.
 
 Settings includes dark-side fill light and downloadable performance measurements. Run `npm run profile` for a repeatable production-build comparison of presets, viewport sizes, and model eviction/reloading. See [PERFORMANCE.md](PERFORMANCE.md) for results, limitations, and the physical-device validation procedure.
 
@@ -144,6 +147,7 @@ Settings includes dark-side fill light and downloadable performance measurements
 
 | Document | Description |
 |----------|-------------|
+| [SCIENCE.md](SCIENCE.md) | Physical model, sources and fidelity limits |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Architecture, configuration, contributing |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
 | [PERFORMANCE.md](PERFORMANCE.md) | Measurements and profiling procedure |

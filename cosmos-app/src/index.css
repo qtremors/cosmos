@@ -114,3 +114,6 @@ kbd { background: #25252d; border: 1px solid var(--panel-border); border-radius:
     .info-toggle { right: 16px; top: 230px; bottom: auto; }
     .asset-status { left: 16px; max-width: calc(100vw - 64px); }
 }
+
+.simulation-date { display:block; font-size:11px; color:#c4d4e4; margin-bottom:4px; font-variant-numeric:tabular-nums; }
+.settings-section input[type=datetime-local] { display:block; width:100%; box-sizing:border-box; margin:8px 0; background:#191922; color:#e5e9ef; border:1px solid #4b4b60; border-radius:6px; padding:8px; color-scheme:dark; }

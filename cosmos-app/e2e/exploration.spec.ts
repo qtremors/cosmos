@@ -99,16 +99,23 @@ test('texture failures have a visible retry path', async ({ page }) => {
     await expect(page.locator('canvas')).toBeVisible();
 });
 
-test('hidden cosmic models are deferred and Quantumania models load on selection', async ({ page }) => {
+test('distant cosmic models are deferred and all Quantumania models load on selection', async ({ page }) => {
+    test.setTimeout(120_000);
     const models: string[] = [];
     page.on('request', request => { if (request.url().endsWith('.glb')) models.push(request.url()); });
-    await page.goto('/');
+    await page.addInitScript(() => localStorage.setItem('cosmos-quality', 'low'));
+    await page.goto('/?profile=1');
     await expect(page.locator('.asset-status')).toHaveCount(0);
     expect(models).toEqual([]);
     await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await expect(page.getByRole('button', { name: 'Fictional extras', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    for (const name of ['Arishem (Cosmic Entity)', 'Explorer', 'The Kyln', 'Alien X', 'Black Hole']) await expect(page.getByRole('button', { name, exact: true })).toBeAttached();
     await page.getByRole('button', { name: 'Quantumania', exact: true }).click();
     await expect.poll(() => models.some(url => url.endsWith('/Cube.glb'))).toBe(true);
-    await expect.poll(() => models.length).toBeGreaterThan(1);
+    await expect.poll(async () => {
+        const text = await page.locator('[data-performance]').textContent();
+        return text ? JSON.parse(text).residentModels : 0;
+    }, { timeout: 90_000 }).toBe(26);
     expect(models.some(url => url.endsWith('/Arishem.glb'))).toBe(false);
     await expect(page.getByRole('button', { name: 'Retry loading' })).toHaveCount(0);
 });
@@ -214,4 +221,86 @@ test('separate render passes isolate solar light from quantum materials', async 
     expect(result.litSolar[0]).toBeGreaterThan(result.darkSolar[0] + 50);
     expect(result.quantumBefore[0]).toBeGreaterThan(50);
     expect(result.quantumAfter).toEqual(result.quantumBefore);
+});
+
+test('scientific view includes added real bodies and keeps a tiny moon in physical scale across date changes', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('cosmos-quality', 'low'));
+    await page.goto('/?profile=1');
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await page.getByRole('button', { name: 'Fictional extras', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Fictional extras', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByRole('button', { name: 'Quantumania', exact: true })).toHaveCount(0);
+    for (const name of ['Phobos', 'Deimos', 'Rhea', 'Iapetus', 'Titania', 'Triton', 'Ceres', 'Eris', 'Haumea', 'Makemake', 'Halley', 'Kuiper Belt']) {
+        await expect(page.getByRole('button', { name, exact: true })).toBeAttached();
+    }
+    await page.getByRole('button', { name: '⏸ Pause', exact: true }).click();
+    await page.getByLabel('Simulation date UTC').fill('2026-10-08T00:00');
+    await page.getByRole('button', { name: 'Phobos', exact: true }).click();
+    await expect(page.locator('.simulation-date')).toContainText('2026-10-08 00:00:00');
+    const distance = async () => {
+        const data = JSON.parse((await page.locator('[data-performance]').textContent())!);
+        if (!data.lockedTargetPosition) return Infinity;
+        return Math.hypot(...data.cameraPosition.map((value: number, index: number) => value - data.lockedTargetPosition[index])) * 149597870.7 / 200;
+    };
+    await expect.poll(distance).toBeGreaterThan(25);
+    await expect.poll(distance).toBeLessThan(50);
+    await expect.poll(async () => JSON.parse((await page.locator('[data-performance]').textContent())!).cameraNear).toBeLessThan(0.000001);
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await page.getByLabel('Simulation date UTC').fill('2026-10-10T00:00');
+    await page.getByRole('button', { name: 'Close objects and settings' }).click();
+    await expect(page.locator('.simulation-date')).toContainText('2026-10-10 00:00:00');
+    await expect.poll(distance).toBeLessThan(50);
+    await expect(page.locator('.stats-hud')).toContainText('From Mars:');
+});
+
+test('accelerated ephemeris keeps the camera close to Earth and viewing aids can be disabled', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error' && message.text().includes('THREE.WebGLProgram')) errors.push(message.text()); });
+    await page.addInitScript(() => localStorage.setItem('cosmos-quality', 'low'));
+    await page.goto('/?profile=1');
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await page.getByRole('button', { name: 'Orbit guides', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Orbit guides', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: '1 Day/s', exact: true }).click();
+    await page.getByRole('button', { name: 'Earth', exact: true }).click();
+    const read = async () => JSON.parse((await page.locator('[data-performance]').textContent())!);
+    await expect.poll(async () => (await read()).lockedTargetPosition).not.toBeNull();
+    const first = await read();
+    await expect.poll(async () => (await read()).simulationTime).toBeGreaterThan(first.simulationTime + 86400);
+    const data = await read();
+    const distanceKm = Math.hypot(...data.cameraPosition.map((value: number, index: number) => value - data.lockedTargetPosition[index])) * 149597870.7 / 200;
+    expect(distanceKm).toBeGreaterThan(18000);
+    expect(distanceKm).toBeLessThan(21000);
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await page.getByRole('button', { name: 'Automatic exposure', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Automatic exposure', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: 'Close objects and settings' }).click();
+    await page.getByRole('button', { name: 'Close performance', exact: true }).click();
+    await page.keyboard.press('l');
+    await page.keyboard.press('h');
+    await expect(page.locator('.hud-layer')).toBeHidden();
+    expect(errors).toEqual([]);
+});
+
+test('Arishem remains discoverable by default and loads its actual model system on selection', async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors: string[] = [];
+    const models: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error' && message.text().includes('THREE.WebGLProgram')) errors.push(message.text()); });
+    page.on('request', request => { if (request.url().endsWith('.glb')) models.push(request.url()); });
+    await page.addInitScript(() => localStorage.setItem('cosmos-quality', 'low'));
+    await page.goto('/?profile=1');
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await page.getByRole('button', { name: 'Arishem (Cosmic Entity)', exact: true }).click();
+    await expect(page.locator('.stats-hud-title')).toHaveText('Locked: Arishem (Cosmic Entity)');
+    await expect.poll(async () => {
+        const text = await page.locator('[data-performance]').textContent();
+        return text ? JSON.parse(text).residentModels : 0;
+    }, { timeout: 90_000 }).toBe(7);
+    expect(models.some(url => url.endsWith('/Arishem.glb'))).toBe(true);
+    expect(models.some(url => url.endsWith('/Cube.glb'))).toBe(false);
+    await expect(page.getByRole('button', { name: 'Retry loading' })).toHaveCount(0);
+    expect(errors).toEqual([]);
 });

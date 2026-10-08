@@ -53,7 +53,7 @@ try {
         }
     }
     // Exercise actual model files, eviction and reloading in each model area.
-    const areas = process.env.PROFILE_SYSTEM === 'cosmic' ? [['Cosmic Entity', 7, 'cosmic']] : [['Quantumania', 26, 'quantum'], ['Cosmic Entity', 7, 'cosmic']];
+    const areas = process.env.PROFILE_SYSTEM === 'cosmic' ? [['Arishem (Cosmic Entity)', 7, 'cosmic']] : [['Quantumania', 26, 'quantum'], ['Arishem (Cosmic Entity)', 7, 'cosmic']];
     for (const [destination, count, area] of areas) {
         const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
         await context.addInitScript(() => localStorage.setItem('cosmos-quality', 'low'));
@@ -66,6 +66,8 @@ try {
         measurements.push({ scenario: `travel-${area}-before`, errors: [...errors], ...(await read(page)) });
         const visit = async () => {
             await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+            const fiction = page.getByRole('button', { name: 'Fictional extras', exact: true });
+            if (await fiction.getAttribute('aria-pressed') === 'false') await fiction.click();
             await page.getByRole('button', { name: destination, exact: true }).click();
             await page.waitForFunction(count => {
                 const data = document.querySelector('[data-performance]')?.textContent;

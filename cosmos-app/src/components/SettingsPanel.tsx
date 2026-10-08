@@ -9,7 +9,10 @@ interface SettingsPanelProps {
     onTimeScaleChange: (value: number) => void;
     isPaused: boolean;
     onPauseToggle: () => void;
-    currentSystem?: string; // 'Solar System' | 'Quantumania' | 'Interstellar Space'
+    autoExposure: boolean; onAutoExposureChange: (value: boolean) => void;
+    epoch: number; onEpochChange: (value: number) => void;
+    showOrbits: boolean; onOrbitsChange: (value: boolean) => void;
+    fiction: boolean; onFictionChange: (value: boolean) => void;
     diagnostics: boolean;
     onDiagnosticsChange: (value: boolean) => void;
     darkSideFill: number;
@@ -27,7 +30,7 @@ const TIME_PRESETS = [
     { label: '12 Hr/s', value: TIME_VALUES.HOUR_12, description: 'Day/Night cycle in 2s' },
     { label: '18 Hr/s', value: TIME_VALUES.HOUR_18, description: '64800x speed' },
     { label: '1 Day/s', value: TIME_VALUES.DAY_1, description: '86400x speed' },
-    { label: 'Max', value: TIME_VALUES.MAX_SPEED, description: 'Pluto orbit in 1 min' },
+    { label: 'Max', value: TIME_VALUES.MAX_SPEED, description: 'About 4 years per second (model range 1900–2100)' },
 ];
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -36,13 +39,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     onTimeScaleChange,
     isPaused,
     onPauseToggle,
-    currentSystem = 'Solar System',
+    autoExposure, onAutoExposureChange, epoch, onEpochChange, showOrbits, onOrbitsChange, fiction, onFictionChange,
     darkSideFill, onDarkSideFillChange, diagnostics, onDiagnosticsChange,
     quality,
     onQualityChange,
 }) => {
-    // Time controls are disabled in Quantumania (forced real-time)
-    const isTimeControlDisabled = currentSystem === 'Quantumania';
+
     if (!isOpen) return null;
 
     const getActivePreset = () => {
@@ -69,25 +71,33 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     </div>
                 </section>
                 <section className="settings-section">
-                    <h3>Dark-side visibility</h3>
+                    <h3>Lighting</h3>
+                    <button type="button" className="preset-button" aria-pressed={autoExposure} onClick={() => onAutoExposureChange(!autoExposure)}>Automatic exposure</button>
+                    <p className="setting-description">Sunlight falls with distance squared. Automatic exposure brightens close-up views of distant worlds; fill light is an optional viewing aid.</p>
                     <label className="setting-description">Fill light: {Math.round(darkSideFill * 100)}%
                         <input type="range" min="0" max="1" step="0.05" value={darkSideFill} aria-label="Dark-side fill light" onChange={event => onDarkSideFillChange(Number(event.target.value))} />
                     </label>
                 </section>
-                {/* Time Controls Section */}
+                <section className="settings-section">
+                    <h3>Scientific view</h3>
+                    <p className="setting-description">Bodies and distances share one scale. Use the object list for close-ups. Orbits and labels are viewing aids; camera travel is unconstrained exploration.</p>
+                    <button type="button" className="preset-button" aria-pressed={showOrbits} onClick={() => onOrbitsChange(!showOrbits)}>Orbit guides</button>
+                    <button type="button" className="preset-button" aria-pressed={fiction} onClick={() => onFictionChange(!fiction)}>Fictional extras</button>
+                    <p className="setting-description">Enabled by default: Quantumania and its models, Arishem, Explorer, The Kyln, Alien X and the Black Hole. Switch this off for an astronomy-only view; real bodies retain their physical scale.</p>
+                </section>
                 <section className="settings-section">
                     <h3>Time</h3>
+                    <p className="setting-description">Supported dates: 1900–2100. The clock stops at the date limit. Simpler moon and small-body orbits are most accurate near their 2026 reference epoch.</p>
+                    <label className="setting-description">Date and time (UTC)
+                        <input type="datetime-local" aria-label="Simulation date UTC" min="1900-01-01T00:00" max="2100-01-01T00:00" value={new Date(epoch * 1000).toISOString().slice(0, 16)} onChange={event => {
+                            const value = Date.parse(event.target.value + 'Z') / 1000;
+                            if (Number.isFinite(value) && value >= Date.parse('1900-01-01') / 1000 && value <= Date.parse('2100-01-01') / 1000) onEpochChange(value);
+                        }} />
+                    </label>
+                    <button type="button" className="preset-button" onClick={() => onEpochChange(Date.now() / 1000)}>Now</button>
 
-                    <p className="setting-description">Pause freezes orbits, rotation, ships, model animation, and visual effects. Camera controls and loading stay available. Speed presets affect Solar System orbits; decorative motion stays at real-time.</p>
+                    <p className="setting-description">Pause freezes orbits, rotation, ships, model animation, and visual effects. Camera controls and loading stay available. Speed presets advance the dated astronomical model everywhere; decorative motion stays at real-time.</p>
                     <button type="button" className={`pause-button ${isPaused ? 'paused' : ''}`} aria-pressed={isPaused} onClick={onPauseToggle}>{isPaused ? '▶ Play' : '⏸ Pause'}</button>
-                    {isTimeControlDisabled ? (
-                        <div className="settings-row" style={{ opacity: 0.6 }}>
-                            <span style={{ fontSize: '12px', color: '#888' }}>
-                                Time presets are unavailable in Quantumania; motion runs at real-time.
-                            </span>
-                        </div>
-                    ) : (
-                        <>
                             <div className="settings-row">
                                 <label>Speed: <span className="preset-label">{getActivePreset()}</span></label>
                                 <div className="preset-buttons">
@@ -105,8 +115,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                                     ))}
                                 </div>
                             </div>
-                        </>
-                    )}
                 </section>
 
 

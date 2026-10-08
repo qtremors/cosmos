@@ -8,6 +8,13 @@
 
 ## [Unreleased] - 2026-10-08
 
+### Scientific Solar System
+- Replace independent visual scaling/random phases with a consistent physical scale and dated Astronomy Engine ephemerides.
+- Add IAU poles/spin, planetary flattening, oriented JPL two-body satellite/small-body orbits, all five recognised dwarf planets, 21 major moons, Halley and representative belts.
+- Add physical ring extents, Cassini division, inverse-square illumination, auto exposure and analytic eclipses without a Solar shadow cubemap.
+- Add UTC date/rate controls, exact moving-target camera tracking, proportional zoom and adaptive near clipping/local flight speed; retain original fictional destinations by default with an optional astronomy-only view.
+- Verify against independent Horizons vectors and the 2022 total lunar eclipse; document precision and omissions in SCIENCE.md.
+
 ### Reliability and performance
 - Cancel animation on teardown and release scene resources, asset requests, and animation mixers.
 - Preserve radar blips across HUD toggles; correct speed sampling and kilometre conversions.

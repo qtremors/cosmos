@@ -5,11 +5,12 @@ import * as THREE from 'three';
 export class Neptune extends Planet {
     constructor(assets = new SceneAssets()) {
         super('NEPTUNE', assets, '/textures/2k_neptune.jpg', 0.6);
-        this.add(this.createRings());
+        this.addMoon({ name: 'Triton', color: 0xb5b5b0 });
+        this.bodyFrame.add(this.createRings());
     }
   private createRings(): THREE.Mesh {
-    const innerRadius = this.radius * 1.7;
-    const outerRadius = this.radius * 2.5;
+    const innerRadius = this.radius * 1.69;
+    const outerRadius = this.radius * 2.54;
     const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
 
     const size = 256;

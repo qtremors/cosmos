@@ -1,10 +1,10 @@
-import { Cosmos } from './SDK';
+import { unitsToKm } from './PhysicalScale';
+export { KM_PER_AU } from './PhysicalScale';
 
-export const KM_PER_AU = 149_597_870.7;
-export const VISIBILITY = { SOLAR_RANGE: 4500, QUANTUMANIA_BUFFER: 500 } as const;
+export const VISIBILITY = { SOLAR_RANGE: 35000, QUANTUMANIA_BUFFER: 500 } as const;
 
 export function simulationDistanceToKm(distance: number): number {
-    return distance / Cosmos.UNITS.AU * KM_PER_AU;
+    return unitsToKm(distance);
 }
 
 /** A fraction tuned at 60 FPS, converted into elapsed-time damping. */

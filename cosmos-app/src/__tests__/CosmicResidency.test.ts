@@ -15,7 +15,7 @@ it('evicts cosmic models, preserves the head target, and reloads without duplica
         return { scene, animations: [] } as unknown as GLTF;
     });
     const cosmic = new CosmicEntity(assets), target = cosmic.head;
-    const camera = new THREE.PerspectiveCamera(); camera.position.set(0, 0, -20000);
+    const camera = new THREE.PerspectiveCamera(); camera.position.copy(cosmic.position);
     cosmic.update(0, camera, 0, 0);
     await vi.waitFor(() => expect(cosmic.residentModelCount).toBe(7));
     const disposed = geometries.map(geometry => vi.spyOn(geometry, 'dispose'));
@@ -25,7 +25,7 @@ it('evicts cosmic models, preserves the head target, and reloads without duplica
     expect(cosmic.head).toBe(target);
     expect(cosmic.head.parent).not.toBeNull();
     disposed.forEach(spy => expect(spy).toHaveBeenCalledTimes(1));
-    camera.position.set(0, 0, -20000); cosmic.update(0, camera, 0, 0);
+    camera.position.copy(cosmic.position); cosmic.update(0, camera, 0, 0);
     await vi.waitFor(() => expect(cosmic.residentModelCount).toBe(7));
     expect(load).toHaveBeenCalledTimes(14);
     cosmic.dispose(); assets.dispose(); disposeObject3D(cosmic); vi.restoreAllMocks();

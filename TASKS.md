@@ -1,8 +1,8 @@
 # Cosmos tasks
 
-> **Project:** Cosmos · **Current release:** v2.1.0 · **Updated:** 2026-10-08
+> **Project:** Cosmos · **Current release:** v2.1.0 · **Updated:** 2026-10-09
 >
-> Completed work below is implemented on `improve/cosmos-reliability-and-navigation`. It has not been deployed.
+> Completed work below is implemented on `ag-dev`. It has not been deployed.
 
 ## Completed in this improvement branch
 
@@ -38,7 +38,7 @@
 - [x] Isolate lighting using separate Solar, Quantumania, and interstellar render passes, verified with rendered pixels.
 - [x] Solve Kepler’s equation for elliptical timing and use physical axes/periods for vis-viva orbital speed.
 - [x] Reference moon telemetry to its parent planet and omit physical orbital speed for decorative objects.
-- [x] Add object facts, NASA source links, and an explanation of visual scaling and randomized orbit phases.
+- [x] Add object facts and NASA source links; the subsequent scientific model replaces the earlier visual scaling and randomized phases.
 - [x] Add touch flight, roll, boost, zoom and view reset, with pointer cancellation and focus-loss cleanup.
 - [x] Split startup JavaScript into the React shell, Three core/renderer, scene runtime, and deferred model loader; remove the oversized-chunk warning without raising the threshold.
 - [x] Make pause freeze orbital and cosmetic animation while retaining flight/loading; explain rate controls in Settings.
@@ -48,15 +48,32 @@
 - [x] Consolidate legacy CSS, remove unused selectors/duplicate rules, and retain responsive navigation.
 - [x] Expand unit/browser regressions and document production measurements and reproducible profiling.
 
+## Scientific Solar System implemented
+
+- [x] Use one physical scale for planetary/moon radii, distances and rings; retain small true sizes in close-ups.
+- [x] Initialize a UTC clock at now; expose date, pause and rate controls, with consistent astronomical time across destinations.
+- [x] Use Astronomy Engine ephemerides for planets, the Moon and Galilean satellites; preserve J2000 ecliptic orientation.
+- [x] Use IAU poles/spin, measured planetary flattening, approximate irregular small-body shapes, and independent orbital/body frames.
+- [x] Add the major Mars/Saturn/Uranus/Neptune satellites, all five recognised dwarf planets, Halley’s nucleus and a representative Kuiper Belt.
+- [x] Source additional bodies’ oriented two-body elements from JPL Horizons and disclose their epoch/precision limitations.
+- [x] Add physical ring extents/Cassini division and Jupiter’s faint main ring.
+- [x] Use inverse-square solar light, optional auto exposure/fill and analytic eclipse shadows; remove Solar cubemap allocation.
+- [x] Adapt near clipping, travel, zoom, flight speed and exact target tracking for tiny bodies and accelerated dates.
+- [x] Keep original destinations available by default, with an optional astronomy-only view; expose independent orbit/label viewing aids and scientific information.
+- [x] Validate against independent JPL vectors, physical scale/spin/orbits and an observed lunar eclipse; add browser regressions.
+- [x] Document the reference frame, sources, representative populations, approximations and omissions in [SCIENCE.md](SCIENCE.md).
+
 ## Physical-device validation still required
 
 - [ ] Run Low/Medium/High on integrated GPUs and representative phones. The cloud environment provides a software WebGL renderer and viewport emulation, not these physical devices. `npm run profile` and [PERFORMANCE.md](PERFORMANCE.md) provide the scenarios and measurement procedure; do not substitute cloud timings for hardware validation.
 
 ## Optional product ideas reviewed
 
-Audio, comets, additional dwarf planets, procedural surfaces, WebXR, and physics workers remain product options rather than defects. The current two-body calculations do not justify worker overhead; WebXR requires headset/browser validation, and audio/content additions require product and asset decisions. No speculative subsystem was added to resolve the reliability/performance backlog.
+Audio, detailed/procedural surfaces, WebXR, a complete small-body/satellite catalogue, fully perturbed satellite ephemerides, comet tails and more detailed atmospheric/ring photometry remain extensions. Halley’s nucleus and the recognised dwarf planets are now implemented. [SCIENCE.md](SCIENCE.md) identifies the limits of the current physical model; completed items do not imply that every possible astronomical feature exists.
 
 ## Validation
+
+The scientific implementation passes 63 unit tests and all 15 browser scenarios, including default discovery and loading of all 26 Quantumania and seven Arishem models. The production report [measurements/cloud-science.json](measurements/cloud-science.json) verifies zero Solar cubemap allocation and both model eviction/reload cycles with real assets.
 
 Run from `cosmos-app`:
 

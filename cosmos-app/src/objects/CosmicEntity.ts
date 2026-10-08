@@ -31,7 +31,7 @@ export class CosmicEntity extends THREE.Group {
         this.alienGroup.add(this.head);
         this.head.position.set(0, 3000, 0);
 
-        this.position.set(0, 0, -20000);
+        this.position.set(0, 0, -100000);
 
 
     }
@@ -113,6 +113,8 @@ export class CosmicEntity extends THREE.Group {
         if (this.shouldLoad) { this.hiddenSeconds = 0; this.evicted = false; }
         this.startLoading();
     }
+
+    suspend(): void { this.shouldLoad = false; this.visible = false; }
 
     private startLoading(): void {
         if (this.disposed || !this.shouldLoad || this.queue || this.loadingComplete) return;

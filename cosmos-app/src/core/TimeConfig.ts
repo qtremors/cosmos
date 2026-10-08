@@ -11,4 +11,4 @@ export const TIME_PRESETS = {
     };
 
 /** Default simulation speed. */
-export const DEFAULT_TIME_SCALE = 86400;
+export const DEFAULT_TIME_SCALE = 1;

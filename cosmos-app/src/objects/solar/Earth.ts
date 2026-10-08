@@ -1,4 +1,5 @@
 import { Moon, addMoonOrbit } from '../common/Moon';
+import { bodyState, bodyOrientation } from '../../core/Ephemeris';
 import { BODY_DATA } from '../../core/BodyData';
 import * as THREE from 'three';
 import { SceneAssets } from '../../core/SceneAssets';
@@ -17,14 +18,14 @@ export class Earth extends THREE.Group {
     private mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
     private clouds: THREE.Mesh;
     private label: CSS2DObject;
-    private initialAngle: number;
+
 
     constructor(assets = new SceneAssets()) {
         super();
 
         const data = Cosmos.PLANETS.EARTH;
         this.radius = data.RADIUS;
-        this.initialAngle = Math.random() * Math.PI * 2;
+
 
         const loader = assets;
         const dayTexture = loader.loadTexture('/textures/2k_earth_daymap.jpg');
@@ -48,6 +49,7 @@ export class Earth extends THREE.Group {
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
+        this.mesh.scale.y = BODY_DATA.Earth.polarKm! / BODY_DATA.Earth.equatorialKm!;
         this.add(this.mesh);
 
         const cloudsGeo = new THREE.SphereGeometry(data.RADIUS * 1.01, 48, 32);
@@ -61,7 +63,7 @@ export class Earth extends THREE.Group {
         this.clouds = new THREE.Mesh(cloudsGeo, cloudsMat);
         this.add(this.clouds);
 
-        this.moon = new Moon({ name: 'Moon', radius: data.MOON.RADIUS * 1.5, distance: data.MOON.DISTANCE, map: moonTexture });
+        this.moon = new Moon({ name: 'Moon', map: moonTexture });
         addMoonOrbit(this, this.moon);
         this.userData.orbit = { ...BODY_DATA.Earth, visualAxis: data.DISTANCE };
 
@@ -76,27 +78,12 @@ export class Earth extends THREE.Group {
     setDarkSideFill(fill: number): void { this.mesh.material.uniforms.uFill.value = fill; }
 
     update(time: number, camera: THREE.Camera): void {
-        const theta = Cosmos.getRealisticOrbitalAngle(
-            time,
-            Cosmos.ORBITAL_PERIODS.EARTH,
-            this.initialAngle,
-            Cosmos.ECCENTRICITY.EARTH
-        );
-        const pos = Cosmos.getEllipticalOrbitalPosition(
-            Cosmos.PLANETS.EARTH.DISTANCE,
-            Cosmos.ECCENTRICITY.EARTH,
-            Cosmos.INCLINATION.EARTH,
-            theta
-        );
-        this.position.set(pos.x, pos.y, pos.z);
-
-        const rotation = Cosmos.getRealisticRotation(
-            time,
-            Cosmos.ROTATION_PERIODS.EARTH
-        );
-        this.mesh.rotation.y = rotation;
-        this.clouds.rotation.y = rotation * 1.05;
-
+        const state = bodyState('Earth', time);
+        this.position.copy(state.position);
+        this.userData.orbit.speedKmS = state.velocity.length();
+        this.mesh.quaternion.copy(bodyOrientation('Earth', time));
+        this.clouds.quaternion.copy(this.mesh.quaternion);
+        this.clouds.scale.y = this.mesh.scale.y;
         this.moon.update(time, camera);
 
         const dist = camera.position.distanceTo(this.position);
