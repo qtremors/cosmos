@@ -92,3 +92,53 @@ describe('model loading contracts', () => {
         disposeObject3D(system);
     });
 });
+
+it.each(['entity', 'nexus'])('evicts %s GPU resources and discards late results while preserving the target', async kind => {
+    const assets = new SceneAssets();
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial();
+    const model = new THREE.Group(); model.add(new THREE.Mesh(geometry, material));
+    const disposed = vi.spyOn(geometry, 'dispose');
+    const entity = kind === 'entity' ? new GLBEntity(new THREE.Vector3(), '/model.glb', 'Test', 1, 1, '#fff', 2, assets) : new Nexus(new THREE.Vector3(), assets);
+    const load = vi.spyOn(assets, 'loadModel').mockResolvedValue({ scene: model } as GLTF);
+    await entity.loadModel();
+    entity.unloadModel();
+    expect(entity.loaded).toBe(false);
+    expect(disposed).toHaveBeenCalledTimes(1);
+    expect(model.parent).toBeNull();
+    let resolve!: (gltf: GLTF) => void;
+    load.mockReturnValue(new Promise<GLTF>(yes => { resolve = yes; }));
+    const late = entity.loadModel();
+    entity.unloadModel();
+    const lateScene = new THREE.Group();
+    const lateGeometry = new THREE.BoxGeometry();
+    lateScene.add(new THREE.Mesh(lateGeometry, material));
+    const lateDisposed = vi.spyOn(lateGeometry, 'dispose');
+    resolve({ scene: lateScene } as GLTF);
+    await late;
+    expect(entity.loaded).toBe(false);
+    expect(lateDisposed).toHaveBeenCalledTimes(1);
+    load.mockResolvedValue({ scene: new THREE.Group() } as GLTF);
+    await entity.loadModel();
+    expect(entity.loaded).toBe(true);
+    disposeObject3D(entity); assets.dispose();
+});
+
+it('evicts a departed system after hysteresis and reloads on returning', async () => {
+    const assets = new SceneAssets();
+    const load = vi.spyOn(assets, 'loadModel').mockImplementation(async () => ({ scene: new THREE.Group() } as GLTF));
+    const system = new QuantumaniaSystem(assets);
+    system.setVisible(true);
+    await vi.waitFor(() => expect(system.inhabitants.items.every(item => item.loaded)).toBe(true));
+    const loadedCount = load.mock.calls.length;
+    system.setVisible(false);
+    system.updateResidency(29);
+    expect(system.nexus.loaded).toBe(true);
+    system.updateResidency(1);
+    expect(system.nexus.loaded).toBe(false);
+    expect(system.inhabitants.items.every(item => !item.loaded)).toBe(true);
+    system.setVisible(true);
+    await vi.waitFor(() => expect(system.inhabitants.items.every(item => item.loaded)).toBe(true));
+    expect(load).toHaveBeenCalledTimes(loadedCount * 2);
+    system.dispose(); assets.dispose(); disposeObject3D(system);
+});

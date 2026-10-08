@@ -76,6 +76,16 @@ test('mobile panels fit the viewport and settings remain reachable', async ({ pa
     await expect(page.getByRole('button', { name: 'Low', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: 'Close objects and settings' }).click();
     await expect(page.getByRole('button', { name: 'Explore objects and settings' })).toBeFocused();
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await page.getByRole('button', { name: 'Earth', exact: true }).click();
+    await expect(page.locator('.object-info')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Object information', exact: true }).click();
+    await expect(page.locator('.object-info')).toContainText('Source: NASA Science');
+    const infoBounds = (await page.locator('.object-info').boundingBox())!;
+    const flightBounds = (await page.getByRole('button', { name: 'Fly forward', exact: true }).boundingBox())!;
+    expect(infoBounds.y + infoBounds.height).toBeLessThanOrEqual(flightBounds.y);
+    await page.getByRole('button', { name: 'Close object information', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Object information', exact: true })).toBeVisible();
 });
 
 test('texture failures have a visible retry path', async ({ page }) => {
@@ -125,4 +135,83 @@ test('black-hole top view compiles at low shader quality', async ({ page }) => {
     await page.keyboard.press('t');
     await expect(page.locator('canvas')).toBeVisible();
     expect(errors).toEqual([]);
+});
+
+test('moons show their parent reference and sourced physical facts', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    for (const name of ['Io', 'Ganymede', 'Callisto', 'Enceladus']) await expect(page.getByRole('button', { name, exact: true })).toBeAttached();
+    await page.getByRole('button', { name: 'Moon', exact: true }).click();
+    await expect(page.locator('.stats-hud-title')).toHaveText('Locked: Moon');
+    await expect(page.locator('.stats-hud')).toContainText('From Earth:');
+    await expect(page.locator('.object-info')).toContainText('27.32 Earth days');
+    await expect(page.getByRole('link', { name: 'Source: NASA Science' })).toHaveAttribute('href', 'https://science.nasa.gov/moon/');
+    await expect(page.locator('.stats-hud')).not.toContainText('From Sun:');
+});
+
+test('touch flight releases on pointer cancellation and zoom is available', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/?profile=1');
+    const forward = page.getByRole('button', { name: 'Fly forward', exact: true });
+    await expect(forward).toBeVisible();
+    await page.mouse.move((await forward.boundingBox())!.x + 10, (await forward.boundingBox())!.y + 10);
+    await page.mouse.down();
+    await expect.poll(() => page.locator('.stats-hud-value').first().innerText()).not.toBe('0 km/s');
+    await forward.dispatchEvent('pointercancel', { pointerId: 1 });
+    await page.mouse.up();
+    await expect(page.locator('.stats-hud-value').first()).toHaveText('0 km/s');
+    const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
+    await expect(zoom).toBeVisible();
+    const positionBeforeZoom = JSON.parse((await page.locator('[data-performance]').textContent())!).cameraPosition;
+    const zoomBounds = (await zoom.boundingBox())!;
+    await page.mouse.move(zoomBounds.x + zoomBounds.width / 2, zoomBounds.y + zoomBounds.height / 2);
+    await page.mouse.down();
+    await expect.poll(async () => JSON.parse((await page.locator('[data-performance]').textContent())!).cameraPosition).not.toEqual(positionBeforeZoom);
+    await page.mouse.up();
+    await page.getByRole('button', { name: 'Close performance' }).click();
+    await expect(page.getByRole('button', { name: 'Roll left', exact: true })).toBeVisible();
+});
+
+test('pause freezes scene time while camera flight remains available', async ({ page }) => {
+    await page.goto('/?profile=1');
+    await expect(page.locator('[data-performance]')).toBeAttached();
+    await page.getByRole('button', { name: 'Explore objects and settings' }).click();
+    await page.getByRole('button', { name: '⏸ Pause', exact: true }).click();
+    await page.getByRole('button', { name: 'Close objects and settings' }).click();
+    const profile = () => page.locator('[data-performance]').textContent().then(text => JSON.parse(text!));
+    await expect.poll(async () => (await profile()).samples).toBeGreaterThan(20);
+    const first = await profile();
+    await page.locator('canvas').focus();
+    await page.keyboard.down('w');
+    await expect.poll(async () => (await profile()).cameraPosition).not.toEqual(first.cameraPosition);
+    await page.keyboard.up('w');
+    expect((await profile()).simulationTime).toBe(first.simulationTime);
+});
+
+test('separate render passes isolate solar light from quantum materials', async ({ page }) => {
+    await page.goto('/');
+    const result = await page.evaluate(async () => {
+        // Load the same runtime modules through Vite for a small real WebGL regression scene.
+        const modulePath = '/src/core/SystemRenderer.ts';
+        const rendererModule = await import(/* @vite-ignore */ modulePath);
+        const threePath = '/node_modules/.vite/deps/three.js';
+        const THREE = await import(/* @vite-ignore */ threePath);
+        const renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true }); renderer.setSize(32, 32);
+        const root = new THREE.Scene(); root.background = new THREE.Color(0);
+        const camera = new THREE.OrthographicCamera(-2, 2, 1, -1, 0.1, 10); camera.position.z = 3;
+        const light = new THREE.DirectionalLight(0xff0000, 0); light.position.z = 2;
+        const geometry = new THREE.PlaneGeometry(0.8, 0.8);
+        const left = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xffffff })); left.position.x = -1;
+        const right = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xffffff })); right.position.x = 1;
+        const world = new rendererModule.SystemRenderer(root, [left, light], [right, new THREE.AmbientLight(0xffffff, 1)], []);
+        const read = (x: number) => { const pixel = new Uint8Array(4); const gl = renderer.getContext(); gl.readPixels(x, 16, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel); return [...pixel]; };
+        world.render(renderer, camera, true, true); const darkSolar = read(8), quantumBefore = read(24);
+        light.intensity = 5;
+        world.render(renderer, camera, true, true); const litSolar = read(8), quantumAfter = read(24);
+        geometry.dispose(); left.material.dispose(); right.material.dispose(); renderer.dispose(); renderer.forceContextLoss();
+        return { darkSolar, litSolar, quantumBefore, quantumAfter };
+    });
+    expect(result.litSolar[0]).toBeGreaterThan(result.darkSolar[0] + 50);
+    expect(result.quantumBefore[0]).toBeGreaterThan(50);
+    expect(result.quantumAfter).toEqual(result.quantumBefore);
 });

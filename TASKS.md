@@ -30,32 +30,31 @@
 - [x] Remove duplicate comments and duplicate visibility calls, centralize visibility distances, and add explicit button types.
 - [x] Refresh documentation, model counts, test commands, and backlog priorities. Remove the absent empty-utils-directory task.
 
-## High priority follow-up
+## Remaining work implemented
 
-- [ ] Extract the remaining scene construction/update code from App into a scene controller with a small React interface. Lifecycle and asset ownership utilities are already separate; App still coordinates too much.
-- [ ] Profile Low/Medium/High on integrated GPUs and representative phones. Record frame time and GPU/CPU memory before making hardware/RAM claims.
-- [ ] Measure GLB parsing and texture residency during extended travel; decide whether distant models need eviction and on-demand reloading.
+- [x] Extract scene construction into `World` and runtime ownership into `SceneController`, with a small asynchronous React interface.
+- [x] Measure frame timings, geometry/texture/shadow estimates, JS heap where available, model parsing, and model residency; provide report downloads and a repeatable production profiling command.
+- [x] Evict distant Quantumania/Arishem models after 30 active wall-clock seconds; preserve navigation targets, release GPU resources/decoded bitmaps, discard late results, and reload on return.
+- [x] Isolate lighting using separate Solar, Quantumania, and interstellar render passes, verified with rendered pixels.
+- [x] Solve Kepler’s equation for elliptical timing and use physical axes/periods for vis-viva orbital speed.
+- [x] Reference moon telemetry to its parent planet and omit physical orbital speed for decorative objects.
+- [x] Add object facts, NASA source links, and an explanation of visual scaling and randomized orbit phases.
+- [x] Add touch flight, roll, boost, zoom and view reset, with pointer cancellation and focus-loss cleanup.
+- [x] Split startup JavaScript into the React shell, Three core/renderer, scene runtime, and deferred model loader; remove the oversized-chunk warning without raising the threshold.
+- [x] Make pause freeze orbital and cosmetic animation while retaining flight/loading; explain rate controls in Settings.
+- [x] Reduce duplicated planet/moon setup with shared data-driven classes and precompute asteroid orbital rates.
+- [x] Offer adjustable dark-side fill lighting, including the custom Earth shader.
+- [x] Add Io, Ganymede, Callisto, and Enceladus.
+- [x] Consolidate legacy CSS, remove unused selectors/duplicate rules, and retain responsive navigation.
+- [x] Expand unit/browser regressions and document production measurements and reproducible profiling.
 
-## Deferred project decision
+## Physical-device validation still required
 
-- [ ] **Separate lighting per system** — preserve the existing deferral. Three.js layers select lights/objects for a camera; they do not isolate illumination between object layers in the current single render pass. Independent scenes/passes or explicit lighting/material design are needed before calling this complete.
+- [ ] Run Low/Medium/High on integrated GPUs and representative phones. The cloud environment provides a software WebGL renderer and viewport emulation, not these physical devices. `npm run profile` and [PERFORMANCE.md](PERFORMANCE.md) provide the scenarios and measurement procedure; do not substitute cloud timings for hardware validation.
 
-## Medium priority
+## Optional product ideas reviewed
 
-- [ ] Solve Kepler's equation for elliptical orbital timing. Current orbit shapes and periods are represented, but true anomaly advances uniformly rather than satisfying equal-area motion.
-- [ ] Replace the HUD's approximate circular orbital-speed formula with a calculation matched to orbital mechanics; distinguish planet, moon, and decorative-object reference frames.
-- [ ] Add an object information panel with facts, source attribution, and a clear explanation of visual scale.
-- [ ] Add touch flight/zoom controls if full mobile free flight is a supported goal. Touch dragging and object selection are now available.
-- [ ] Profile remaining startup JavaScript and geometry detail. The model loader is split out, but the initial Three.js bundle still exceeds Vite's 500 kB advisory threshold.
-- [ ] Make all simulation/cosmetic pause semantics explicit in the UI before expanding time controls.
-
-## Later improvements
-
-- [ ] Reduce duplicated planet/moon setup with data-driven configurations.
-- [ ] Offer adjustable dark-side visibility/rim lighting after lighting behavior is settled.
-- [ ] Add moons such as Io, Ganymede, Callisto, and Enceladus.
-- [ ] Consolidate remaining legacy CSS and remove unused styles.
-- [ ] Consider audio, comets, more dwarf planets, procedural surfaces, WebXR, or physics workers when product goals and profiling justify them.
+Audio, comets, additional dwarf planets, procedural surfaces, WebXR, and physics workers remain product options rather than defects. The current two-body calculations do not justify worker overhead; WebXR requires headset/browser validation, and audio/content additions require product and asset decisions. No speculative subsystem was added to resolve the reliability/performance backlog.
 
 ## Validation
 
@@ -67,6 +66,7 @@ npm run check
 npx playwright install chromium
 npm run test:e2e
 npm audit
+npm run profile
 ```
 
-`npm test` runs once; use `npm run test:watch` for watch mode. Browser tests cover Strict Mode loop ownership, HUD toggling, keyboard/search behavior, quality persistence, mobile layout, texture retry, deferred models, lost-keyup recovery, and black-hole shader compilation. Lifecycle unit tests also verify teardown and late model disposal.
+`npm test` runs once; use `npm run test:watch` for watch mode. Browser tests cover Strict Mode loop ownership, HUD toggling, keyboard/search behavior, quality persistence, mobile layout, texture retry, deferred models, lost-keyup recovery, black-hole shader compilation, physical moon information, touch cancellation/zoom, pause, and rendered-pixel lighting isolation. Unit tests also verify teardown, late completion, eviction/reloading, Kepler timing, shader pause time, and resource estimates.

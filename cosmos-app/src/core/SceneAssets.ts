@@ -1,18 +1,13 @@
 import * as THREE from 'three';
 import { disposeObject3D } from './SceneLifecycle';
 
-export interface AssetStatus {
-    loading: boolean;
-    loaded: number;
-    total: number;
-    failed: string[];
-}
-
-export const EMPTY_ASSET_STATUS: AssetStatus = { loading: false, loaded: 0, total: 0, failed: [] };
+import { EMPTY_ASSET_STATUS, type AssetStatus } from './AssetStatus';
+export { EMPTY_ASSET_STATUS, type AssetStatus } from './AssetStatus';
 
 /** Assets belong to a scene, so late callbacks cannot revive a disposed scene. */
 export class SceneAssets {
     readonly manager = new THREE.LoadingManager();
+    readonly metrics = { modelLoads: 0, modelParseMs: 0, modelParseMaxMs: 0, modelBytes: 0 };
     private disposed = false;
     private status: AssetStatus = { ...EMPTY_ASSET_STATUS };
     private failures = new Set<string>();
@@ -87,7 +82,20 @@ export class SceneAssets {
         if (this.disposed) throw new DOMException('Scene disposed', 'AbortError');
         const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
         if (this.disposed) throw new DOMException('Scene disposed', 'AbortError');
-        const gltf = await new GLTFLoader(this.manager).loadAsync(url);
+        const loader = new GLTFLoader(this.manager);
+        const parse = loader.parse.bind(loader);
+        loader.parse = (data, path, onLoad, onError) => {
+            const start = performance.now();
+            parse(data, path, gltf => {
+                const duration = performance.now() - start;
+                this.metrics.modelParseMs += duration;
+                this.metrics.modelParseMaxMs = Math.max(this.metrics.modelParseMaxMs, duration);
+                this.metrics.modelBytes += data instanceof ArrayBuffer ? data.byteLength : typeof data === 'string' ? data.length : 0;
+                onLoad(gltf);
+            }, onError);
+        };
+        const gltf = await loader.loadAsync(url);
+        this.metrics.modelLoads++;
         if (this.disposed) {
             gltf.scenes.forEach(disposeObject3D);
             throw new DOMException('Scene disposed', 'AbortError');

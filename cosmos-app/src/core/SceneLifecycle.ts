@@ -22,8 +22,15 @@ export function startAnimationLoop(update: (delta: number) => void): () => void 
 /** Dispose shared GPU resources once, including textures in shader uniforms. */
 export function disposeObject3D(root: THREE.Object3D): void {
     const resources = new Set<{ dispose(): void }>();
+    const bitmaps = new Set<ImageBitmap>();
     const addTexture = (value: unknown) => {
-        if (value instanceof THREE.Texture) resources.add(value);
+        if (value instanceof THREE.Texture) {
+            resources.add(value);
+            const images = Array.isArray(value.image) ? value.image : [value.image];
+            for (const image of images) {
+                if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) bitmaps.add(image);
+            }
+        }
     };
     root.traverse(object => {
         if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Line || object instanceof THREE.Sprite) {
@@ -45,4 +52,5 @@ export function disposeObject3D(root: THREE.Object3D): void {
         if ('element' in object && object.element instanceof HTMLElement) object.element.remove();
     });
     resources.forEach(resource => resource.dispose());
+    bitmaps.forEach(bitmap => bitmap.close());
 }

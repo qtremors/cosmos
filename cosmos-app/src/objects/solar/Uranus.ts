@@ -1,55 +1,13 @@
-import * as THREE from 'three';
+import { Planet } from '../common/Planet';
 import { SceneAssets } from '../../core/SceneAssets';
-import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { Cosmos } from '../../core/SDK';
+import * as THREE from 'three';
 
-
-
-export class Uranus extends THREE.Group {
-    private worldPosition = new THREE.Vector3();
-  public readonly radius: number;
-
-  private mesh: THREE.Mesh;
-  private rings: THREE.Mesh;
-  private label: CSS2DObject;
-  private initialAngle: number;
-
-  constructor(assets = new SceneAssets()) {
-    super();
-
-    const config = Cosmos.PLANETS.URANUS;
-    this.radius = config.RADIUS;
-    this.initialAngle = Math.random() * Math.PI * 2;
-
-    const loader = assets;
-    const texture = loader.loadTexture('/textures/2k_uranus.jpg');
-
-    const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
-
-    const material = new THREE.MeshStandardMaterial({
-      map: texture,
-      roughness: 0.6,
-      metalness: 0.0,
-    });
-
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
-    this.add(this.mesh);
-
-    this.rings = this.createRings();
-    this.add(this.rings);
-
-    const div = document.createElement('div');
-    div.className = 'label';
-    div.textContent = 'Uranus';
-    this.label = new CSS2DObject(div);
-    this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
-    this.add(this.label);
-
-    this.rotation.z = Math.PI / 2;
-  }
-
+export class Uranus extends Planet {
+    constructor(assets = new SceneAssets()) {
+        super('URANUS', assets, '/textures/2k_uranus.jpg', 0.6);
+        this.add(this.createRings());
+        this.rotation.z = Math.PI / 2;
+    }
   private createRings(): THREE.Mesh {
     const innerRadius = this.radius * 1.6;
     const outerRadius = this.radius * 2.0;
@@ -90,26 +48,4 @@ export class Uranus extends THREE.Group {
     return rings;
   }
 
-  update(time: number, camera: THREE.Camera): void {
-    const theta = Cosmos.getRealisticOrbitalAngle(
-      time,
-      Cosmos.ORBITAL_PERIODS.URANUS,
-      this.initialAngle
-    );
-    const pos = Cosmos.getEllipticalOrbitalPosition(
-      Cosmos.PLANETS.URANUS.DISTANCE,
-      Cosmos.ECCENTRICITY.URANUS,
-      Cosmos.INCLINATION.URANUS,
-      theta
-    );
-    this.position.set(pos.x, pos.y, pos.z);
-
-    this.mesh.rotation.x = Cosmos.getRealisticRotation(
-      time,
-      Cosmos.ROTATION_PERIODS.URANUS
-    );
-
-    const dist = camera.position.distanceTo(this.getWorldPosition(this.worldPosition));
-    this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
-  }
 }

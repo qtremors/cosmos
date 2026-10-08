@@ -1,63 +1,17 @@
+import { Moon, addMoonOrbit } from '../common/Moon';
+import { BODY_DATA } from '../../core/BodyData';
 import * as THREE from 'three';
 import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { Cosmos, MoonConfig, RingConfig } from '../../core/SDK';
-
-
-
-class Titan extends THREE.Mesh {
-    private worldPosition = new THREE.Vector3();
-    public readonly config: MoonConfig;
-    private initialAngle: number;
-    private label: CSS2DObject;
-
-    constructor(config: MoonConfig) {
-        const geometry = new THREE.SphereGeometry(config.RADIUS, 32, 32);
-        const material = new THREE.MeshStandardMaterial({
-            color: 0xe6d4be,
-            roughness: 0.7,
-            metalness: 0.0,
-        });
-        super(geometry, material);
-
-        this.config = config;
-        this.initialAngle = Math.random() * Math.PI * 2;
-
-        this.castShadow = true;
-        this.receiveShadow = true;
-
-        const div = document.createElement('div');
-        div.className = 'label';
-        div.textContent = 'Titan';
-        div.style.fontSize = '10px';
-        this.label = new CSS2DObject(div);
-        this.label.position.set(0, config.RADIUS * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
-        this.add(this.label);
-    }
-
-    update(time: number, camera: THREE.Camera): void {
-        const angle = Cosmos.getRealisticOrbitalAngle(
-            time,
-            Cosmos.ORBITAL_PERIODS.TITAN,
-            this.initialAngle
-        );
-        const distance = this.config.DISTANCE;
-        this.position.x = Math.cos(angle) * distance;
-        this.position.z = Math.sin(angle) * distance;
-
-        const worldPos = this.worldPosition;
-        this.getWorldPosition(worldPos);
-        const dist = camera.position.distanceTo(worldPos);
-        this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.config.RADIUS));
-    }
-}
+import { Cosmos, RingConfig } from '../../core/SDK';
 
 
 
 export class Saturn extends THREE.Group {
     private worldPosition = new THREE.Vector3();
     public readonly radius: number;
-    public readonly titan: Titan;
+    public readonly titan: Moon;
+    public readonly enceladus: Moon;
 
     private mesh: THREE.Mesh;
     private rings: THREE.Mesh;
@@ -74,7 +28,7 @@ export class Saturn extends THREE.Group {
         const loader = assets;
         const texture = loader.loadTexture('/textures/2k_saturn.jpg');
 
-        const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
+        const geometry = new THREE.SphereGeometry(this.radius, 48, 32);
 
         const material = new THREE.MeshStandardMaterial({
             map: texture,
@@ -90,26 +44,11 @@ export class Saturn extends THREE.Group {
         this.rings = this.createRings(config.RING!);
         this.add(this.rings);
 
-        this.titan = new Titan(config.MOON!);
-        this.add(this.titan);
-
-        const titanOrbitCurve = new THREE.EllipseCurve(
-            0, 0,
-            config.MOON!.DISTANCE, config.MOON!.DISTANCE,
-            0, 2 * Math.PI,
-            false, 0
-        );
-        const titanOrbitPoints = titanOrbitCurve.getPoints(64);
-        const titanOrbitGeo = new THREE.BufferGeometry().setFromPoints(titanOrbitPoints);
-        titanOrbitGeo.rotateX(-Math.PI / 2);
-        const titanOrbitMat = new THREE.LineBasicMaterial({
-            color: 0xe6d4be,
-            transparent: true,
-            opacity: 0.1,
-            depthWrite: false,
-        });
-        const titanOrbitLine = new THREE.LineLoop(titanOrbitGeo, titanOrbitMat);
-        this.add(titanOrbitLine);
+        this.titan = new Moon({ name: 'Titan', radius: config.MOON.RADIUS, distance: config.MOON.DISTANCE, color: 0xe6d4be });
+        this.enceladus = new Moon({ name: 'Enceladus', radius: 0.5, distance: 26, color: 0xf2f4ff });
+        addMoonOrbit(this, this.titan);
+        addMoonOrbit(this, this.enceladus);
+        this.userData.orbit = { ...BODY_DATA.Saturn, visualAxis: config.DISTANCE };
 
         const div = document.createElement('div');
         div.className = 'label';
@@ -167,7 +106,8 @@ export class Saturn extends THREE.Group {
         const theta = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.SATURN,
-            this.initialAngle
+            this.initialAngle,
+            Cosmos.ECCENTRICITY.SATURN
         );
         const pos = Cosmos.getEllipticalOrbitalPosition(
             Cosmos.PLANETS.SATURN.DISTANCE,
@@ -183,6 +123,7 @@ export class Saturn extends THREE.Group {
         );
 
         this.titan.update(time, camera);
+        this.enceladus.update(time, camera);
 
         const dist = camera.position.distanceTo(this.getWorldPosition(this.worldPosition));
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));

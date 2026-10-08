@@ -21,6 +21,8 @@ export class QuantumaniaSystem extends THREE.Group {
 
     private readonly modelItems: (Nexus | GLBEntity)[];
     private loadingComplete = false;
+    private hiddenSeconds = 0;
+    private evicted = false;
     private distantBeacon: THREE.Sprite;
     private isExternallyVisible: boolean = false;
     private disposed = false;
@@ -132,6 +134,7 @@ export class QuantumaniaSystem extends THREE.Group {
 
     setVisible(visible: boolean): void {
         this.isExternallyVisible = visible;
+        if (visible) { this.hiddenSeconds = 0; this.evicted = false; }
         if (visible && !this.disposed && !this.loadQueue && !this.loadingComplete) {
             this.loadQueue = this.loadModelsSequentially().finally(() => {
                 this.loadQueue = null;
@@ -149,6 +152,17 @@ export class QuantumaniaSystem extends THREE.Group {
         }
     }
 
+    /** Thirty seconds of hysteresis prevents repeated reloads near a system boundary. */
+    updateResidency(delta: number): void {
+        if (this.isExternallyVisible || this.disposed || this.evicted) return;
+        this.hiddenSeconds += delta;
+        if (this.hiddenSeconds < 30) return;
+        this.modelItems.forEach(item => item.unloadModel());
+        this.failedItems.clear();
+        this.loadingComplete = false;
+        this.evicted = true;
+    }
+
     retryFailedModels(): void {
         this.failedItems.clear();
         this.loadingComplete = false;
@@ -158,6 +172,7 @@ export class QuantumaniaSystem extends THREE.Group {
     dispose(): void {
         this.disposed = true;
         this.isExternallyVisible = false;
+        this.modelItems.forEach(item => item.unloadModel());
     }
 
     getEntities(): EntityInfo[] {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EntityCategory, type EntityInfo } from '../core/Entity';
-import { SystemId } from '../core/SystemManager';
+import { SystemId } from '../core/SystemId';
 
 interface RadarObjectListProps {
     isOpen: boolean;

@@ -1,53 +1,12 @@
-import * as THREE from 'three';
+import { Planet } from '../common/Planet';
 import { SceneAssets } from '../../core/SceneAssets';
-import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { Cosmos } from '../../core/SDK';
+import * as THREE from 'three';
 
-
-
-export class Neptune extends THREE.Group {
-    private worldPosition = new THREE.Vector3();
-  public readonly radius: number;
-
-  private mesh: THREE.Mesh;
-  private rings: THREE.Mesh;
-  private label: CSS2DObject;
-  private initialAngle: number;
-
-  constructor(assets = new SceneAssets()) {
-    super();
-
-    const config = Cosmos.PLANETS.NEPTUNE;
-    this.radius = config.RADIUS;
-    this.initialAngle = Math.random() * Math.PI * 2;
-
-    const loader = assets;
-    const texture = loader.loadTexture('/textures/2k_neptune.jpg');
-
-    const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
-
-    const material = new THREE.MeshStandardMaterial({
-      map: texture,
-      roughness: 0.6,
-      metalness: 0.0,
-    });
-
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
-    this.add(this.mesh);
-
-    this.rings = this.createRings();
-    this.add(this.rings);
-
-    const div = document.createElement('div');
-    div.className = 'label';
-    div.textContent = 'Neptune';
-    this.label = new CSS2DObject(div);
-    this.label.position.set(0, this.radius * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
-    this.add(this.label);
-  }
-
+export class Neptune extends Planet {
+    constructor(assets = new SceneAssets()) {
+        super('NEPTUNE', assets, '/textures/2k_neptune.jpg', 0.6);
+        this.add(this.createRings());
+    }
   private createRings(): THREE.Mesh {
     const innerRadius = this.radius * 1.7;
     const outerRadius = this.radius * 2.5;
@@ -88,26 +47,4 @@ export class Neptune extends THREE.Group {
     return rings;
   }
 
-  update(time: number, camera: THREE.Camera): void {
-    const theta = Cosmos.getRealisticOrbitalAngle(
-      time,
-      Cosmos.ORBITAL_PERIODS.NEPTUNE,
-      this.initialAngle
-    );
-    const pos = Cosmos.getEllipticalOrbitalPosition(
-      Cosmos.PLANETS.NEPTUNE.DISTANCE,
-      Cosmos.ECCENTRICITY.NEPTUNE,
-      Cosmos.INCLINATION.NEPTUNE,
-      theta
-    );
-    this.position.set(pos.x, pos.y, pos.z);
-
-    this.mesh.rotation.y = Cosmos.getRealisticRotation(
-      time,
-      Cosmos.ROTATION_PERIODS.NEPTUNE
-    );
-
-    const dist = camera.position.distanceTo(this.getWorldPosition(this.worldPosition));
-    this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
-  }
 }

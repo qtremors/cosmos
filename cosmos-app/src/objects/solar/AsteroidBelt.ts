@@ -2,10 +2,9 @@ import * as THREE from 'three';
 import { Cosmos } from '../../core/SDK';
 
 interface AsteroidData {
-    index: number;
     initialAngle: number;
     radius: number;
-    speed: number;
+    orbitRate: number;
     y: number;
     rotationSpeed: THREE.Vector3;
     currentRot: THREE.Euler;
@@ -56,10 +55,9 @@ export class AsteroidBelt extends THREE.Group {
             this.mesh.setMatrixAt(i, this.dummy.matrix);
 
             this.asteroids.push({
-                index: i,
                 initialAngle: angle,
                 radius: radius,
-                speed: (1.0 / radius) * 5.0 + (Math.random() * 0.01),
+                orbitRate: 2 * Math.PI / (Math.pow(radius / Cosmos.PLANETS.EARTH.DISTANCE, 1.5) * 365.25 * 86400),
                 y: y,
                 rotationSpeed: new THREE.Vector3(
                     (Math.random() - 0.5) * 0.5,
@@ -80,15 +78,11 @@ export class AsteroidBelt extends THREE.Group {
         this.mesh.count = Math.max(0, Math.min(this.asteroids.length, count));
     }
 
-    update(time: number): void {
+    update(time: number, effectTime: number): void {
         for (let i = 0; i < this.mesh.count; i++) {
             const data = this.asteroids[i];
 
-            const earthDistance = Cosmos.PLANETS.EARTH.DISTANCE;
-            const periodYears = Math.pow(data.radius / earthDistance, 1.5);
-            const periodSeconds = periodYears * 365.25 * 86400;
-
-            const theta = data.initialAngle + (time / periodSeconds) * 2 * Math.PI;
+            const theta = data.initialAngle + time * data.orbitRate;
 
             const x = Math.cos(theta) * data.radius;
             const z = Math.sin(theta) * data.radius;
@@ -96,9 +90,9 @@ export class AsteroidBelt extends THREE.Group {
             this.dummy.position.set(x, data.y, z);
 
             this.dummy.rotation.set(
-                data.rotationSpeed.x * time * 0.5,
-                data.rotationSpeed.y * time * 0.5,
-                data.rotationSpeed.z * time * 0.5
+                data.currentRot.x + data.rotationSpeed.x * effectTime * 0.5,
+                data.currentRot.y + data.rotationSpeed.y * effectTime * 0.5,
+                data.currentRot.z + data.rotationSpeed.z * effectTime * 0.5
             );
 
             this.dummy.scale.set(data.scale, data.scale, data.scale);

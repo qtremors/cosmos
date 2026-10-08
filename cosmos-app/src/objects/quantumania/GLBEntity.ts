@@ -1,3 +1,4 @@
+import { disposeObject3D } from '../../core/SceneLifecycle';
 import * as THREE from 'three';
 import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
@@ -14,9 +15,9 @@ export class GLBEntity extends THREE.Group {
     private modelScale: number;
     private layer: number;
     private placeholder: THREE.Mesh;
-    private placeholderGeo: THREE.BoxGeometry;
     private placeholderMat: THREE.MeshBasicMaterial;
     private isLoaded: boolean = false;
+    private generation = 0;
     private loadPromise: Promise<void> | null = null;
 
     constructor(
@@ -39,9 +40,9 @@ export class GLBEntity extends THREE.Group {
         this.floatOffset = Math.random() * 100;
         this.rotationSpeed = (Math.random() - 0.5) * 0.05;
 
-        this.placeholderGeo = new THREE.BoxGeometry(scale, scale, scale);
+        const placeholderGeo = new THREE.BoxGeometry(scale, scale, scale);
         this.placeholderMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorHex), wireframe: true, transparent: true, opacity: 0.3 });
-        this.placeholder = new THREE.Mesh(this.placeholderGeo, this.placeholderMat);
+        this.placeholder = new THREE.Mesh(placeholderGeo, this.placeholderMat);
         this.placeholder.layers.set(layer);
         this.add(this.placeholder);
 
@@ -59,10 +60,10 @@ export class GLBEntity extends THREE.Group {
     loadModel(): Promise<void> {
         if (this.isLoaded) return Promise.resolve();
         if (this.loadPromise) return this.loadPromise;
+        const generation = this.generation;
         this.loadPromise = this.assets.loadModel(this.modelPath).then(gltf => {
-            this.remove(this.placeholder);
-            this.placeholderGeo.dispose();
-            this.placeholderMat.dispose();
+            if (generation !== this.generation) { disposeObject3D(gltf.scene); return; }
+            this.placeholder.visible = false;
 
             this.model = gltf.scene;
             const finalScale = this.modelScale * 1.5;
@@ -93,11 +94,25 @@ export class GLBEntity extends THREE.Group {
             this.isLoaded = true;
 
         }).catch(error => {
+            if (generation !== this.generation) return;
             this.placeholderMat.opacity = 1;
             this.placeholderMat.color.set(0xff0000);
             throw error;
         }).finally(() => { this.loadPromise = null; });
         return this.loadPromise;
+    }
+
+    unloadModel(): void {
+        this.generation++;
+        if (this.model) {
+            this.remove(this.model);
+            disposeObject3D(this.model);
+            this.model = null;
+        }
+        this.isLoaded = false;
+        this.placeholder.visible = true;
+        this.placeholderMat.opacity = 0.3;
+        this.placeholderMat.color.set(0x8888aa);
     }
 
     get loaded(): boolean {

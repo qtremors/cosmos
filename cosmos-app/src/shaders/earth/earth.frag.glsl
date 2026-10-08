@@ -2,6 +2,7 @@
 #include <logdepthbuf_pars_fragment>
 
 uniform vec3 uSunPos;
+uniform float uFill;
 uniform sampler2D uDayTexture;
 uniform sampler2D uNightTexture;
 varying vec2 vUv;
@@ -28,9 +29,10 @@ void main() {
     vec3 col = mix(dayColor * (diff + 0.05), nightColor * 1.5, nightBlend);
     
 
-    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+    col += dayColor * uFill * 0.2;
+
     vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+    float spec = pow(max(dot(normalize(cameraPosition - vWorldPosition), reflectDir), 0.0), 32.0);
 
     float waterMask = 1.0 - smoothstep(0.1, 0.4, length(dayColor));
     col += vec3(spec) * waterMask * 0.5 * diff;

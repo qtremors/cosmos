@@ -1,3 +1,5 @@
+import { trueAnomaly } from './OrbitalMechanics';
+import { TIME_PRESETS, DEFAULT_TIME_SCALE } from './TimeConfig';
 import * as THREE from 'three';
 
 /**
@@ -231,20 +233,8 @@ export class Cosmos {
     };
 
     /** Time scale presets (seconds of simulation per real second) */
-    static readonly TIME_PRESETS = {
-        REALTIME: 1,
-        MIN_1: 60,
-        MIN_30: 1800,
-        HOUR_1: 3600,
-        HOUR_6: 21600,
-        HOUR_12: 43200,
-        HOUR_18: 64800,
-        DAY_1: 86400,
-        MAX_SPEED: 130406400, // Pluto (slowest) completes orbit in 1 min
-    };
-
-    /** Default time scale */
-    static readonly DEFAULT_TIME_SCALE = 86400;
+    static readonly TIME_PRESETS = TIME_PRESETS;
+    static readonly DEFAULT_TIME_SCALE = DEFAULT_TIME_SCALE;
 
     // -------------------------------------------------------------------------
     // PLANET CONFIGURATIONS (using cached colors)
@@ -515,10 +505,11 @@ export class Cosmos {
     static getRealisticOrbitalAngle(
         simTime: number,
         orbitalPeriodDays: number,
-        initialAngle: number = 0
+        initialAngle: number = 0,
+        eccentricity: number = 0
     ): number {
         const periodSeconds = orbitalPeriodDays * this.SECONDS_PER_DAY;
-        return initialAngle + (simTime / periodSeconds) * 2 * Math.PI;
+        return trueAnomaly(initialAngle + (simTime / periodSeconds) * 2 * Math.PI, eccentricity);
     }
 
     /**

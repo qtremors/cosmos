@@ -3,11 +3,8 @@ import * as THREE from 'three';
 /**
  * System identifiers for the multi-system architecture.
  */
-export enum SystemId {
-    SOLAR_SYSTEM = 'solar_system',
-    QUANTUMANIA = 'quantumania',
-    INTERSTELLAR = 'interstellar',
-}
+export { SystemId } from './SystemId';
+import { SystemId } from './SystemId';
 
 /**
  * Configuration for each star system.

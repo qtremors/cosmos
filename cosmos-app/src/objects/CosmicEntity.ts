@@ -12,6 +12,9 @@ export class CosmicEntity extends THREE.Group {
     private failedModels = new Set<string>();
     private shouldLoad = false;
     private loadingComplete = false;
+    private generation = 0;
+    private hiddenSeconds = 0;
+    private evicted = false;
     private mixer: THREE.AnimationMixer | undefined;
 
     constructor(private assets = new SceneAssets()) {
@@ -34,9 +37,10 @@ export class CosmicEntity extends THREE.Group {
     }
 
     private loadModel(scale: number): Promise<void> {
+        const generation = this.generation;
         return this.assets.loadModel('/models/Arishem.glb').then(gltf => {
             const model = gltf.scene;
-            if (this.disposed) { disposeObject3D(model); return; }
+            if (this.disposed || generation !== this.generation) { disposeObject3D(model); return; }
             model.scale.setScalar(scale);
 
             model.traverse((child) => {
@@ -106,6 +110,7 @@ export class CosmicEntity extends THREE.Group {
         const currentSys = SystemManager.getInstance().currentSystem;
         this.visible = currentSys === SystemId.INTERSTELLAR;
         this.shouldLoad = camera.position.distanceTo(this.position) < 10000;
+        if (this.shouldLoad) { this.hiddenSeconds = 0; this.evicted = false; }
         this.startLoading();
     }
 
@@ -125,13 +130,16 @@ export class CosmicEntity extends THREE.Group {
             })),
             { name: 'Robot', load: () => this.loadRobot(10000) },
         ];
+        const generation = this.generation;
         for (const task of tasks) {
-            if (this.disposed || !this.shouldLoad) return;
+            if (this.disposed || !this.shouldLoad || generation !== this.generation) return;
             if (this.loadedModels.has(task.name) || this.failedModels.has(task.name)) continue;
-            try { await task.load(); this.loadedModels.add(task.name); }
-            catch { if (!this.disposed) this.failedModels.add(task.name); }
+            try { await task.load(); if (generation === this.generation) this.loadedModels.add(task.name); }
+            catch { if (!this.disposed && generation === this.generation) this.failedModels.add(task.name); }
         }
     }
+
+    get residentModelCount(): number { return this.loadedModels.size; }
 
     retryFailedModels(): void {
         this.failedModels.clear();
@@ -139,21 +147,45 @@ export class CosmicEntity extends THREE.Group {
         this.startLoading();
     }
 
-    dispose(): void {
-        this.disposed = true;
+    updateResidency(delta: number): void {
+        if (this.shouldLoad || this.disposed || this.evicted) return;
+        this.hiddenSeconds += delta;
+        if (this.hiddenSeconds >= 30) { this.unloadModels(); this.evicted = true; }
+    }
+
+    private unloadModels(): void {
+        this.generation++;
         if (this.mixer) {
             this.mixer.stopAllAction();
             this.mixer.uncacheRoot(this.mixer.getRoot());
+            this.mixer = undefined;
         }
+        // Keep the navigation target alive when its loaded parent is evicted.
+        this.alienGroup.add(this.head);
+        this.head.position.set(0, 3000, 0);
+        for (const child of [...this.alienGroup.children]) {
+            if (child === this.head) continue;
+            this.alienGroup.remove(child);
+            disposeObject3D(child);
+        }
+        this.loadedModels.clear();
+        this.failedModels.clear();
+        this.loadingComplete = false;
+    }
+
+    dispose(): void {
+        this.disposed = true;
+        this.unloadModels();
     }
 
     private loadFigure(name: string, index: number, parentScale: number): Promise<void> {
         const chestY = 0.300 * parentScale;
         const chestZ = 0;
         const radius = 0.05 * parentScale;
+        const generation = this.generation;
         return this.assets.loadModel(`/models/${name}.glb`).then(gltf => {
             const model = gltf.scene;
-            if (this.disposed) { disposeObject3D(model); return; }
+            if (this.disposed || generation !== this.generation) { disposeObject3D(model); return; }
             model.scale.setScalar(100);
 
             const angle = (index / 4) * Math.PI - (Math.PI / 2);
@@ -180,9 +212,10 @@ export class CosmicEntity extends THREE.Group {
     private loadRobot(parentScale: number): Promise<void> {
         const headY = 0.45 * parentScale;
 
+        const generation = this.generation;
         return this.assets.loadModel('/models/Robot.glb').then(gltf => {
             const model = gltf.scene;
-            if (this.disposed) { disposeObject3D(model); return; }
+            if (this.disposed || generation !== this.generation) { disposeObject3D(model); return; }
             model.scale.setScalar(120);
             model.position.set(0, headY, 0.040 * parentScale);
 

@@ -16,6 +16,15 @@
 - Use elapsed-time controls/animations and reuse temporary vectors.
 - Correct unsafe black-hole pole-view normalization and reversed GLSL smoothstep edges.
 
+### Remaining-task completion
+- Extract scene ownership into `SceneController` and construction into `World`; defer runtime loading from the React shell and split rendering modules.
+- Isolate Solar, Quantumania, and interstellar lighting with separate render passes.
+- Evict distant models after 30 active seconds, release decoded bitmaps, preserve targets, and discard late completions.
+- Solve Kepler timing, use physical parent-relative orbital telemetry, and add sourced object information.
+- Share planet/moon setup; add Io, Ganymede, Callisto, and Enceladus.
+- Add touch flight, roll, boost, zoom, reset view, adjustable dark-side fill, and consistent pause semantics.
+- Consolidate CSS; add downloadable diagnostics, repeatable production profiling, and regression coverage for these behaviors.
+
 ### Interface and maintenance
 - Add searchable, keyboard-accessible object navigation and responsive panels.
 - Reserve Tab for interface navigation; use N to cycle objects. Support canvas mouse/touch dragging and input reset on focus loss.

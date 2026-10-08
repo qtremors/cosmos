@@ -26,10 +26,10 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🌍 **Solar System** | 9 planets with 2K NASA textures, 4 moons, 2000 asteroids |
+| 🌍 **Solar System** | 8 planets and Pluto, 8 moons, NASA textures, up to 2000 asteroids |
 | 🏔️ **Quantumania** | Secondary realm with 26 model entities — mountains, structures, ships, and inhabitants |
 | 🎨 **Custom Shaders** | Sun granulation, Earth day/night cycle, raymarched black hole |
-| 🎮 **6-DOF Controls** | Keyboard, mouse, and full gamepad support |
+| 🎮 **6-DOF Controls** | Keyboard, mouse, gamepad, and touch flight controls |
 | 🥚 **Easter Eggs** | Black Hole, The Kyln, Explorer, Alien X |
 | 👾 **Arishem** | Massive 3D Cosmic Entity (The Architect) with interior details |
 | 📡 **Radar System** | Minimap with entity tracking and teleportation |
@@ -42,7 +42,7 @@
 
 Graphics settings offer **Low**, **Medium**, and **High** quality. Start with Low on slower devices; actual performance depends on GPU and browser support. The default Medium preset uses 512-pixel shadows, and large models load when their area is approached or selected.
 
-A desktop keyboard/gamepad provides full free flight. On touch devices, use the object list to travel and drag the scene to orbit/look; full touch flight and zoom controls remain on the roadmap.
+On touch devices, hold the flight/boost/roll/zoom buttons and drag the view to look. The object list also provides direct travel. Home or Settings → Reset view returns to the Solar System overview. Selecting an object offers information with NASA sources for astronomical bodies; on narrow screens, tap Object information to keep the view clear.
 
 ---
 
@@ -76,6 +76,7 @@ Visit **http://localhost:5173** 🎉
 | Labels | L | - |
 | HUD | H | - |
 | Interface navigation | Tab | - |
+| Overview | Home / Reset view | - |
 
 ---
 
@@ -97,10 +98,10 @@ Visit **http://localhost:5173** 🎉
 cosmos/
 ├── cosmos-app/
 │   ├── src/
-│   │   ├── App.tsx              # Main scene and animation loop
+│   │   ├── App.tsx              # React interface; lazy runtime loading
 │   │   ├── main.tsx             # Entry point
 │   │   ├── index.css            # Global styles
-│   │   ├── core/                # SDK, input, assets, lifecycle, quality, entity types
+│   │   ├── core/                # SceneController, World, lighting passes, physics, assets, profiling
 │   │   ├── objects/             # Component-based 3D entities
 │   │   │   ├── solar/           # Planets and moons
 │   │   │   ├── quantumania/     # Realm-specific models
@@ -131,7 +132,11 @@ Open the radar to access Settings. Quality choices persist in the browser and ap
 | Black-hole raymarch steps | 48 | 96 | 150 |
 | Maximum pixel ratio | 1 | 1 | 1.5 |
 
-Public assets occupy about 65 MiB on disk; decoded CPU/GPU memory is larger and depends on quality, travel, and the browser. The former blanket 6–7 GB RAM estimate should be replaced by measurements after the lifecycle and shadow-budget improvements.
+Public assets occupy about 65 MiB on disk; decoded CPU/GPU memory is larger and depends on quality, travel, and the browser. Distant Quantumania/Arishem models are evicted after 30 active seconds away and reload on return. Solar textures remain shared for immediate return travel.
+
+Pause freezes simulation and cosmetic animation while camera controls and loading remain available. Time presets scale Solar System orbits and spin; while visiting Quantumania, both clocks run at real-time. Decorative animation stays independent of the presets. Planet/moon HUD readings use physical orbital data rather than the compressed drawing scale. The scene is a two-body illustration with randomized starting phases, not a live ephemeris.
+
+Settings includes dark-side fill light and downloadable performance measurements. Run `npm run profile` for a repeatable production-build comparison of presets, viewport sizes, and model eviction/reloading. See [PERFORMANCE.md](PERFORMANCE.md) for results, limitations, and the physical-device validation procedure.
 
 ---
 
@@ -141,6 +146,7 @@ Public assets occupy about 65 MiB on disk; decoded CPU/GPU memory is larger and 
 |----------|-------------|
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Architecture, configuration, contributing |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [PERFORMANCE.md](PERFORMANCE.md) | Measurements and profiling procedure |
 | [TASKS.md](TASKS.md) | Current and planned development tasks |
 | [LICENSE.md](LICENSE.md) | License terms and attribution |
 
@@ -155,6 +161,9 @@ npm run check
 # Browser regressions
 npx playwright install chromium
 npm run test:e2e
+
+# Production performance and travel/resource measurements
+npm run profile
 ```
 
 ---

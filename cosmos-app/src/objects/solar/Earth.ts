@@ -1,3 +1,5 @@
+import { Moon, addMoonOrbit } from '../common/Moon';
+import { BODY_DATA } from '../../core/BodyData';
 import * as THREE from 'three';
 import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
@@ -9,14 +11,12 @@ import fragmentShader from '../../shaders/earth/earth.frag.glsl?raw';
 
 
 export class Earth extends THREE.Group {
-    private worldPosition = new THREE.Vector3();
     public readonly radius: number;
-    public readonly moon: THREE.Mesh;
+    public readonly moon: Moon;
 
     private mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
     private clouds: THREE.Mesh;
     private label: CSS2DObject;
-    private moonLabel: CSS2DObject;
     private initialAngle: number;
 
     constructor(assets = new SceneAssets()) {
@@ -32,9 +32,10 @@ export class Earth extends THREE.Group {
         const cloudsTexture = loader.loadTexture('/textures/2k_earth_clouds.jpg', THREE.NoColorSpace);
         const moonTexture = loader.loadTexture('/textures/2k_moon.jpg');
 
-        const geometry = new THREE.SphereGeometry(data.RADIUS, 64, 64);
+        const geometry = new THREE.SphereGeometry(data.RADIUS, 48, 32);
         const material = new THREE.ShaderMaterial({
             uniforms: {
+                uFill: { value: 0 },
                 uSunPos: { value: new THREE.Vector3(0, 0, 0) },
                 uDayTexture: { value: dayTexture },
                 uNightTexture: { value: nightTexture },
@@ -49,7 +50,7 @@ export class Earth extends THREE.Group {
         this.mesh.receiveShadow = true;
         this.add(this.mesh);
 
-        const cloudsGeo = new THREE.SphereGeometry(data.RADIUS * 1.01, 64, 64);
+        const cloudsGeo = new THREE.SphereGeometry(data.RADIUS * 1.01, 48, 32);
         const cloudsMat = new THREE.MeshStandardMaterial({
             map: cloudsTexture,
             transparent: true,
@@ -60,45 +61,9 @@ export class Earth extends THREE.Group {
         this.clouds = new THREE.Mesh(cloudsGeo, cloudsMat);
         this.add(this.clouds);
 
-        const moonGeo = new THREE.SphereGeometry(data.MOON.RADIUS * 1.5, 32, 32);
-        const moonMat = new THREE.MeshStandardMaterial({
-            map: moonTexture,
-            roughness: 0.8,
-            metalness: 0.0,
-        });
-        this.moon = new THREE.Mesh(moonGeo, moonMat);
-        this.moon.castShadow = true;
-        this.moon.receiveShadow = true;
-        this.add(this.moon);
-
-        const moonLight = new THREE.PointLight(Cosmos.LIGHTING.MOON_COLOR, 0.5, 30);
-        this.moon.add(moonLight);
-
-        const moonDiv = document.createElement('div');
-        moonDiv.className = 'label';
-        moonDiv.textContent = 'Moon';
-        moonDiv.style.fontSize = '10px';
-        this.moonLabel = new CSS2DObject(moonDiv);
-        this.moonLabel.position.set(0, data.MOON.RADIUS * Cosmos.LABELS.HEIGHT_MULTIPLIER, 0);
-        this.moon.add(this.moonLabel);
-
-        const moonOrbitCurve = new THREE.EllipseCurve(
-            0, 0,
-            data.MOON.DISTANCE, data.MOON.DISTANCE,
-            0, 2 * Math.PI,
-            false, 0
-        );
-        const moonOrbitPoints = moonOrbitCurve.getPoints(64);
-        const moonOrbitGeo = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
-        moonOrbitGeo.rotateX(-Math.PI / 2);
-        const moonOrbitMat = new THREE.LineBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.1,
-            depthWrite: false,
-        });
-        const moonOrbitLine = new THREE.LineLoop(moonOrbitGeo, moonOrbitMat);
-        this.add(moonOrbitLine);
+        this.moon = new Moon({ name: 'Moon', radius: data.MOON.RADIUS * 1.5, distance: data.MOON.DISTANCE, map: moonTexture });
+        addMoonOrbit(this, this.moon);
+        this.userData.orbit = { ...BODY_DATA.Earth, visualAxis: data.DISTANCE };
 
         const div = document.createElement('div');
         div.className = 'label';
@@ -108,11 +73,14 @@ export class Earth extends THREE.Group {
         this.add(this.label);
     }
 
+    setDarkSideFill(fill: number): void { this.mesh.material.uniforms.uFill.value = fill; }
+
     update(time: number, camera: THREE.Camera): void {
         const theta = Cosmos.getRealisticOrbitalAngle(
             time,
             Cosmos.ORBITAL_PERIODS.EARTH,
-            this.initialAngle
+            this.initialAngle,
+            Cosmos.ECCENTRICITY.EARTH
         );
         const pos = Cosmos.getEllipticalOrbitalPosition(
             Cosmos.PLANETS.EARTH.DISTANCE,
@@ -129,20 +97,10 @@ export class Earth extends THREE.Group {
         this.mesh.rotation.y = rotation;
         this.clouds.rotation.y = rotation * 1.05;
 
-        const moonAngle = Cosmos.getRealisticOrbitalAngle(
-            time,
-            Cosmos.ORBITAL_PERIODS.MOON
-        );
-        const moonDistance = Cosmos.PLANETS.EARTH.MOON.DISTANCE; // Use original sim distance
-        this.moon.position.x = Math.cos(moonAngle) * moonDistance;
-        this.moon.position.z = Math.sin(moonAngle) * moonDistance;
+        this.moon.update(time, camera);
 
         const dist = camera.position.distanceTo(this.position);
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
 
-        const moonWorldPos = this.worldPosition;
-        this.moon.getWorldPosition(moonWorldPos);
-        const moonDist = camera.position.distanceTo(moonWorldPos);
-        this.moonLabel.element.style.opacity = String(Cosmos.getLabelOpacity(moonDist, Cosmos.PLANETS.EARTH.MOON.RADIUS));
     }
 }

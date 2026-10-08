@@ -1,37 +1,43 @@
 import React from 'react';
-import { Cosmos } from '../core/SDK';
+import { TIME_PRESETS as TIME_VALUES } from '../core/TimeConfig';
 import { QUALITY_PRESETS, type QualityLevel } from '../core/Quality';
 
 interface SettingsPanelProps {
     isOpen: boolean;
+    onResetView: () => void;
     timeScale: number;
     onTimeScaleChange: (value: number) => void;
     isPaused: boolean;
     onPauseToggle: () => void;
     currentSystem?: string; // 'Solar System' | 'Quantumania' | 'Interstellar Space'
+    diagnostics: boolean;
+    onDiagnosticsChange: (value: boolean) => void;
+    darkSideFill: number;
+    onDarkSideFillChange: (value: number) => void;
     quality: QualityLevel;
     onQualityChange: (quality: QualityLevel) => void;
 }
 
 const TIME_PRESETS = [
-    { label: 'Real-time', value: Cosmos.TIME_PRESETS.REALTIME, description: '1 sec = 1 sec' },
-    { label: '1 Min/s', value: Cosmos.TIME_PRESETS.MIN_1, description: '60x speed' },
-    { label: '30 Min/s', value: Cosmos.TIME_PRESETS.MIN_30, description: '1800x speed' },
-    { label: '1 Hr/s', value: Cosmos.TIME_PRESETS.HOUR_1, description: '3600x speed' },
-    { label: '6 Hr/s', value: Cosmos.TIME_PRESETS.HOUR_6, description: '21600x speed' },
-    { label: '12 Hr/s', value: Cosmos.TIME_PRESETS.HOUR_12, description: 'Day/Night cycle in 2s' },
-    { label: '18 Hr/s', value: Cosmos.TIME_PRESETS.HOUR_18, description: '64800x speed' },
-    { label: '1 Day/s', value: Cosmos.TIME_PRESETS.DAY_1, description: '86400x speed' },
-    { label: 'Max', value: Cosmos.TIME_PRESETS.MAX_SPEED, description: 'Pluto orbit in 1 min' },
+    { label: 'Real-time', value: TIME_VALUES.REALTIME, description: '1 sec = 1 sec' },
+    { label: '1 Min/s', value: TIME_VALUES.MIN_1, description: '60x speed' },
+    { label: '30 Min/s', value: TIME_VALUES.MIN_30, description: '1800x speed' },
+    { label: '1 Hr/s', value: TIME_VALUES.HOUR_1, description: '3600x speed' },
+    { label: '6 Hr/s', value: TIME_VALUES.HOUR_6, description: '21600x speed' },
+    { label: '12 Hr/s', value: TIME_VALUES.HOUR_12, description: 'Day/Night cycle in 2s' },
+    { label: '18 Hr/s', value: TIME_VALUES.HOUR_18, description: '64800x speed' },
+    { label: '1 Day/s', value: TIME_VALUES.DAY_1, description: '86400x speed' },
+    { label: 'Max', value: TIME_VALUES.MAX_SPEED, description: 'Pluto orbit in 1 min' },
 ];
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
-    isOpen,
+    isOpen, onResetView,
     timeScale,
     onTimeScaleChange,
     isPaused,
     onPauseToggle,
     currentSystem = 'Solar System',
+    darkSideFill, onDarkSideFillChange, diagnostics, onDiagnosticsChange,
     quality,
     onQualityChange,
 }) => {
@@ -62,31 +68,26 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                         ))}
                     </div>
                 </section>
+                <section className="settings-section">
+                    <h3>Dark-side visibility</h3>
+                    <label className="setting-description">Fill light: {Math.round(darkSideFill * 100)}%
+                        <input type="range" min="0" max="1" step="0.05" value={darkSideFill} aria-label="Dark-side fill light" onChange={event => onDarkSideFillChange(Number(event.target.value))} />
+                    </label>
+                </section>
                 {/* Time Controls Section */}
                 <section className="settings-section">
                     <h3>Time</h3>
 
+                    <p className="setting-description">Pause freezes orbits, rotation, ships, model animation, and visual effects. Camera controls and loading stay available. Speed presets affect Solar System orbits; decorative motion stays at real-time.</p>
+                    <button type="button" className={`pause-button ${isPaused ? 'paused' : ''}`} aria-pressed={isPaused} onClick={onPauseToggle}>{isPaused ? '▶ Play' : '⏸ Pause'}</button>
                     {isTimeControlDisabled ? (
                         <div className="settings-row" style={{ opacity: 0.6 }}>
                             <span style={{ fontSize: '12px', color: '#888' }}>
-                                ⏱️ Time locked to real-time in Quantumania
+                                Time presets are unavailable in Quantumania; motion runs at real-time.
                             </span>
                         </div>
                     ) : (
                         <>
-                            <div className="settings-row">
-                                <div className="time-controls-row">
-                                    <button
-                                        type="button"
-                                        className={`pause-button ${isPaused ? 'paused' : ''}`}
-                                        aria-pressed={isPaused}
-                                        onClick={onPauseToggle}
-                                    >
-                                        {isPaused ? '▶ Play' : '⏸ Pause'}
-                                    </button>
-                                </div>
-                            </div>
-
                             <div className="settings-row">
                                 <label>Speed: <span className="preset-label">{getActivePreset()}</span></label>
                                 <div className="preset-buttons">
@@ -110,9 +111,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
 
 
+                <section className="settings-section">
+                    <h3>Measurements</h3>
+                    <button type="button" className="preset-button" aria-pressed={diagnostics} onClick={() => onDiagnosticsChange(!diagnostics)}>Performance measurements</button>
+                    <p className="setting-description">Collect frame timings and resource estimates for this device. You can download a report.</p>
+                </section>
                 {/* Controls Reference */}
                 <section className="settings-section">
                     <h3>Controls</h3>
+                    <button type="button" className="preset-button" onClick={onResetView}>Reset view</button>
+                    <p className="setting-description">Home returns to the Solar System overview. On touch screens, hold the flight buttons and drag the view to look.</p>
 
                     <div className="controls-grid">
                         <div className="control-group">

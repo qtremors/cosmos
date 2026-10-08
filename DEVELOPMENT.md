@@ -70,11 +70,17 @@ A move to React Three Fiber is optional if declarative scene authoring becomes v
 cosmos/
 ├── cosmos-app/
 │   ├── src/
-│   │   ├── App.tsx               # Scene coordination and React UI
+│   │   ├── App.tsx               # React UI; asynchronous scene startup
 │   │   ├── main.tsx              # React entry point
-│   │   ├── index.css             # Glassmorphism UI styles
+│   │   ├── index.css             # Responsive interface and touch controls
 │   │   ├── assets/           # Static assets (images, svg)
 │   │   ├── core/
+│   │   │   ├── SceneController.ts # Runtime, events, settings interface
+│   │   │   ├── World.ts          # Scene construction and entity registry
+│   │   │   ├── SystemRenderer.ts # Separate lighting/render passes
+│   │   │   ├── OrbitalMechanics.ts # Kepler solver and vis-viva
+│   │   │   ├── BodyData.ts       # Physical data and sources
+│   │   │   ├── Performance.ts    # Timing and resource estimates
 │   │   │   ├── SDK.ts            # Physics constants & utilities
 │   │   │   ├── InputHandler.ts   # Keyboard/mouse/gamepad input
 │   │   │   ├── SystemManager.ts  # Multi-system detection
@@ -86,7 +92,7 @@ cosmos/
 │   │   ├── objects/
 │   │   │   ├── solar/            # Sun, planets (13 files)
 │   │   │   ├── quantumania/      # Mountains, structures, ships, inhabitants (7 files)
-│   │   │   ├── common/           # Heliosphere, OrbitPath
+│   │   │   ├── common/           # Planet, Moon, Heliosphere, OrbitPath
 │   │   │   ├── AlienX.ts         # Easter egg
 │   │   │   ├── BlackHole.ts      # Easter egg
 │   │   │   ├── CosmicEntity.ts   # Arishem / Celestial
@@ -135,7 +141,7 @@ cosmos/
 | 1 | Solar System (planets, sun, moons) |
 | 2 | Quantumania (mountains, structures, ships, inhabitants) |
 
-Camera enables all layers. Layers select lights and objects against the camera. With all layers enabled in a single render pass, they do not guarantee illumination isolation between systems. Separate lighting remains a deferred project task.
+Camera enables all layers for visibility. Illumination isolation comes from `SystemRenderer`: Solar, Quantumania, and interstellar objects belong to separate child scenes, rendered in separate passes with their own light collections. The first pass clears the frame; later passes share depth. Layers alone do not isolate illumination. A real WebGL pixel regression verifies that changing Solar light intensity does not alter Quantumania materials.
 
 ### System Detection
 
@@ -205,15 +211,19 @@ Unified input handling.
 
 ## Runtime ownership and loading
 
-`SceneLifecycle.startAnimationLoop` owns one RAF chain, cancels it during cleanup, skips hidden-tab updates, and caps long frame gaps. `disposeObject3D` releases shared geometry, materials, shader-uniform textures, skeletons, and light shadow resources. App removes listeners and invalidates asset/scene owners before disposing the renderer.
+`SceneLifecycle.startAnimationLoop` owns one RAF chain, cancels it during cleanup, skips hidden-tab updates, and caps long frame gaps. `disposeObject3D` releases shared geometry, materials, shader-uniform textures, skeletons, and light shadow resources. `SceneController` removes listeners and invalidates asset/scene owners before disposing the renderer. `App` loads the controller asynchronously, passes settings/callbacks, and disposes it on unmount; cancelled imports never create a stale scene. `World` owns construction and the entity registry. Bitmap-backed model textures are also closed on eviction/teardown.
 
 Each scene has a `SceneAssets` manager. Texture failures receive a neutral fallback and a visible retry action. Model results arriving after disposal are released. Supported requests are aborted on teardown; image loading that cannot be aborted is guarded against stale callbacks.
 
-`GLBEntity` and `Nexus` retain the actual in-flight promise. Quantumania starts one sequential queue when shown and stops starting new requests when hidden. Failures are retried explicitly. Arishem and its interior models load when the camera approaches; the GLTF loader's JavaScript is also imported on demand.
+`GLBEntity` and `Nexus` retain the actual in-flight promise. Quantumania starts one sequential queue when shown and stops starting new requests when hidden. Failures are retried explicitly. Arishem and its interior models load when the camera approaches; the GLTF loader's JavaScript is also imported on demand. After 30 active wall-clock seconds outside a model area, owned model geometry, materials, textures, shadow targets and mixers are released. Stable navigation targets survive eviction. Generation guards discard models that finish after eviction, and returning starts a fresh bounded queue.
 
 Quality presets apply without rebuilding the scene and persist under `cosmos-quality` in local storage. Low disables shadows; Medium uses 512-pixel shadows; High uses 1024-pixel shadows. Presets also control asteroid/star counts, black-hole raymarch steps, and the maximum pixel ratio.
 
-Orbit time follows the Solar System time controls. Cosmetic animations use active elapsed time independently. Explorer/Kyln movement pauses with the Solar simulation; full pause semantics remain a backlog item. Camera damping and zoom use real frame delta, and movement state resets when focus is lost.
+Orbit time follows the Solar System time controls. Cosmetic animations use active elapsed time independently; no object reads a separate wall clock for animation. Pause freezes both clocks and model mixers, while flight and loading remain usable. While the camera is in Quantumania, the shared orbit clock advances at real-time and Solar rate presets are unavailable; decorative animation always uses the independent real-time clock. Camera damping uses capped frame delta; telemetry sampling and residency use wall time. Movement state resets when focus is lost.
+
+`OrbitalMechanics` solves Kepler’s equation and converts mean anomaly to true anomaly. Shared `Planet` and `Moon` classes use this timing with the displayed eccentricity. Physical orbital axes and periods in `BodyData` drive parent-relative HUD distances and vis-viva speeds; visual distances stay compressed. Moons reference their parent planet, and decorative objects have no asserted physical orbital speed.
+
+The React shell no longer imports the Three renderer. Vite separates React, Three core, Three renderer, the scene controller, and the deferred GLTF loader into cacheable chunks. Splitting improves interface startup and caching; it does not remove the bytes needed to render the scene.
 
 ## Testing
 
@@ -232,7 +242,7 @@ npm audit
 
 GitHub Actions runs project checks and Chromium regressions on pushes and pull requests. Failed browser checks retain traces as workflow artifacts.
 
-The current suite contains 30 unit tests across six files plus eight browser scenarios. Coverage targets animation ownership/teardown, late model disposal, loading promises and queue suspension/retry, input timing/boost, unit conversions, system transitions, HUD toggles, keyboard/search navigation, saved quality, small-screen layout, failed textures, deferred models, lost-keyup recovery, and black-hole shader compilation.
+The current suite contains 46 unit tests across eleven files plus twelve browser scenarios. Coverage targets animation ownership/teardown, late model disposal, loading promises and queue suspension/retry, input timing/boost, unit conversions, system transitions, HUD toggles, keyboard/search navigation, saved quality, small-screen layout, failed textures, deferred models, lost-keyup recovery, black-hole shader compilation, Kepler timing, physical moon references, model eviction/reload including late completion, pause behavior, touch cancellation, bounded profiling, and lighting isolation.
 
 If using an existing Chromium installation, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable path. The browser configuration supports software WebGL for CI; hardware performance must be measured separately.
 
@@ -276,7 +286,7 @@ npm run preview
 
 ### Debug Mode
 
-Open browser DevTools and check the console. Inspect scene/renderer state by setting a breakpoint in the scene update callback in `App.tsx`. The app does not expose a global scene object. Use the browser Performance/Memory panels to compare quality settings and repeated mount/unmount behavior.
+Open browser DevTools and check the console. Inspect scene/renderer state by setting a breakpoint in the scene update callback in `SceneController.ts`. The app does not expose a global scene object. Use Settings → Performance measurements for bounded frame samples, draw counts, resource estimates, model parsing and resident model counts. `npm run profile` runs the production build through repeatable quality/viewport/travel scenarios; see [PERFORMANCE.md](PERFORMANCE.md). Use browser Performance/Memory panels for deeper inspection. Software WebGL and mobile viewport emulation do not establish physical GPU or phone performance.
 
 ---
 
@@ -303,7 +313,7 @@ Open browser DevTools and check the console. Inspect scene/renderer state by set
 
 1. Add config to `SDK.ts` → `PLANETS`
 2. Create class in `src/objects/solar/`
-3. Add to scene in `App.tsx`
+3. Register the object in `core/World.ts`
 4. Add to radar entities with a unique ID, required category/system, and correct radius
 5. Update documentation
 

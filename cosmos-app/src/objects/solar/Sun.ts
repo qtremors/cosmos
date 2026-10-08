@@ -36,7 +36,7 @@ export class Sun extends THREE.Group {
     const loader = assets;
     const sunTexture = loader.loadTexture('/textures/2k_sun.jpg');
 
-    const sunGeo = new THREE.SphereGeometry(radius, 64, 64);
+    const sunGeo = new THREE.SphereGeometry(radius, 48, 32);
     this.sunMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -51,7 +51,7 @@ export class Sun extends THREE.Group {
     this.surface.renderOrder = 0;
     this.add(this.surface);
 
-    const coronaGeo = new THREE.SphereGeometry(radius * 1.06, 64, 64);
+    const coronaGeo = new THREE.SphereGeometry(radius * 1.06, 48, 32);
     this.coronaMat = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 } },
       vertexShader: coronaVertexShader,
@@ -87,13 +87,12 @@ export class Sun extends THREE.Group {
     this.add(this.label);
   }
 
-  update(time: number, camera: THREE.Camera): void {
+  update(time: number, camera: THREE.Camera, effectTime: number): void {
     this.surface.rotation.y = Cosmos.getRealisticRotation(time, Cosmos.ROTATION_PERIODS.SUN);
     this.corona.rotation.y = Cosmos.getRealisticRotation(time, Cosmos.ROTATION_PERIODS.SUN * 1.5);
 
-    const realTime = performance.now() * 0.001;
-    this.sunMat.uniforms.uTime.value = realTime;
-    this.coronaMat.uniforms.uTime.value = realTime;
+    this.sunMat.uniforms.uTime.value = effectTime;
+    this.coronaMat.uniforms.uTime.value = effectTime;
 
     this.glare.lookAt(camera.position);
 

@@ -1,3 +1,4 @@
+import { disposeObject3D } from '../../core/SceneLifecycle';
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SceneAssets } from '../../core/SceneAssets';
@@ -11,6 +12,7 @@ export class Nexus extends THREE.Group {
     public readonly entityName = 'Nexus';
     public readonly radius = 100;
     private isLoaded: boolean = false;
+    private generation = 0;
     private loadPromise: Promise<void> | null = null;
 
     constructor(position: THREE.Vector3 = new THREE.Vector3(0, 0, 0), private assets = new SceneAssets()) {
@@ -36,7 +38,9 @@ export class Nexus extends THREE.Group {
     loadModel(): Promise<void> {
         if (this.isLoaded) return Promise.resolve();
         if (this.loadPromise) return this.loadPromise;
+        const generation = this.generation;
         this.loadPromise = this.assets.loadModel('/models/Cube.glb').then(gltf => {
+            if (generation !== this.generation) { disposeObject3D(gltf.scene); return; }
             this.model = gltf.scene;
 
             this.model.traverse((child) => {
@@ -66,8 +70,20 @@ export class Nexus extends THREE.Group {
 
             this.isLoaded = true;
 
-        }).finally(() => { this.loadPromise = null; });
+        }).catch(error => { if (generation === this.generation) throw error; }).finally(() => { this.loadPromise = null; });
         return this.loadPromise;
+    }
+
+    unloadModel(): void {
+        this.generation++;
+        if (this.model) {
+            this.remove(this.model);
+            disposeObject3D(this.model);
+            this.model = null;
+        }
+        this.isLoaded = false;
+        this.light.shadow.map?.dispose();
+        this.light.shadow.map = null;
     }
 
     get loaded(): boolean {
