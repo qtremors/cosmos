@@ -1,4 +1,5 @@
 uniform float uTime;
+uniform int uSteps;
 uniform vec3 uCamPos;
 
 varying vec2 vUv;
@@ -42,10 +43,11 @@ void main() {
 
     vec3 target = vec3(0.0, 0.0, 0.0);
     vec3 zAxis = normalize(target - ro);
-    vec3 xAxis = normalize(cross(vec3(0.0, 1.0, 0.0), zAxis));
+    vec3 xAxis = cross(vec3(0.0, 1.0, 0.0), zAxis);
     if (length(xAxis) < 0.001) {
-        xAxis = normalize(cross(vec3(0.0, 0.0, 1.0), zAxis));
+        xAxis = cross(vec3(0.0, 0.0, 1.0), zAxis);
     }
+    xAxis = normalize(xAxis);
     vec3 yAxis = cross(zAxis, xAxis);
     mat3 camRot = mat3(xAxis, yAxis, zAxis);
     vec3 rd = camRot * normalize(vec3(uv, 2.0));
@@ -66,6 +68,7 @@ void main() {
     float topViewBoost = 1.0 + camYRatio * 2.5;  // Up to 3.5x brighter from directly above
 
     for(int i = 0; i < 150; i++) {
+        if (i >= uSteps) break;
         float distToCenter = length(p);
         
         // Core area
@@ -94,8 +97,8 @@ void main() {
             vec3 noisePos2 = vec3(r * 4.0, animAngle * 6.0, uTime * 0.15);
             float density = fbm(noisePos1) * 0.7 + fbm(noisePos2) * 0.3;
             
-            float fade = smoothstep(accretionMax, accretionMax - 3.0, r) * smoothstep(accretionMin, accretionMin + 1.5, r);
-            float verticalFade = smoothstep(0.5, 0.0, planeDist);
+            float fade = (1.0 - smoothstep(accretionMax - 3.0, accretionMax, r)) * smoothstep(accretionMin, accretionMin + 1.5, r);
+            float verticalFade = 1.0 - smoothstep(0.0, 0.5, planeDist);
             
             float intensity = density * fade * verticalFade;
 

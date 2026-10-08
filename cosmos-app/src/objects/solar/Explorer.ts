@@ -1,14 +1,17 @@
 import * as THREE from 'three';
+import { dampingFactor } from '../../core/Simulation';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-
-const planetPositions: THREE.Vector3[] = [];
 
 export class Explorer extends THREE.Group {
     private ship: THREE.Group;
     private label: CSS2DObject;
     private velocity: THREE.Vector3;
     private targetPosition: THREE.Vector3;
-    private static readonly SPEED = 0.08;
+    private static readonly SPEED = 4.8;
+    private planetPositions: readonly THREE.Vector3[] = [];
+    private toTarget = new THREE.Vector3();
+    private avoidance = new THREE.Vector3();
+    private toPlanet = new THREE.Vector3();
     private static readonly MIN_PLANET_DISTANCE = 15;
 
     constructor() {
@@ -79,9 +82,8 @@ export class Explorer extends THREE.Group {
         this.position.set(50, 5, 0);
     }
 
-    static updatePlanetPositions(positions: THREE.Vector3[]): void {
-        planetPositions.length = 0;
-        positions.forEach(p => planetPositions.push(p.clone()));
+    updatePlanetPositions(positions: readonly THREE.Vector3[]): void {
+        this.planetPositions = positions;
     }
 
     private pickNewTarget(): void {
@@ -97,23 +99,23 @@ export class Explorer extends THREE.Group {
     }
 
     private avoidPlanets(): THREE.Vector3 {
-        const avoidance = new THREE.Vector3();
+        const avoidance = this.avoidance.set(0, 0, 0);
 
-        for (const planetPos of planetPositions) {
-            const toPlanet = planetPos.clone().sub(this.position);
+        for (const planetPos of this.planetPositions) {
+            const toPlanet = this.toPlanet.copy(planetPos).sub(this.position);
             const distance = toPlanet.length();
 
             if (distance < Explorer.MIN_PLANET_DISTANCE && distance > 0.1) {
                 const force = (Explorer.MIN_PLANET_DISTANCE - distance) / Explorer.MIN_PLANET_DISTANCE;
-                avoidance.sub(toPlanet.normalize().multiplyScalar(force * 2));
+                avoidance.sub(toPlanet.normalize().multiplyScalar(force * 120));
             }
         }
 
         return avoidance;
     }
 
-    update(_time: number, camera: THREE.Camera): void {
-        const toTarget = this.targetPosition.clone().sub(this.position);
+    update(_time: number, camera: THREE.Camera, delta: number): void {
+        const toTarget = this.toTarget.copy(this.targetPosition).sub(this.position);
         if (toTarget.length() < 5) {
             this.pickNewTarget();
         }
@@ -123,13 +125,13 @@ export class Explorer extends THREE.Group {
         const avoidance = this.avoidPlanets();
         desired.add(avoidance);
 
-        this.velocity.lerp(desired, 0.02);
+        this.velocity.lerp(desired, dampingFactor(0.02, delta));
 
         if (this.velocity.length() > Explorer.SPEED) {
             this.velocity.normalize().multiplyScalar(Explorer.SPEED);
         }
 
-        this.position.add(this.velocity);
+        this.position.addScaledVector(this.velocity, delta);
 
         if (this.velocity.length() > 0.01) {
             const angle = Math.atan2(this.velocity.x, this.velocity.z);

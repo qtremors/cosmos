@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Sun } from './objects/solar/Sun';
@@ -33,35 +33,15 @@ import {
 } from './core/InputHandler';
 import { SettingsPanel } from './components/SettingsPanel';
 import { RadarObjectList } from './components/RadarObjectList';
+import { EntityCategory, type EntityInfo } from './core/Entity';
+import { startAnimationLoop, disposeObject3D } from './core/SceneLifecycle';
+import { SceneAssets, EMPTY_ASSET_STATUS } from './core/SceneAssets';
+import { QUALITY_PRESETS, getSavedQuality, saveQuality, type QualityLevel } from './core/Quality';
+import { simulationDistanceToKm, VISIBILITY } from './core/Simulation';
 
 // =============================================================================
 // TYPES
 // =============================================================================
-
-export enum EntityCategory {
-    STAR = 'star',
-    PLANET = 'planet',
-    MOON = 'moon',
-    ASTEROID = 'asteroid',
-    EASTER_EGG = 'easter_egg',
-    PROXY = 'proxy',
-    NEXUS = 'nexus',
-    MOUNTAIN = 'mountain',
-    STRUCTURE = 'structure',
-    SHIP = 'ship',
-    INHABITANT = 'inhabitant',
-}
-
-export interface EntityInfo {
-    mesh: THREE.Object3D;
-    id: string;
-    color: string;
-    label: string;
-    radius: number;
-    system?: SystemId;
-    isSystemProxy?: boolean;
-    category?: EntityCategory;
-}
 
 // =============================================================================
 // APP COMPONENT
@@ -85,7 +65,13 @@ export default function App() {
     const [timeScale, setTimeScale] = useState(Cosmos.DEFAULT_TIME_SCALE);
     const [isPaused, setIsPaused] = useState(false);
     const [currentSystem, setCurrentSystem] = useState<string>('Solar System');
-    const [uiSystem, setUiSystem] = useState<string>('Solar System');
+    const [entities, setEntities] = useState<EntityInfo[]>([]);
+    const [quality, setQuality] = useState<QualityLevel>(getSavedQuality);
+    const [assetStatus, setAssetStatus] = useState(EMPTY_ASSET_STATUS);
+    const [sceneError, setSceneError] = useState<string | null>(null);
+    const qualityRef = useRef(quality);
+    const retryAssetsRef = useRef(() => {});
+    const radarButtonRef = useRef<HTMLButtonElement>(null);
     const [lockedEntity, setLockedEntity] = useState<EntityInfo | null>(null);
 
     const labelRendererRef = useRef<CSS2DRenderer | null>(null);
@@ -101,55 +87,43 @@ export default function App() {
     const lastMouse = useRef({ x: 0, y: 0 });
     const mouseDelta = useRef({ x: 0, y: 0 });
     const lastCameraPos = useRef(new THREE.Vector3());
-    const statsFrameCount = useRef(0);
+
 
     const timeScaleRef = useRef(timeScale);
     const isPausedRef = useRef(isPaused);
     const teleportIndexRef = useRef(0);
 
-    const lockOnTarget = useRef((mesh: THREE.Object3D, radius: number) => {
-        const entity = entitiesRef.current.find(e => e.mesh === mesh);
-        const isQuantumania = entity?.system === SystemId.QUANTUMANIA;
-        const lockMultiplier = isQuantumania ? 1.5 : Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER;
-        const goalDistance = radius * lockMultiplier;
-
-        if (cameraRef.current) {
-            const targetPos = new THREE.Vector3();
-            mesh.getWorldPosition(targetPos);
-
-            const camPos = cameraRef.current.position.clone();
-            const relPos = camPos.sub(targetPos);
-
-            const distance = relPos.length();
-            const safeDist = Math.max(distance, 1e-6);
-            const phi = Math.asin(Math.max(-1, Math.min(1, relPos.y / safeDist)));
-            const theta = Math.atan2(relPos.x, relPos.z);
-
-            lockRef.current = {
-                mesh,
-                distance: goalDistance,
-                isTop: false,
-                theta: theta,
-                phi: phi
-            };
-        } else {
-            lockRef.current = {
-                mesh,
-                distance: goalDistance,
-                isTop: false,
-                theta: Math.PI / 4,
-                phi: 0.3
-            };
-        }
+    const closeRadar = useCallback(() => {
         setShowRadarList(false);
-    });
+        radarButtonRef.current?.focus();
+    }, []);
 
-    const unlockCamera = useRef(() => {
+    const lockOnTarget = useCallback((entity: EntityInfo) => {
+        const { mesh, radius } = entity;
+        const camera = cameraRef.current;
+        if (!camera) return;
+        const targetPos = mesh.getWorldPosition(new THREE.Vector3());
+        const relative = camera.position.clone().sub(targetPos);
+        const distance = Math.max(relative.length(), 1e-6);
+        lockRef.current = {
+            mesh,
+            entityId: entity.id,
+            distance: radius * (entity.system === SystemId.QUANTUMANIA ? 1.5 : Cosmos.CAMERA.LOCK_DISTANCE_MULTIPLIER),
+            isTop: false,
+            theta: Math.atan2(relative.x, relative.z),
+            phi: Math.asin(THREE.MathUtils.clamp(relative.y / distance, -1, 1)),
+        };
+        setLockedEntity(entity);
+        closeRadar();
+        mountRef.current?.querySelector('canvas')?.focus();
+    }, [closeRadar]);
+
+    const unlockCamera = useCallback(() => {
         lockRef.current = null;
         setLockedEntity(null);
-    });
+    }, []);
 
-    const toggleTopView = useRef((camera: THREE.PerspectiveCamera) => {
+    const toggleTopView = useCallback((camera: THREE.PerspectiveCamera) => {
         if (lockRef.current?.mesh) {
             lockRef.current.isTop = !lockRef.current.isTop;
         } else {
@@ -160,21 +134,45 @@ export default function App() {
             camera.rotation.y = 0;
             camera.updateProjectionMatrix();
         }
-    });
+    }, []);
 
     useEffect(() => {
         showLabelsRef.current = showLabels;
     }, [showLabels]);
 
     useEffect(() => {
-        setUiSystem(currentSystem);
-    }, [currentSystem]);
-
-    useEffect(() => {
+        const mount = mountRef.current;
+        if (!mount) return;
+        const radarBlips = radarBlipsRef.current;
+        const assets = new SceneAssets(setAssetStatus);
+        let renderer: THREE.WebGLRenderer;
+        try {
+            renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+        } catch {
+            assets.dispose();
+            queueMicrotask(() => setSceneError('Your browser could not start the 3D view. Try enabling hardware acceleration or using another browser.'));
+            return;
+        }
+        const resetInput = () => {
+            inputRef.current = createInputState();
+            isDragging.current = false;
+            mouseDelta.current.x = mouseDelta.current.y = 0;
+            zoomVelocity.current = 0;
+        };
+        const handleVisibility = () => { if (document.hidden) resetInput(); };
         const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target;
+            if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return;
+            if (e.key === 'Escape') {
+                if (radarButtonRef.current?.getAttribute('aria-expanded') === 'true') closeRadar();
+                else unlockCamera();
+                return;
+            }
+            if (target instanceof HTMLElement && target.closest('[data-ui]') && !['h', 'l'].includes(e.key.toLowerCase())) return;
             updateInputKey(inputRef.current, e.code, true);
+            if (e.code.startsWith('Arrow')) e.preventDefault();
 
-            if (e.key === 'Tab') {
+            if (e.code === 'KeyN' && !e.repeat) {
                 e.preventDefault();
 
                 // Get entities for current system (excluding proxies)
@@ -190,7 +188,7 @@ export default function App() {
                     const target = systemEntities[teleportIndexRef.current];
 
                     if (target && target.mesh) {
-                        lockOnTarget.current(target.mesh, target.radius);
+                        lockOnTarget(target);
                     }
                 }
                 return;
@@ -200,10 +198,7 @@ export default function App() {
             if (e.key.toLowerCase() === 'l') setShowLabels(prev => !prev);
             if (e.key.toLowerCase() === 'h') setShowUI(prev => !prev);
             if (e.key.toLowerCase() === 't' && cameraRef.current) {
-                toggleTopView.current(cameraRef.current);
-            }
-            if (e.key === 'Escape') {
-                unlockCamera.current();
+                toggleTopView(cameraRef.current);
             }
         };
 
@@ -215,12 +210,14 @@ export default function App() {
 
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('blur', resetInput);
+        document.addEventListener('visibilitychange', handleVisibility);
 
         // --- MOUSE WHEEL (Momentum Zoom) ---
         const handleWheel = (e: WheelEvent) => {
             // Don't capture wheel events inside radar panels (allow scrolling)
             const target = e.target as HTMLElement;
-            if (target.closest('.ui-panels-container') || target.closest('.radar-panel') || target.closest('.settings-panel-inline')) {
+            if (target.closest('[data-ui]')) {
                 return;
             }
 
@@ -241,12 +238,11 @@ export default function App() {
         camera.rotation.z = 0;
         cameraRef.current = camera;
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.0;
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
 
         const sunLight = new THREE.PointLight(
             Cosmos.LIGHTING.SUN_COLOR,
@@ -255,8 +251,8 @@ export default function App() {
         );
         sunLight.position.set(0, 0, 0);
         sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 4096;
-        sunLight.shadow.mapSize.height = 4096;
+        sunLight.shadow.mapSize.width = 512;
+        sunLight.shadow.mapSize.height = 512;
         sunLight.shadow.bias = -0.00001;
         sunLight.layers.set(1);
         scene.add(sunLight);
@@ -272,11 +268,7 @@ export default function App() {
         labelRenderer.domElement.style.position = 'absolute';
         labelRenderer.domElement.style.top = '0px';
         labelRenderer.domElement.style.pointerEvents = 'none';
-        if (mountRef.current) {
-            mountRef.current.innerHTML = '';
-            mountRef.current.appendChild(renderer.domElement);
-            mountRef.current.appendChild(labelRenderer.domElement);
-        }
+        mount.replaceChildren(renderer.domElement, labelRenderer.domElement);
         labelRendererRef.current = labelRenderer;
 
         camera.layers.enable(0);
@@ -288,54 +280,54 @@ export default function App() {
         // =====================================================================
 
         // 1. SOLAR SYSTEM (Layer 1)
-        const sun = new Sun(Cosmos.UNITS.SOLAR_RADIUS);
+        const sun = new Sun(Cosmos.UNITS.SOLAR_RADIUS, assets);
         sun.layers.set(1);
         scene.add(sun);
 
         const stars = new Stars(8000, 5000);
         scene.add(stars);
 
-        const mercury = new Mercury();
+        const mercury = new Mercury(assets);
         mercury.layers.set(1);
         mercury.traverse(c => c.layers.set(1));
         scene.add(mercury);
 
-        const venus = new Venus();
+        const venus = new Venus(assets);
         venus.layers.set(1);
         venus.traverse(c => c.layers.set(1));
         scene.add(venus);
 
-        const earth = new Earth();
+        const earth = new Earth(assets);
         earth.layers.set(1);
         earth.traverse(c => c.layers.set(1));
         scene.add(earth);
 
-        const mars = new Mars();
+        const mars = new Mars(assets);
         mars.layers.set(1);
         mars.traverse(c => c.layers.set(1));
         scene.add(mars);
 
-        const jupiter = new Jupiter();
+        const jupiter = new Jupiter(assets);
         jupiter.layers.set(1);
         jupiter.traverse(c => c.layers.set(1));
         scene.add(jupiter);
 
-        const saturn = new Saturn();
+        const saturn = new Saturn(assets);
         saturn.layers.set(1);
         saturn.traverse(c => c.layers.set(1));
         scene.add(saturn);
 
-        const uranus = new Uranus();
+        const uranus = new Uranus(assets);
         uranus.layers.set(1);
         uranus.traverse(c => c.layers.set(1));
         scene.add(uranus);
 
-        const neptune = new Neptune();
+        const neptune = new Neptune(assets);
         neptune.layers.set(1);
         neptune.traverse(c => c.layers.set(1));
         scene.add(neptune);
 
-        const pluto = new Pluto();
+        const pluto = new Pluto(assets);
         pluto.layers.set(1);
         pluto.traverse(c => c.layers.set(1));
         scene.add(pluto);
@@ -396,7 +388,7 @@ export default function App() {
         const solarBeacon = createSolarBeacon();
         scene.add(solarBeacon);
 
-        const quantumania = new QuantumaniaSystem();
+        const quantumania = new QuantumaniaSystem(assets);
         // quantumania layer setup is handled inside its class, or we do it here:
         quantumania.layers.set(2);
         quantumania.traverse(c => c.layers.set(2));
@@ -419,7 +411,7 @@ export default function App() {
             scene.add(path);
         });
 
-        const alienX = new AlienX();
+        const alienX = new AlienX(assets);
         alienX.layers.set(1);
         alienX.traverse(c => c.layers.set(1));
         scene.add(alienX);
@@ -429,7 +421,7 @@ export default function App() {
         blackHole.traverse(c => c.layers.set(1));
         scene.add(blackHole);
 
-        const cosmicEntity = new CosmicEntity();
+        const cosmicEntity = new CosmicEntity(assets);
         scene.add(cosmicEntity);
 
 
@@ -475,7 +467,8 @@ export default function App() {
             label: 'Quantumania',
             radius: 200,
             system: SystemId.QUANTUMANIA,
-            isSystemProxy: true
+            isSystemProxy: true,
+            category: EntityCategory.PROXY
         });
 
         // Combine all entities
@@ -484,6 +477,8 @@ export default function App() {
             ...quantumaniaEntities,
             ...interstellarEntities,
         ];
+
+        queueMicrotask(() => { if (!disposed) setEntities(entitiesRef.current); });
 
         // RADAR INIT - Cache DOM references
         const radarContainer = document.getElementById('radar-container');
@@ -504,7 +499,7 @@ export default function App() {
                 l.textContent = ent.label;
                 b.appendChild(l);
                 radarContainer.appendChild(b);
-                radarBlipsRef.current.set(ent.id, b);
+                radarBlips.set(ent.id, b);
             });
         }
 
@@ -512,9 +507,13 @@ export default function App() {
         camera.fov = Cosmos.CONTROLS.FOV_DEFAULT;
         camera.updateProjectionMatrix();
 
-        const handleMouseDown = (e: MouseEvent) => {
-            e.preventDefault();
-            if (e.button === 0) {
+        let activePointer: number | null = null;
+        const handleMouseDown = (e: PointerEvent) => {
+            if (e.button === 0 && e.isPrimary) {
+                e.preventDefault();
+                renderer.domElement.focus();
+                activePointer = e.pointerId;
+                renderer.domElement.setPointerCapture(e.pointerId);
                 isDragging.current = true;
                 lastMouse.current = { x: e.clientX, y: e.clientY };
             }
@@ -522,10 +521,11 @@ export default function App() {
 
         const handleMouseUp = () => {
             isDragging.current = false;
+            activePointer = null;
         };
 
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!isDragging.current) return;
+        const handleMouseMove = (e: PointerEvent) => {
+            if (!isDragging.current || e.pointerId !== activePointer) return;
             const dx = e.clientX - lastMouse.current.x;
             const dy = e.clientY - lastMouse.current.y;
 
@@ -535,9 +535,14 @@ export default function App() {
             mouseDelta.current.y += dy;
         };
 
-        window.addEventListener('mousedown', handleMouseDown);
-        window.addEventListener('mouseup', handleMouseUp);
-        window.addEventListener('mousemove', handleMouseMove);
+        renderer.domElement.tabIndex = 0;
+        renderer.domElement.style.touchAction = 'none';
+        renderer.domElement.setAttribute('aria-label', 'Space exploration view. Use WASD to move and N to visit the next object.');
+        renderer.domElement.addEventListener('pointerdown', handleMouseDown);
+        renderer.domElement.addEventListener('pointerup', handleMouseUp);
+        renderer.domElement.addEventListener('pointercancel', handleMouseUp);
+        renderer.domElement.addEventListener('lostpointercapture', handleMouseUp);
+        renderer.domElement.addEventListener('pointermove', handleMouseMove);
 
         const onWinResize = () => {
             if (cameraRef.current) {
@@ -549,13 +554,49 @@ export default function App() {
         };
         window.addEventListener('resize', onWinResize);
 
-        const clock = new THREE.Clock();
-        let simTime = 0; // Accumulated simulation time
-
-        const animate = () => {
-            requestAnimationFrame(animate);
-
-            const delta = clock.getDelta();
+        let simTime = 0;
+        let elapsedTime = 0;
+        let statsElapsed = 0;
+        let disposed = false;
+        let appliedQuality: QualityLevel | null = null;
+        const targetPosition = new THREE.Vector3();
+        const radarVector = new THREE.Vector3();
+        const inverseRotation = new THREE.Quaternion();
+        lastCameraPos.current.copy(camera.position);
+        const solarObjects = [sun, mercury, venus, earth, mars, belt, jupiter, saturn, uranus, neptune, pluto, explorer, theKyln];
+        const planetPositions = [mercury.position, venus.position, earth.position, mars.position, jupiter.position, saturn.position, uranus.position, neptune.position, pluto.position];
+        const onContextLost = (event: Event) => {
+            event.preventDefault();
+            stopAnimation();
+            setSceneError('The 3D view lost its graphics connection. Reload to continue exploring.');
+        };
+        renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+        retryAssetsRef.current = () => {
+            assets.retryTextures();
+            quantumania.retryFailedModels();
+            cosmicEntity.retryFailedModels();
+        };
+        const stopAnimation = startAnimationLoop(delta => {
+            elapsedTime += delta;
+            statsElapsed += delta;
+            if (appliedQuality !== qualityRef.current) {
+                appliedQuality = qualityRef.current;
+                const preset = QUALITY_PRESETS[appliedQuality];
+                renderer.shadowMap.enabled = preset.shadows;
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, preset.pixelRatio));
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                scene.traverse(object => {
+                    if (object instanceof THREE.PointLight && object.castShadow) {
+                        object.shadow.map?.dispose();
+                        object.shadow.map = null;
+                        object.shadow.mapSize.set(preset.shadowSize, preset.shadowSize);
+                        object.shadow.needsUpdate = true;
+                    }
+                });
+                belt.setCount(preset.asteroids);
+                stars.setCount(preset.stars);
+                blackHole.setRaySteps(preset.raySteps);
+            }
 
             // Apply time scale
             if (!isPausedRef.current) {
@@ -580,18 +621,13 @@ export default function App() {
             // - Locked onto any Solar object
             // - Locked specifically onto Alien X (override)
             const sunDist = camera.position.distanceTo(SystemManager.SOLAR_SYSTEM_CENTER);
-            const lockedEntity = lockRef.current?.mesh ? entitiesRef.current.find(e => e.mesh === lockRef.current?.mesh) : null;
+            const lockedEntity = lockRef.current?.mesh ? entitiesRef.current.find(e => e.id === lockRef.current?.entityId) : null;
             const isLockedToSolar = lockedEntity?.system === SystemId.SOLAR_SYSTEM;
             const isLockedToAlienX = lockedEntity?.label === 'Alien X';
 
-            const showSolarSystem = (sunDist < 4500) || isLockedToSolar || isLockedToAlienX;
+            const showSolarSystem = (sunDist < VISIBILITY.SOLAR_RANGE) || isLockedToSolar || isLockedToAlienX;
 
             // Toggle Solar System (3D Objects vs Beacon)
-            const solarObjects = [
-                sun, mercury, venus, earth, mars, belt, jupiter, saturn, uranus, neptune, pluto,
-                explorer, theKyln
-            ];
-
             solarObjects.forEach(obj => obj.visible = showSolarSystem);
             orbitPaths.forEach(p => p.visible = showSolarSystem);
 
@@ -603,7 +639,6 @@ export default function App() {
             }
 
             // Heliosphere Visibility Rule: Hide when locked onto an object inside the system
-            // Heliosphere Visibility Rule: Hide when locked onto an object inside the system
             // (Enforced after update call below)
 
             // 2. Quantumania System
@@ -611,10 +646,7 @@ export default function App() {
             const isLockedToQuantum = lockedEntity?.system === SystemId.QUANTUMANIA;
 
             // Show if close (Radius + 500 buffer) OR locked onto it
-            const showQuantumania = (nexusDist < SystemManager.QUANTUMANIA_RADIUS + 500) || isLockedToQuantum;
-
-            // Apply to Quantumania class
-            quantumania.setVisible(showQuantumania);
+            const showQuantumania = (nexusDist < SystemManager.QUANTUMANIA_RADIUS + VISIBILITY.QUANTUMANIA_BUFFER) || isLockedToQuantum;
 
             // Hide Quantumania heliosphere if locked onto an object inside it (except proxy)
             // (Enforced after update call below)
@@ -632,8 +664,8 @@ export default function App() {
                 uranus.update(time, camera);
                 neptune.update(time, camera);
                 pluto.update(time, camera);
-                explorer.update(time, camera);
-                theKyln.update(time, camera);
+                explorer.update(time, camera, isPausedRef.current ? 0 : delta);
+                theKyln.update(time, camera, isPausedRef.current ? 0 : delta);
             }
             solarHeliosphere.update(time, camera);
             if (!showSolarSystem || isLockedToSolar) {
@@ -642,7 +674,7 @@ export default function App() {
 
             // Update Quantumania system (pass visibility flag)
             quantumania.setVisible(showQuantumania);
-            quantumania.update(time, camera);
+            quantumania.update(time, camera, elapsedTime);
 
             // ENFORCE VISIBILITY for Quantumania
             const isLockedToQuantumInside = isLockedToQuantum && lockedEntity?.isSystemProxy !== true;
@@ -658,16 +690,12 @@ export default function App() {
             }
 
             // Update planet positions for Explorer collision avoidance
-            // Update planet positions for Explorer collision avoidance
-            Explorer.updatePlanetPositions([
-                mercury.position, venus.position, earth.position, mars.position,
-                jupiter.position, saturn.position, uranus.position, neptune.position, pluto.position
-            ]);
+            explorer.updatePlanetPositions(planetPositions);
 
             // Interstellar Easter Eggs (always visible/updated)
-            alienX.update(time, camera);
-            blackHole.update(time, camera);
-            cosmicEntity.update(time, camera);
+            alienX.update(time, camera, elapsedTime);
+            blackHole.update(time, camera, elapsedTime);
+            cosmicEntity.update(time, camera, elapsedTime, delta);
 
             // 2. INPUT PROCESSING
             const pad = pollGamepad();
@@ -683,7 +711,7 @@ export default function App() {
 
             // Auto-Unlock on Move
             if (isMoving && lockRef.current) {
-                unlockCamera.current();
+                unlockCamera();
             }
 
             renderer.render(scene, camera);
@@ -695,25 +723,19 @@ export default function App() {
             labelRenderer.render(scene, camera);
 
             // STATS HUD UPDATE (throttled to avoid excessive re-renders)
-            statsFrameCount.current++;
-            if (statsFrameCount.current >= 10) {
-                statsFrameCount.current = 0;
-
-                const AU = Cosmos.UNITS.AU;
-                const KM_PER_AU = 150000000;
-
-                const speedRaw = camera.position.distanceTo(lastCameraPos.current) / (delta * 10);
-                const speedKmS = (speedRaw / AU) * (KM_PER_AU / 1000);
+            if (statsElapsed >= 1 / 6) {
+                const speedKmS = simulationDistanceToKm(camera.position.distanceTo(lastCameraPos.current)) / statsElapsed;
+                statsElapsed = 0;
                 lastCameraPos.current.copy(camera.position);
                 setCameraSpeed(Math.round(speedKmS));
 
                 // Update locked object info
                 if (lockRef.current?.mesh) {
-                    const targetPos = new THREE.Vector3();
+                    const targetPos = targetPosition;
                     lockRef.current.mesh.getWorldPosition(targetPos);
 
                     // Find entity to determine which system it belongs to
-                    const entity = entitiesRef.current.find(e => e.mesh === lockRef.current?.mesh);
+                    const entity = entitiesRef.current.find(e => e.id === lockRef.current?.entityId);
                     const entitySystem = entity?.system || SystemId.SOLAR_SYSTEM;
 
                     // Determine reference point and name based on system
@@ -725,7 +747,7 @@ export default function App() {
                         refPoint = SystemManager.QUANTUMANIA_CENTER;
                         refName = 'Nexus';
                     } else if (entitySystem === SystemId.INTERSTELLAR) {
-                        refPoint = new THREE.Vector3(0, 0, 0); // Origin
+                        refPoint = SystemManager.SOLAR_SYSTEM_CENTER; // Origin
                         refName = 'Origin';
                     } else {
                         // Solar System
@@ -736,7 +758,7 @@ export default function App() {
 
                     const distFromRef = targetPos.distanceTo(refPoint);
                     const distAU = distFromRef / Cosmos.UNITS.AU;
-                    const distMillionKm = distAU * 150;
+                    const distMillionKm = simulationDistanceToKm(distFromRef) / 1_000_000;
 
                     const orbitalSpeedKmS = showOrbitalSpeed && distAU > 0.1 ? 30 / Math.sqrt(distAU) : 0;
 
@@ -762,13 +784,13 @@ export default function App() {
                         // Filter to current system + interstellar objects only
                         if (ent.mesh && !ent.isSystemProxy &&
                             (ent.system === mySystemId || ent.system === SystemId.INTERSTELLAR)) {
-                            const pos = new THREE.Vector3();
+                            const pos = targetPosition;
                             ent.mesh.getWorldPosition(pos);
                             const dist = camera.position.distanceTo(pos);
                             if (dist < minDist) {
                                 minDist = dist;
                                 // Convert to display units (thousands of km)
-                                const distKm = (dist / AU) * 150000; // Convert AU to km
+                                const distKm = simulationDistanceToKm(dist);
                                 closest = {
                                     name: ent.label,
                                     distance: Math.round(distKm)
@@ -783,47 +805,21 @@ export default function App() {
             // RADAR UPDATE (using cached DOM refs)
             const range = Cosmos.RADAR.RANGE;
             const radius = Cosmos.RADAR.RADIUS;
-            const invQuat = camera.quaternion.clone().invert();
+            const invQuat = inverseRotation.copy(camera.quaternion).invert();
 
             entitiesRef.current.forEach(ent => {
-                const blip = radarBlipsRef.current.get(ent.id);
+                const blip = radarBlips.get(ent.id);
                 if (blip && ent.mesh) {
-                    // --- RADAR MAP DECLUTTERING LOGIC ---
-                    // Determine if we should show this specific blip based on where we are
-                    let shouldShow = true;
-
-                    const sysManager = SystemManager.getInstance();
-                    const mySystemId = sysManager.currentSystem;
-
-                    if (ent.system === SystemId.INTERSTELLAR) {
-                        // Always show interstellar objects (Alien X, Black Hole)
-                        shouldShow = true;
-                    } else if (ent.system === mySystemId) {
-                        // We are inside this system
-                        if (ent.isSystemProxy) {
-                            // Hide the "Solar System" big dot when we are INSIDE Solar System
-                            shouldShow = false;
-                        } else {
-                            // Show individual planets/mountains
-                            shouldShow = true;
-                        }
-                    } else {
-                        // We are in a DIFFERENT system (or interstellar) looking at this one
-                        if (ent.isSystemProxy) {
-                            // Show the single big dot for the distant system
-                            shouldShow = true;
-                        } else {
-                            // Hide individual distant planets/mountains to reduce clutter
-                            shouldShow = false;
-                        }
-                    }
+                    const mySystemId = systemManager.currentSystem;
+                    const shouldShow = ent.system === SystemId.INTERSTELLAR ||
+                        (ent.system === mySystemId ? !ent.isSystemProxy : ent.isSystemProxy === true);
 
                     // Apply visibility
                     blip.style.display = shouldShow ? 'block' : 'none';
 
                     if (!shouldShow) return;
 
-                    const vec = new THREE.Vector3();
+                    const vec = radarVector;
                     ent.mesh.getWorldPosition(vec);
                     vec.sub(camera.position);
                     vec.applyQuaternion(invQuat);
@@ -847,30 +843,47 @@ export default function App() {
                     }
                 }
             });
-        };
-        animate();
+        });
 
         return () => {
+            disposed = true;
+            stopAnimation();
+            resetInput();
+            assets.dispose();
+            quantumania.dispose();
+            cosmicEntity.dispose();
+            disposeObject3D(scene);
+            radarBlips.clear();
+            entitiesRef.current = [];
+            lockRef.current = null;
+            cameraRef.current = null;
+            labelRendererRef.current = null;
+            retryAssetsRef.current = () => {};
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
             window.removeEventListener('wheel', handleWheel);
-            window.removeEventListener('mousedown', handleMouseDown);
-            window.removeEventListener('mouseup', handleMouseUp);
-            window.removeEventListener('mousemove', handleMouseMove);
+            renderer.domElement.removeEventListener('pointerdown', handleMouseDown);
+            renderer.domElement.removeEventListener('pointerup', handleMouseUp);
+            renderer.domElement.removeEventListener('pointercancel', handleMouseUp);
+            renderer.domElement.removeEventListener('lostpointercapture', handleMouseUp);
+            renderer.domElement.removeEventListener('pointermove', handleMouseMove);
+            renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+            window.removeEventListener('blur', resetInput);
+            document.removeEventListener('visibilitychange', handleVisibility);
             window.removeEventListener('resize', onWinResize);
-            if (mountRef.current) mountRef.current.innerHTML = '';
+            mount.replaceChildren();
             renderer.dispose();
         };
-    }, []);
+    }, [closeRadar, lockOnTarget, toggleTopView, unlockCamera]);
 
-
+    useEffect(() => { qualityRef.current = quality; saveQuality(quality); }, [quality]);
 
     // Sync time control refs
     useEffect(() => { timeScaleRef.current = timeScale; }, [timeScale]);
     useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
     return (
-        <div className="container" tabIndex={0} style={{ outline: 'none', width: '100%', height: '100%' }}>
+        <div className="container">
 
             <div ref={mountRef} className="canvas-container" style={{ position: 'relative' }} />
 
@@ -882,18 +895,23 @@ export default function App() {
                     [SHIFT] Boost<br />
                     [SCROLL] Smooth Zoom<br />
                     [L] Labels | [H] HUD | [T] Top View<br />
+                    [N] Next Object | [ESC] Unlock<br />
                 </span>
             </div>
 
-            {showUI && (
-                <>
+            <div className="hud-layer" hidden={!showUI} data-ui>
                     {/* Floating UI Layer */}
                     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
 
                         {/* Main UI Container */}
                         <div className="ui-panels-container">
                             {/* Visual Radar Circle */}
-                            <div
+                            <button
+                                type="button"
+                                ref={radarButtonRef}
+                                aria-label="Explore objects and settings"
+                                aria-expanded={showRadarList}
+                                aria-controls="navigation-panels"
                                 id="radar-container"
                                 className="radar-visual-container"
                                 style={{
@@ -901,25 +919,22 @@ export default function App() {
                                     pointerEvents: 'auto',
                                     visibility: showUI ? 'visible' : 'hidden'
                                 }}
-                                onClick={() => { if (entitiesRef.current.length > 0) setShowRadarList(prev => !prev); }}
+                                onClick={() => setShowRadarList(prev => !prev)}
                                 title="Click to Open/Close Object List"
                             >
-                                <div className="radar-center"></div>
-                            </div>
+                                <span className="radar-center" aria-hidden="true"></span>
+                            </button>
+
+                            <div id="navigation-panels" className="navigation-panels" hidden={!showRadarList}>
 
                             {/* Radar Object List Panel */}
                             <RadarObjectList
                                 isOpen={showRadarList}
-                                entities={entitiesRef.current}
-                                currentSystem={uiSystem}
+                                entities={entities}
+                                currentSystem={currentSystem}
                                 lockedEntity={lockedEntity}
-                                onLockConfig={(mesh, radius) => {
-                                    // Find the entity for this mesh and set it
-                                    const entity = entitiesRef.current.find(e => e.mesh === mesh);
-                                    setLockedEntity(entity || null);
-                                    lockOnTarget.current(mesh, radius);
-                                }}
-                                onToggle={() => setShowRadarList(false)}
+                                onLockConfig={lockOnTarget}
+                                onToggle={closeRadar}
                             />
 
                             {/* Settings Panel */}
@@ -929,8 +944,11 @@ export default function App() {
                                 onTimeScaleChange={setTimeScale}
                                 isPaused={isPaused}
                                 onPauseToggle={() => setIsPaused(p => !p)}
-                                currentSystem={uiSystem}
+                                currentSystem={currentSystem}
+                                quality={quality}
+                                onQualityChange={setQuality}
                             />
+                            </div>
                         </div>
 
                         {/* Stats HUD */}
@@ -972,7 +990,19 @@ export default function App() {
                             )}
                         </div>
                     </div>
-                </>
+            </div>
+            {(assetStatus.loading || assetStatus.failed.length > 0) && (
+                <div className="asset-status" role="status" data-ui>
+                    {assetStatus.loading ? `Loading scenery… ${assetStatus.loaded}/${assetStatus.total}` : 'Some scenery could not load.'}
+                    {assetStatus.failed.length > 0 && <button type="button" onClick={() => retryAssetsRef.current()}>Retry loading</button>}
+                </div>
+            )}
+            {sceneError && (
+                <div className="scene-error" role="alert" data-ui>
+                    <h1>Unable to display the cosmos</h1>
+                    <p>{sceneError}</p>
+                    <button type="button" onClick={() => window.location.reload()}>Reload</button>
+                </div>
             )}
         </div>
     );

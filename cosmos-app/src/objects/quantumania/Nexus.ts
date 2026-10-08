@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { SceneAssets } from '../../core/SceneAssets';
 
 
 export class Nexus extends THREE.Group {
@@ -11,9 +11,9 @@ export class Nexus extends THREE.Group {
     public readonly entityName = 'Nexus';
     public readonly radius = 100;
     private isLoaded: boolean = false;
-    private isLoading: boolean = false;
+    private loadPromise: Promise<void> | null = null;
 
-    constructor(position: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
+    constructor(position: THREE.Vector3 = new THREE.Vector3(0, 0, 0), private assets = new SceneAssets()) {
         super();
         this.position.copy(position);
 
@@ -34,51 +34,40 @@ export class Nexus extends THREE.Group {
     }
 
     loadModel(): Promise<void> {
-        if (this.isLoaded || this.isLoading) {
-            return Promise.resolve();
-        }
+        if (this.isLoaded) return Promise.resolve();
+        if (this.loadPromise) return this.loadPromise;
+        this.loadPromise = this.assets.loadModel('/models/Cube.glb').then(gltf => {
+            this.model = gltf.scene;
 
-        this.isLoading = true;
+            this.model.traverse((child) => {
+                child.layers.set(2);
+                if ((child as THREE.Mesh).isMesh) {
+                    child.castShadow = false;
+                    child.receiveShadow = false;
 
-        return new Promise((resolve, reject) => {
-            const loader = new GLTFLoader();
-            loader.load('/models/Cube.glb', (gltf) => {
-                this.model = gltf.scene;
-
-                this.model.traverse((child) => {
-                    child.layers.set(2);
-                    if ((child as THREE.Mesh).isMesh) {
-                        child.castShadow = false;
-                        child.receiveShadow = false;
-
-                        const m = child as THREE.Mesh;
-                        if (m.material) {
-                            const materials = Array.isArray(m.material) ? m.material : [m.material];
-                            materials.forEach(mat => {
-                                if (mat instanceof THREE.MeshStandardMaterial) {
-                                    mat.emissiveMap = mat.map;
-                                    mat.emissive = new THREE.Color(0xffffff);
-                                    mat.emissiveIntensity = 2.0;
-                                    mat.transparent = false;
-                                    mat.opacity = 1.0;
-                                }
-                            });
-                        }
+                    const m = child as THREE.Mesh;
+                    if (m.material) {
+                        const materials = Array.isArray(m.material) ? m.material : [m.material];
+                        materials.forEach(mat => {
+                            if (mat instanceof THREE.MeshStandardMaterial) {
+                                mat.emissiveMap = mat.map;
+                                mat.emissive = new THREE.Color(0xffffff);
+                                mat.emissiveIntensity = 2.0;
+                                mat.transparent = false;
+                                mat.opacity = 1.0;
+                            }
+                        });
                     }
-                });
-
-                this.model.scale.set(300, 300, 300);
-                this.add(this.model);
-
-                this.isLoaded = true;
-                this.isLoading = false;
-                resolve();
-            }, undefined, (error) => {
-                console.error('Failed to load Nexus model:', error);
-                this.isLoading = false;
-                reject(error);
+                }
             });
-        });
+
+            this.model.scale.set(300, 300, 300);
+            this.add(this.model);
+
+            this.isLoaded = true;
+
+        }).finally(() => { this.loadPromise = null; });
+        return this.loadPromise;
     }
 
     get loaded(): boolean {

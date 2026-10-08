@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos } from '../../core/SDK';
 
@@ -8,6 +9,7 @@ import fragmentShader from '../../shaders/earth/earth.frag.glsl?raw';
 
 
 export class Earth extends THREE.Group {
+    private worldPosition = new THREE.Vector3();
     public readonly radius: number;
     public readonly moon: THREE.Mesh;
 
@@ -17,18 +19,18 @@ export class Earth extends THREE.Group {
     private moonLabel: CSS2DObject;
     private initialAngle: number;
 
-    constructor() {
+    constructor(assets = new SceneAssets()) {
         super();
 
         const data = Cosmos.PLANETS.EARTH;
         this.radius = data.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
-        const loader = new THREE.TextureLoader();
-        const dayTexture = loader.load('/textures/2k_earth_daymap.jpg');
-        const nightTexture = loader.load('/textures/2k_earth_nightmap.jpg');
-        const cloudsTexture = loader.load('/textures/2k_earth_clouds.jpg');
-        const moonTexture = loader.load('/textures/2k_moon.jpg');
+        const loader = assets;
+        const dayTexture = loader.loadTexture('/textures/2k_earth_daymap.jpg');
+        const nightTexture = loader.loadTexture('/textures/2k_earth_nightmap.jpg');
+        const cloudsTexture = loader.loadTexture('/textures/2k_earth_clouds.jpg', THREE.NoColorSpace);
+        const moonTexture = loader.loadTexture('/textures/2k_moon.jpg');
 
         const geometry = new THREE.SphereGeometry(data.RADIUS, 64, 64);
         const material = new THREE.ShaderMaterial({
@@ -138,7 +140,7 @@ export class Earth extends THREE.Group {
         const dist = camera.position.distanceTo(this.position);
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
 
-        const moonWorldPos = new THREE.Vector3();
+        const moonWorldPos = this.worldPosition;
         this.moon.getWorldPosition(moonWorldPos);
         const moonDist = camera.position.distanceTo(moonWorldPos);
         this.moonLabel.element.style.opacity = String(Cosmos.getLabelOpacity(moonDist, Cosmos.PLANETS.EARTH.MOON.RADIUS));

@@ -181,7 +181,7 @@ export class TheKyln extends THREE.Group {
         this.position.y = 5; // Slightly above the belt plane
     }
 
-    update(time: number, camera: THREE.Camera): void {
+    update(time: number, camera: THREE.Camera, delta: number): void {
         const beltRadius = (Cosmos.ASTEROIDS.INNER_RADIUS + Cosmos.ASTEROIDS.OUTER_RADIUS) / 2;
         const periodYears = Math.pow(beltRadius / Cosmos.PLANETS.EARTH.DISTANCE, 1.5);
         const periodSeconds = periodYears * 365.25 * 86400;
@@ -190,7 +190,7 @@ export class TheKyln extends THREE.Group {
         this.position.x = Math.cos(theta) * beltRadius;
         this.position.z = Math.sin(theta) * beltRadius;
 
-        this.structure.rotation.y += 0.0005;
+        this.structure.rotation.y += 0.03 * delta;
 
         const pulse = 0.3 + Math.sin(time * 0.002) * 0.15;
         this.glowLights.forEach(light => {

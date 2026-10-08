@@ -76,8 +76,12 @@ export class AsteroidBelt extends THREE.Group {
         this.add(this.mesh);
     }
 
+    setCount(count: number): void {
+        this.mesh.count = Math.max(0, Math.min(this.asteroids.length, count));
+    }
+
     update(time: number): void {
-        for (let i = 0; i < this.asteroids.length; i++) {
+        for (let i = 0; i < this.mesh.count; i++) {
             const data = this.asteroids[i];
 
             const earthDistance = Cosmos.PLANETS.EARTH.DISTANCE;

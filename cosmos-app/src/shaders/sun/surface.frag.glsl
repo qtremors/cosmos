@@ -26,7 +26,7 @@ void main() {
     vec3 darkVariation = texColor * 0.6;
     vec3 brightVariation = texColor * 1.3;
     
-    vec3 color = mix(texColor, darkVariation, smoothstep(0.5, 0.2, noise) * 0.5);
+    vec3 color = mix(texColor, darkVariation, (1.0 - smoothstep(0.2, 0.5, noise)) * 0.5);
     color = mix(color, brightVariation, smoothstep(0.5, 0.9, noise) * 0.4);
 
 

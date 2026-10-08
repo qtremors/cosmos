@@ -1,22 +1,23 @@
 import * as THREE from 'three';
 import { GLBEntity } from './GLBEntity';
+import { SceneAssets } from '../../core/SceneAssets';
 
 export class Inhabitants extends THREE.Group {
     public readonly items: GLBEntity[] = [];
 
-    constructor(center: THREE.Vector3) {
+    constructor(center: THREE.Vector3, assets = new SceneAssets()) {
         super();
 
 
 
-        
+
         const bridgeX = center.x + Math.cos(Math.PI / 2) * 1500;
         const bridgeZ = center.z + Math.sin(Math.PI / 2) * 1500;
         const bridgeY = 0; // Fixed Y from Mountains.ts
 
         // 1. AlienXBaby at Center
         const babyPos = new THREE.Vector3(bridgeX, bridgeY + 20, bridgeZ);
-        const baby = new GLBEntity(babyPos, '/models/AlienXBaby.glb', 'AlienXBaby', 20, 20, '#ffffff', 2);
+        const baby = new GLBEntity(babyPos, '/models/AlienXBaby.glb', 'AlienXBaby', 20, 20, '#ffffff', 2, assets);
         this.add(baby);
         this.items.push(baby);
 
@@ -36,7 +37,7 @@ export class Inhabitants extends THREE.Group {
             const gz = bridgeZ + Math.sin(angle) * circleRadius;
             const gPos = new THREE.Vector3(gx, bridgeY + 5, gz);
 
-            const entity = new GLBEntity(gPos, guardian.file, guardian.name, guardian.scale, 20, '#aaffaa', 2);
+            const entity = new GLBEntity(gPos, guardian.file, guardian.name, guardian.scale, 20, '#aaffaa', 2, assets);
             entity.lookAt(babyPos);
             entity.rotationSpeed = 0;
             this.add(entity);
@@ -55,7 +56,7 @@ export class Inhabitants extends THREE.Group {
 
                 // Rotate AlienXBaby
                 if (item.entityName === 'AlienXBaby') {
-                    item.rotation.y += 0.01;
+                    item.rotation.y = independentTime * 0.6;
                 }
             }
         });

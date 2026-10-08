@@ -22,4 +22,8 @@ export class Stars extends THREE.Points {
 
         super(geo, mat);
     }
+
+    setCount(count: number): void {
+        this.geometry.setDrawRange(0, Math.max(0, Math.min(count, this.geometry.getAttribute('position').count)));
+    }
 }

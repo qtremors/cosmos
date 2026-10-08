@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Cosmos } from './SDK';
+import { dampingFactor } from './Simulation';
 
 // =============================================================================
 // TYPES
@@ -15,6 +16,9 @@ export interface InputState {
     rollLeft: boolean;
     rollRight: boolean;
     boost: boolean;
+    boostHoldTime: number;
+    shiftLeft: boolean;
+    shiftRight: boolean;
     pitchUp: boolean;
     pitchDown: boolean;
     yawLeft: boolean;
@@ -23,21 +27,16 @@ export interface InputState {
 
 export interface LockTarget {
     mesh: THREE.Object3D;
+    entityId?: string;
     distance: number;
     isTop: boolean;
     theta: number;
     phi: number;
 }
 
-interface BoostState {
-    holdTime: number;
-    lastUpdateTime: number;
-}
-
-const boostState: BoostState = {
-    holdTime: 0,
-    lastUpdateTime: 0,
-};
+const targetPosition = new THREE.Vector3();
+const cameraOffset = new THREE.Vector3();
+const desiredPosition = new THREE.Vector3();
 
 // =============================================================================
 // INPUT HANDLER
@@ -47,7 +46,7 @@ export function createInputState(): InputState {
     return {
         forward: false, back: false, left: false, right: false,
         up: false, down: false, rollLeft: false, rollRight: false,
-        boost: false, pitchUp: false, pitchDown: false, yawLeft: false, yawRight: false
+        boost: false, boostHoldTime: 0, shiftLeft: false, shiftRight: false, pitchUp: false, pitchDown: false, yawLeft: false, yawRight: false
     };
 }
 
@@ -67,35 +66,34 @@ export function updateInputKey(state: InputState, code: string, pressed: boolean
         case 'KeyE': state.rollRight = pressed; break;
         case 'ShiftLeft':
         case 'ShiftRight':
-            state.boost = pressed;
-            if (!pressed) {
-                // Reset boost state when released
-                boostState.holdTime = 0;
-            }
+            if (code === 'ShiftLeft') state.shiftLeft = pressed;
+            else state.shiftRight = pressed;
+            state.boost = state.shiftLeft || state.shiftRight;
+            if (!state.boost) state.boostHoldTime = 0;
             break;
     }
 }
 
 export function pollGamepad(): Gamepad | null {
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    return gamepads[0] ?? null;
+    return Array.from(gamepads).find(pad => pad?.connected && pad.mapping === 'standard') ?? null;
 }
 
 /**
  * Calculate current boost multiplier based on hold time.
  */
-function getProgressiveBoostMultiplier(delta: number, isBoosting: boolean): number {
+function getProgressiveBoostMultiplier(state: InputState, delta: number, isBoosting: boolean): number {
     if (!isBoosting) {
-        boostState.holdTime = 0;
+        state.boostHoldTime = 0;
         return 1;
     }
 
-    boostState.holdTime += delta;
+    state.boostHoldTime += delta;
 
     // Every 2 seconds, increase multiplier by 10x
     // 0-2s: 10x, 2-4s: 20x, 4-6s: 30x, ... max 100x
     const baseMultiplier = Cosmos.CONTROLS.BOOST_MULTIPLIER; // 10x
-    const stages = Math.floor(boostState.holdTime / 2); // 0, 1, 2, 3... every 2 seconds
+    const stages = Math.floor(state.boostHoldTime / 2); // 0, 1, 2, 3... every 2 seconds
     const progressiveMultiplier = baseMultiplier * (1 + stages);
 
     return Math.min(progressiveMultiplier, 100); // Cap at 100x
@@ -144,10 +142,10 @@ export function applyInputToCamera(
 
     // Gamepad input
     if (gamepad) {
-        const ax0 = gamepad.axes[0];
-        const ax1 = gamepad.axes[1];
-        const ax2 = gamepad.axes[2];
-        const ax3 = gamepad.axes[3];
+        const ax0 = gamepad.axes[0] ?? 0;
+        const ax1 = gamepad.axes[1] ?? 0;
+        const ax2 = gamepad.axes[2] ?? 0;
+        const ax3 = gamepad.axes[3] ?? 0;
 
         if (ax1 < -DEADZONE) moveFwd = true;
         if (ax1 > DEADZONE) moveBack = true;
@@ -158,21 +156,25 @@ export function applyInputToCamera(
         if (gamepad.buttons[1]?.pressed) moveDown = true;
 
         const RS_SENS = 2.0 * delta;
-        if (Math.abs(ax3) > DEADZONE) camera.rotateX(-ax3 * RS_SENS);
-        if (Math.abs(ax2) > DEADZONE) camera.rotateY(-ax2 * RS_SENS);
+        if (!lockTarget && Math.abs(ax3) > DEADZONE) camera.rotateX(-ax3 * RS_SENS);
+        if (!lockTarget && Math.abs(ax2) > DEADZONE) camera.rotateY(-ax2 * RS_SENS);
 
         if (gamepad.buttons[4]?.pressed) rollL = true;
         if (gamepad.buttons[5]?.pressed) rollR = true;
         if (gamepad.buttons[7]?.value > 0.5) doBoost = true;
 
-        if (gamepad.buttons[12]?.pressed) zoomVelocity.current -= 1.0;
-        if (gamepad.buttons[13]?.pressed) zoomVelocity.current += 1.0;
+        if (gamepad.buttons[12]?.pressed) zoomVelocity.current -= 60 * delta;
+        if (gamepad.buttons[13]?.pressed) zoomVelocity.current += 60 * delta;
     }
 
     // Check if any movement key is pressed (for auto-unlock)
     const isMoving = moveFwd || moveBack || moveLeft || moveRight || moveUp || moveDown;
 
-    const boostMultiplier = getProgressiveBoostMultiplier(delta, doBoost);
+    const boostMultiplier = getProgressiveBoostMultiplier(input, delta, doBoost);
+
+    const zoomDecay = Math.pow(0.9, delta * 60);
+    const zoomDistance = zoomVelocity.current * (1 - zoomDecay) / (0.1 * 60);
+    zoomVelocity.current *= zoomDecay;
 
     // Apply to camera (free flight mode)
     if (!lockTarget) {
@@ -195,18 +197,14 @@ export function applyInputToCamera(
         if (rollL) camera.rotateZ(rotSpeed);
         if (rollR) camera.rotateZ(-rotSpeed);
 
-        if (Math.abs(zoomVelocity.current) > 0.01) {
-            camera.translateZ(zoomVelocity.current * delta * 10.0);
-            zoomVelocity.current *= 0.9;
-        }
+        camera.translateZ(zoomDistance * 10);
     } else if (lockTarget.mesh) {
         // Lock-on mode with orbital camera
-        const targetPos = new THREE.Vector3();
+        const targetPos = targetPosition;
         lockTarget.mesh.getWorldPosition(targetPos);
 
         // Apply zoom
-        lockTarget.distance += zoomVelocity.current * delta * 50;
-        zoomVelocity.current *= 0.9;
+        lockTarget.distance += zoomDistance * 50;
 
         const minD = Cosmos.getObjectRadius(lockTarget.mesh) * 1.5;
         lockTarget.distance = Math.max(minD, lockTarget.distance);
@@ -224,8 +222,8 @@ export function applyInputToCamera(
 
         // Apply gamepad right stick for orbit
         if (gamepad) {
-            const ax2 = gamepad.axes[2];
-            const ax3 = gamepad.axes[3];
+            const ax2 = gamepad.axes[2] ?? 0;
+            const ax3 = gamepad.axes[3] ?? 0;
             if (Math.abs(ax2) > DEADZONE) lockTarget.theta -= ax2 * 2.0 * delta;
             if (Math.abs(ax3) > DEADZONE) {
                 lockTarget.phi = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, lockTarget.phi + ax3 * 2.0 * delta));
@@ -233,7 +231,7 @@ export function applyInputToCamera(
         }
 
         const dist = lockTarget.distance;
-        const offset = new THREE.Vector3();
+        const offset = cameraOffset;
 
         if (lockTarget.isTop) {
             offset.set(0, dist, 0);
@@ -247,14 +245,14 @@ export function applyInputToCamera(
             camera.up.set(0, 1, 0);
         }
 
-        const desiredPos = targetPos.clone().add(offset);
+        const desiredPos = desiredPosition.copy(targetPos).add(offset);
 
         // Distance-adaptive lerp: slower for large distances creates smooth "warp travel" effect
         const travelDist = camera.position.distanceTo(desiredPos);
         const lerpFactor = travelDist > 100
             ? Math.max(0.01, Math.min(0.05, 100 / travelDist))
             : Cosmos.CAMERA.LERP_FACTOR;
-        camera.position.lerp(desiredPos, lerpFactor);
+        camera.position.lerp(desiredPos, dampingFactor(lerpFactor, delta));
 
         // Instant lookAt keeps locked target stable on screen
         camera.lookAt(targetPos);

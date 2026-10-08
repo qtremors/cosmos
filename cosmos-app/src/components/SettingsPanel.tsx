@@ -1,5 +1,6 @@
 import React from 'react';
 import { Cosmos } from '../core/SDK';
+import { QUALITY_PRESETS, type QualityLevel } from '../core/Quality';
 
 interface SettingsPanelProps {
     isOpen: boolean;
@@ -8,6 +9,8 @@ interface SettingsPanelProps {
     isPaused: boolean;
     onPauseToggle: () => void;
     currentSystem?: string; // 'Solar System' | 'Quantumania' | 'Interstellar Space'
+    quality: QualityLevel;
+    onQualityChange: (quality: QualityLevel) => void;
 }
 
 const TIME_PRESETS = [
@@ -29,6 +32,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     isPaused,
     onPauseToggle,
     currentSystem = 'Solar System',
+    quality,
+    onQualityChange,
 }) => {
     // Time controls are disabled in Quantumania (forced real-time)
     const isTimeControlDisabled = currentSystem === 'Quantumania';
@@ -39,12 +44,24 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     };
 
     return (
-        <div className="settings-panel-inline" onClick={(e) => e.stopPropagation()}>
+        <section className="settings-panel-inline" aria-labelledby="settings-title" data-ui>
             <div className="settings-header">
-                <h2>Settings</h2>
+                <h2 id="settings-title">Settings</h2>
             </div>
 
             <div className="settings-content">
+                <section className="settings-section">
+                    <h3>Graphics</h3>
+                    <p className="setting-description">Use Low for smoother exploration on slower devices.</p>
+                    <div className="preset-buttons" aria-label="Graphics quality">
+                        {(Object.keys(QUALITY_PRESETS) as QualityLevel[]).map(level => (
+                            <button type="button" key={level} className={`preset-button ${quality === level ? 'active' : ''}`}
+                                aria-pressed={quality === level} onClick={() => onQualityChange(level)}>
+                                {QUALITY_PRESETS[level].label}
+                            </button>
+                        ))}
+                    </div>
+                </section>
                 {/* Time Controls Section */}
                 <section className="settings-section">
                     <h3>Time</h3>
@@ -60,7 +77,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                             <div className="settings-row">
                                 <div className="time-controls-row">
                                     <button
+                                        type="button"
                                         className={`pause-button ${isPaused ? 'paused' : ''}`}
+                                        aria-pressed={isPaused}
                                         onClick={onPauseToggle}
                                     >
                                         {isPaused ? '▶ Play' : '⏸ Pause'}
@@ -73,10 +92,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                                 <div className="preset-buttons">
                                     {TIME_PRESETS.map(preset => (
                                         <button
+                                            type="button"
                                             key={preset.label}
                                             className={`preset-button ${timeScale === preset.value ? 'active' : ''}`}
                                             onClick={() => onTimeScaleChange(preset.value)}
                                             title={preset.description}
+                                            aria-pressed={timeScale === preset.value}
                                         >
                                             {preset.label}
                                         </button>
@@ -112,11 +133,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                             <h4>Interface</h4>
                             <div className="control-item"><kbd>L</kbd> Labels | <kbd>H</kbd> HUD</div>
                             <div className="control-item"><kbd>T</kbd> Top View | <kbd>Esc</kbd> Unlock</div>
+                            <div className="control-item"><kbd>N</kbd> Next object | <kbd>Tab</kbd> Navigate interface</div>
                         </div>
                     </div>
                 </section>
             </div>
-        </div>
+        </section>
     );
 };
 

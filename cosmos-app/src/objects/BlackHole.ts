@@ -22,7 +22,6 @@ export class BlackHole extends THREE.Group {
     private core: THREE.Mesh;
     private label: CSS2DObject;
     private material: THREE.ShaderMaterial;
-    private clock: THREE.Clock;
 
     private tmpBlackHoleWorldPos = new THREE.Vector3();
     private tmpCamWorldPos = new THREE.Vector3();
@@ -31,7 +30,6 @@ export class BlackHole extends THREE.Group {
     constructor() {
         super();
 
-        this.clock = new THREE.Clock();
 
         const angle = Math.PI * 0.75;
         this.position.set(
@@ -58,6 +56,7 @@ export class BlackHole extends THREE.Group {
             fragmentShader,
             uniforms: {
                 uTime: { value: 0 },
+                uSteps: { value: 96 },
                 uCamPos: { value: new THREE.Vector3(0, 5, 18) },
             },
             transparent: true,
@@ -81,8 +80,11 @@ export class BlackHole extends THREE.Group {
         this.add(this.label);
     }
 
-    update(_time: number, camera: THREE.Camera): void {
-        const independentTime = this.clock.getElapsedTime();
+    setRaySteps(steps: number): void {
+        this.material.uniforms.uSteps.value = Math.max(1, Math.min(150, Math.round(steps)));
+    }
+
+    update(_time: number, camera: THREE.Camera, independentTime: number): void {
 
         this.material.uniforms.uTime.value = independentTime;
 
@@ -92,6 +94,7 @@ export class BlackHole extends THREE.Group {
         camera.getWorldPosition(this.tmpCamWorldPos);
         this.tmpRelativePos.subVectors(this.tmpCamWorldPos, this.tmpBlackHoleWorldPos);
         const distance = this.tmpRelativePos.length();
+        if (distance < 1e-6) this.tmpRelativePos.set(0, 0, 1);
 
         const shaderRadius = Math.max(14, Math.min(30, distance / 20));
 

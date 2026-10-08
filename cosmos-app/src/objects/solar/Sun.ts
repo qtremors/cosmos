@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { noiseFunctions } from '../../materials/Noise';
 import { Cosmos } from '../../core/SDK';
@@ -16,6 +17,7 @@ const coronaFragmentShader = coronaFragmentShaderRaw.replace('// NOISE_FUNCTIONS
 
 
 export class Sun extends THREE.Group {
+    private worldPosition = new THREE.Vector3();
   public readonly radius: number;
 
   private surface: THREE.Mesh;
@@ -27,12 +29,12 @@ export class Sun extends THREE.Group {
   private coronaMat: THREE.ShaderMaterial;
   private glareMat: THREE.ShaderMaterial;
 
-  constructor(radius: number = Cosmos.UNITS.SOLAR_RADIUS) {
+  constructor(radius: number = Cosmos.UNITS.SOLAR_RADIUS, assets = new SceneAssets()) {
     super();
     this.radius = radius;
 
-    const loader = new THREE.TextureLoader();
-    const sunTexture = loader.load('/textures/2k_sun.jpg');
+    const loader = assets;
+    const sunTexture = loader.loadTexture('/textures/2k_sun.jpg');
 
     const sunGeo = new THREE.SphereGeometry(radius, 64, 64);
     this.sunMat = new THREE.ShaderMaterial({
@@ -95,7 +97,7 @@ export class Sun extends THREE.Group {
 
     this.glare.lookAt(camera.position);
 
-    const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
+    const dist = camera.position.distanceTo(this.getWorldPosition(this.worldPosition));
     const opacity = Cosmos.getAdaptiveGlareOpacity(dist, this.radius);
     this.glareMat.uniforms.uOpacity.value = opacity;
 

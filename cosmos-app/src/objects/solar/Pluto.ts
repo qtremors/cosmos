@@ -1,10 +1,12 @@
 import * as THREE from 'three';
+import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos, MoonConfig } from '../../core/SDK';
 
 
 
 class Charon extends THREE.Mesh {
+    private worldPosition = new THREE.Vector3();
     public readonly config: MoonConfig;
     private initialAngle: number;
     private label: CSS2DObject;
@@ -43,7 +45,7 @@ class Charon extends THREE.Mesh {
         this.position.x = Math.cos(angle) * distance;
         this.position.z = Math.sin(angle) * distance;
 
-        const worldPos = new THREE.Vector3();
+        const worldPos = this.worldPosition;
         this.getWorldPosition(worldPos);
         const dist = camera.position.distanceTo(worldPos);
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.config.RADIUS));
@@ -53,6 +55,7 @@ class Charon extends THREE.Mesh {
 
 
 export class Pluto extends THREE.Group {
+    private worldPosition = new THREE.Vector3();
     public readonly radius: number;
     public readonly charon: Charon;
 
@@ -60,15 +63,15 @@ export class Pluto extends THREE.Group {
     private label: CSS2DObject;
     private initialAngle: number;
 
-    constructor() {
+    constructor(assets = new SceneAssets()) {
         super();
 
         const config = Cosmos.PLANETS.PLUTO;
         this.radius = config.RADIUS;
         this.initialAngle = Math.random() * Math.PI * 2;
 
-        const loader = new THREE.TextureLoader();
-        const texture = loader.load('/textures/Pluto.jpg');
+        const loader = assets;
+        const texture = loader.loadTexture('/textures/Pluto.jpg');
 
         const geometry = new THREE.SphereGeometry(this.radius, 32, 32);
 
@@ -134,7 +137,7 @@ export class Pluto extends THREE.Group {
 
         this.charon.update(time, camera);
 
-        const dist = camera.position.distanceTo(this.getWorldPosition(new THREE.Vector3()));
+        const dist = camera.position.distanceTo(this.getWorldPosition(this.worldPosition));
         this.label.element.style.opacity = String(Cosmos.getLabelOpacity(dist, this.radius));
     }
 }

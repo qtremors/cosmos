@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { GLBEntity } from './GLBEntity';
+import { SceneAssets } from '../../core/SceneAssets';
 
 export class Mountains extends THREE.Group {
     public readonly items: GLBEntity[] = [];
 
-    constructor(center: THREE.Vector3) {
+    constructor(center: THREE.Vector3, assets = new SceneAssets()) {
         super();
 
         const configs = [
@@ -37,7 +38,7 @@ export class Mountains extends THREE.Group {
                 );
             } else {
                 const surroundRadius = 500 + (Math.random() * 400); // Distance from Nexus
-                
+
                 pos = new THREE.Vector3(
                     center.x + Math.cos(cfg.angle) * surroundRadius,
                     (Math.random() * 100) - 50,
@@ -45,7 +46,7 @@ export class Mountains extends THREE.Group {
                 );
             }
 
-            const mountain = new GLBEntity(pos, cfg.file, cfg.name, cfg.scale, 50, cfg.color, 2);
+            const mountain = new GLBEntity(pos, cfg.file, cfg.name, cfg.scale, 50, cfg.color, 2, assets);
             this.add(mountain);
             this.items.push(mountain);
         });

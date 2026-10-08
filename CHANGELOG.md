@@ -2,9 +2,26 @@
 
 > **Project:** Cosmos  
 > **Version:** 2.1.0  
-> **Last Updated:** 2026-02-16
+> **Last Updated:** 2026-10-08
 
 ---
+
+## [Unreleased] - 2026-10-08
+
+### Reliability and performance
+- Cancel animation on teardown and release scene resources, asset requests, and animation mixers.
+- Preserve radar blips across HUD toggles; correct speed sampling and kilometre conversions.
+- Add persistent graphics presets covering shadows, asteroids, stars, shader steps, and pixel ratio.
+- Defer hidden cosmic models, split the GLTF loader, bound model loading, and add visible loading/retry behavior.
+- Use elapsed-time controls/animations and reuse temporary vectors.
+- Correct unsafe black-hole pole-view normalization and reversed GLSL smoothstep edges.
+
+### Interface and maintenance
+- Add searchable, keyboard-accessible object navigation and responsive panels.
+- Reserve Tab for interface navigation; use N to cycle objects. Support canvas mouse/touch dragging and input reset on focus loss.
+- Require explicit entity categories and preserve proxy identity.
+- Enable TypeScript linting, enforce strict checks in builds, update dependencies, and add CI plus unit/browser regressions.
+- Refresh README, developer documentation, and the task backlog.
 
 ## [2.1.0] - 2026-02-16
 

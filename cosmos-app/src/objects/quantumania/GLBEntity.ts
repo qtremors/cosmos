@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 export class GLBEntity extends THREE.Group {
@@ -17,7 +17,7 @@ export class GLBEntity extends THREE.Group {
     private placeholderGeo: THREE.BoxGeometry;
     private placeholderMat: THREE.MeshBasicMaterial;
     private isLoaded: boolean = false;
-    private isLoading: boolean = false;
+    private loadPromise: Promise<void> | null = null;
 
     constructor(
         position: THREE.Vector3,
@@ -26,7 +26,8 @@ export class GLBEntity extends THREE.Group {
         scale: number = 50,
         radius: number = 50,
         colorHex: string = '#ffffff',
-        layer: number = 0
+        layer: number = 0,
+        private assets = new SceneAssets()
     ) {
         super();
         this.position.copy(position);
@@ -56,56 +57,47 @@ export class GLBEntity extends THREE.Group {
     }
 
     loadModel(): Promise<void> {
-        if (this.isLoaded || this.isLoading) {
-            return Promise.resolve();
-        }
+        if (this.isLoaded) return Promise.resolve();
+        if (this.loadPromise) return this.loadPromise;
+        this.loadPromise = this.assets.loadModel(this.modelPath).then(gltf => {
+            this.remove(this.placeholder);
+            this.placeholderGeo.dispose();
+            this.placeholderMat.dispose();
 
-        this.isLoading = true;
+            this.model = gltf.scene;
+            const finalScale = this.modelScale * 1.5;
+            this.model.scale.set(finalScale, finalScale, finalScale);
 
-        return new Promise((resolve, reject) => {
-            const loader = new GLTFLoader();
-            loader.load(this.modelPath, (gltf) => {
-                this.remove(this.placeholder);
-                this.placeholderGeo.dispose();
-                this.placeholderMat.dispose();
+            this.model.traverse((child) => {
+                child.layers.set(this.layer);
+                if ((child as THREE.Mesh).isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
 
-                this.model = gltf.scene;
-                const finalScale = this.modelScale * 1.5;
-                this.model.scale.set(finalScale, finalScale, finalScale);
-
-                this.model.traverse((child) => {
-                    child.layers.set(this.layer);
-                    if ((child as THREE.Mesh).isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-
-                        const m = child as THREE.Mesh;
-                        if (m.material) {
-                            const materials = Array.isArray(m.material) ? m.material : [m.material];
-                            materials.forEach(mat => {
-                                if (mat instanceof THREE.MeshStandardMaterial) {
-                                    mat.roughness = 0.7;
-                                    mat.metalness = 0.2;
-                                    mat.emissive = new THREE.Color(0x222222);
-                                    mat.emissiveIntensity = 0.2;
-                                }
-                            });
-                        }
+                    const m = child as THREE.Mesh;
+                    if (m.material) {
+                        const materials = Array.isArray(m.material) ? m.material : [m.material];
+                        materials.forEach(mat => {
+                            if (mat instanceof THREE.MeshStandardMaterial) {
+                                mat.roughness = 0.7;
+                                mat.metalness = 0.2;
+                                mat.emissive = new THREE.Color(0x222222);
+                                mat.emissiveIntensity = 0.2;
+                            }
+                        });
                     }
-                });
-
-                this.add(this.model);
-                this.isLoaded = true;
-                this.isLoading = false;
-                resolve();
-            }, undefined, (error) => {
-                console.error(`Failed to load model: ${this.modelPath}`, error);
-                this.placeholderMat.opacity = 1.0;
-                this.placeholderMat.color.set(0xff0000);
-                this.isLoading = false;
-                reject(error);
+                }
             });
-        });
+
+            this.add(this.model);
+            this.isLoaded = true;
+
+        }).catch(error => {
+            this.placeholderMat.opacity = 1;
+            this.placeholderMat.color.set(0xff0000);
+            throw error;
+        }).finally(() => { this.loadPromise = null; });
+        return this.loadPromise;
     }
 
     get loaded(): boolean {

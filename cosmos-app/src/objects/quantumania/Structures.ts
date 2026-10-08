@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { GLBEntity } from './GLBEntity';
+import { SceneAssets } from '../../core/SceneAssets';
 
 export class Structures extends THREE.Group {
     public readonly items: GLBEntity[] = [];
 
-    constructor(center: THREE.Vector3) {
+    constructor(center: THREE.Vector3, assets = new SceneAssets()) {
         super();
 
         const configs = [
@@ -20,7 +21,7 @@ export class Structures extends THREE.Group {
         const platesAngle = 0;
         const platesX = center.x + Math.cos(platesAngle) * platesDist;
         const platesZ = center.z + Math.sin(platesAngle) * platesDist;
-        
+
 
         const spawnRadius = 150;
 
@@ -35,8 +36,8 @@ export class Structures extends THREE.Group {
             const colors = ['#aaddff', '#ccaaff', '#88ffff', '#ffffff', '#aaaaff'];
             const color = colors[Math.floor(Math.random() * colors.length)];
 
-            const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2);
-            
+            const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2, assets);
+
 
             entity.floating = false;
             entity.rotationSpeed = 0;

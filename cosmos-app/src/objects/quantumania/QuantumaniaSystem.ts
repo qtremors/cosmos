@@ -7,16 +7,9 @@ import { Structures } from './Structures';
 import { Ships } from './Ships';
 import { Inhabitants } from './Inhabitants';
 import { GLBEntity } from './GLBEntity';
+import { SceneAssets } from '../../core/SceneAssets';
+import { EntityCategory, type EntityInfo } from '../../core/Entity';
 
-
-export interface QuantumaniaEntity {
-    mesh: THREE.Object3D;
-    id: string;
-    color: string;
-    label: string;
-    radius: number;
-    system: SystemId;
-}
 
 export class QuantumaniaSystem extends THREE.Group {
     public readonly heliosphere: Heliosphere;
@@ -26,18 +19,20 @@ export class QuantumaniaSystem extends THREE.Group {
     public readonly ships: Ships;
     public readonly inhabitants: Inhabitants;
 
-    public readonly allItems: THREE.Group[] = [];
+    private readonly modelItems: (Nexus | GLBEntity)[];
+    private loadingComplete = false;
     private distantBeacon: THREE.Sprite;
-    private isExternallyVisible: boolean = true;
-    private clock: THREE.Clock;
+    private isExternallyVisible: boolean = false;
+    private disposed = false;
+    private loadQueue: Promise<void> | null = null;
+    private failedItems = new Set<Nexus | GLBEntity>();
 
     private center: THREE.Vector3;
 
-    constructor() {
+    constructor(assets = new SceneAssets()) {
         super();
 
         this.center = SystemManager.QUANTUMANIA_CENTER.clone();
-        this.clock = new THREE.Clock();
 
         this.heliosphere = new Heliosphere(
             SystemManager.QUANTUMANIA_RADIUS,
@@ -47,21 +42,21 @@ export class QuantumaniaSystem extends THREE.Group {
         );
         this.add(this.heliosphere);
 
-        this.nexus = new Nexus(this.center.clone());
+        this.nexus = new Nexus(this.center.clone(), assets);
         this.add(this.nexus);
-        this.allItems.push(this.nexus);
 
-        this.mountains = new Mountains(this.center);
+        this.mountains = new Mountains(this.center, assets);
         this.add(this.mountains);
 
-        this.structures = new Structures(this.center);
+        this.structures = new Structures(this.center, assets);
         this.add(this.structures);
 
-        this.ships = new Ships(this.center);
+        this.ships = new Ships(this.center, assets);
         this.add(this.ships);
 
-        this.inhabitants = new Inhabitants(this.center);
+        this.inhabitants = new Inhabitants(this.center, assets);
         this.add(this.inhabitants);
+        this.modelItems = [this.nexus, ...this.mountains.items, ...this.structures.items, ...this.ships.items, ...this.inhabitants.items];
 
         this.distantBeacon = this.createDistantBeacon();
         this.add(this.distantBeacon);
@@ -98,8 +93,7 @@ export class QuantumaniaSystem extends THREE.Group {
         return beacon;
     }
 
-    update(time: number, camera: THREE.Camera): void {
-        const independentTime = this.clock.getElapsedTime();
+    update(time: number, camera: THREE.Camera, independentTime: number): void {
 
         if (!this.isExternallyVisible) {
             this.heliosphere.visible = false;
@@ -137,65 +131,53 @@ export class QuantumaniaSystem extends THREE.Group {
     }
 
     setVisible(visible: boolean): void {
-        const wasVisible = this.isExternallyVisible;
         this.isExternallyVisible = visible;
-
-        if (visible && !wasVisible) {
-            this.loadModelsSequentially();
+        if (visible && !this.disposed && !this.loadQueue && !this.loadingComplete) {
+            this.loadQueue = this.loadModelsSequentially().finally(() => {
+                this.loadQueue = null;
+                this.loadingComplete = this.modelItems.every(item => item.loaded || this.failedItems.has(item));
+            });
         }
     }
 
     private async loadModelsSequentially(): Promise<void> {
-        console.log('[Quantumania] Starting sequential model loading...');
-
-        try {
-            await this.nexus.loadModel();
-            console.log('[Quantumania] Nexus loaded');
-        } catch (e) {
-            console.error('[Quantumania] Failed to load Nexus:', e);
+        for (const item of this.modelItems) {
+            if (this.disposed || !this.isExternallyVisible) return;
+            if (item.loaded || this.failedItems.has(item)) continue;
+            try { await item.loadModel(); }
+            catch { if (!this.disposed) this.failedItems.add(item); }
         }
-
-        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-        for (const item of this.mountains.items) {
-            await delay(100);
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
-        }
-
-        for (const item of this.structures.items) {
-            await delay(100);
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
-        }
-
-        for (const item of this.ships.items) {
-            await delay(100);
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
-        }
-
-        for (const item of this.inhabitants.items) {
-            await delay(100);
-            item.loadModel().catch(e => console.error(`[Quantumania] Failed to load ${item.entityName}:`, e));
-        }
-
-        console.log('[Quantumania] All models loaded');
     }
 
-    getEntities(): QuantumaniaEntity[] {
-        const entities: QuantumaniaEntity[] = [];
+    retryFailedModels(): void {
+        this.failedItems.clear();
+        this.loadingComplete = false;
+        this.setVisible(this.isExternallyVisible);
+    }
+
+    dispose(): void {
+        this.disposed = true;
+        this.isExternallyVisible = false;
+    }
+
+    getEntities(): EntityInfo[] {
+        const entities: EntityInfo[] = [];
 
         entities.push({
             mesh: this.nexus,
             id: 'quantumania-nexus',
+            category: EntityCategory.NEXUS,
             color: '#aa88ff',
             label: 'Nexus',
             radius: this.nexus.radius,
             system: SystemId.QUANTUMANIA,
         });
 
-        const addItems = (items: GLBEntity[], category: string) => {
+        const addItems = (items: GLBEntity[], category: EntityCategory) => {
             items.forEach((item, index) => {
                 entities.push({
                     mesh: item,
+                    category,
                     id: `quantumania-${category}-${item.entityName}-${index}`,
                     color: item.entityName === 'MountForest' ? '#4a8c3f' : '#ffffff',
                     label: item.entityName,
@@ -205,10 +187,10 @@ export class QuantumaniaSystem extends THREE.Group {
             });
         };
 
-        addItems(this.mountains.items, 'mountain');
-        addItems(this.structures.items, 'structure');
-        addItems(this.ships.items, 'ship');
-        addItems(this.inhabitants.items, 'inhabitant');
+        addItems(this.mountains.items, EntityCategory.MOUNTAIN);
+        addItems(this.structures.items, EntityCategory.STRUCTURE);
+        addItems(this.ships.items, EntityCategory.SHIP);
+        addItems(this.inhabitants.items, EntityCategory.INHABITANT);
 
         return entities;
     }

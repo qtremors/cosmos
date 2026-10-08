@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SceneAssets } from '../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 import celestialVertexShader from '../shaders/alienx/alienx.vert.glsl?raw';
@@ -16,17 +17,15 @@ export class AlienX extends THREE.Group {
     private starUniforms: { uTime: { value: number }, uResolution: { value: THREE.Vector2 }, uTexture: { value: THREE.Texture | null } };
     private glowSprite: THREE.Sprite | undefined;
 
-    private clock: THREE.Clock;
 
-    constructor() {
+    constructor(assets = new SceneAssets()) {
         super();
 
-        this.clock = new THREE.Clock();
         this.alienGroup = new THREE.Group();
         this.add(this.alienGroup);
 
-        const loader = new THREE.TextureLoader();
-        const texture = loader.load('/textures/alienx.png');
+        const loader = assets;
+        const texture = loader.loadTexture('/textures/alienx.png');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
 
@@ -284,8 +283,7 @@ export class AlienX extends THREE.Group {
         return new THREE.CanvasTexture(canvas);
     }
 
-    update(_time: number, camera: THREE.Camera): void {
-        const independentTime = this.clock.getElapsedTime();
+    update(_time: number, camera: THREE.Camera, independentTime: number): void {
         this.starUniforms.uTime.value = independentTime;
         this.starUniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
 

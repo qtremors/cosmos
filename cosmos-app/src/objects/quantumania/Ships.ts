@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { GLBEntity } from './GLBEntity';
+import { SceneAssets } from '../../core/SceneAssets';
 
 export class Ships extends THREE.Group {
     public readonly items: GLBEntity[] = [];
 
-    constructor(center: THREE.Vector3) {
+    constructor(center: THREE.Vector3, assets = new SceneAssets()) {
         super();
 
         const configs = [
@@ -23,7 +24,7 @@ export class Ships extends THREE.Group {
             0,
             center.z + Math.sin(platesAngle) * platesDist
         );
-        
+
 
         const minOrbitR = 300;
         const maxOrbitR = 500;
@@ -39,13 +40,13 @@ export class Ships extends THREE.Group {
             const colors = ['#aaddff', '#ccaaff', '#88ffff', '#ffffff', '#aaaaff'];
             const color = colors[Math.floor(Math.random() * colors.length)];
 
-            const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2);
-            
+            const entity = new GLBEntity(pos, item.file, item.name, item.scale, 20, color, 2, assets);
+
 
             entity.userData.orbitRadius = radius;
             entity.userData.orbitAngle = angle;
             entity.userData.orbitSpeed = (0.2 + Math.random() * 0.3) * (Math.random() > 0.5 ? 1 : -1);
-            
+
 
             entity.rotationSpeed = 0;
 
@@ -67,16 +68,16 @@ export class Ships extends THREE.Group {
 
                 // Orbital Movement
                 if (item.userData.orbitSpeed) {
-                    item.userData.orbitAngle += item.userData.orbitSpeed * 0.01;
-                    item.position.x = platesCenter.x + Math.cos(item.userData.orbitAngle) * item.userData.orbitRadius;
-                    item.position.z = platesCenter.z + Math.sin(item.userData.orbitAngle) * item.userData.orbitRadius;
-                    
+                    const orbitAngle = item.userData.orbitAngle + item.userData.orbitSpeed * 0.6 * independentTime;
+                    item.position.x = platesCenter.x + Math.cos(orbitAngle) * item.userData.orbitRadius;
+                    item.position.z = platesCenter.z + Math.sin(orbitAngle) * item.userData.orbitRadius;
 
 
-                    const nextAngle = item.userData.orbitAngle + (item.userData.orbitSpeed > 0 ? 0.1 : -0.1);
+
+                    const nextAngle = orbitAngle + (item.userData.orbitSpeed > 0 ? 0.1 : -0.1);
                     const nextX = platesCenter.x + Math.cos(nextAngle) * item.userData.orbitRadius;
                     const nextZ = platesCenter.z + Math.sin(nextAngle) * item.userData.orbitRadius;
-                    
+
                     item.lookAt(nextX, item.position.y, nextZ);
                 }
             }

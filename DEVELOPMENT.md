@@ -2,7 +2,7 @@
 
 > Comprehensive documentation for developers working on Cosmos.
 
-**Version:** 2.1.0 | **Last Updated:** 2026-02-16
+**Version:** 2.1.0 | **Last Updated:** 2026-10-08
 
 ---
 
@@ -43,13 +43,23 @@ Cosmos follows a **Component-Based 3D Architecture**:
 └──────────────────────────────────────────────────────────────┘
 ```
 
+### Stack suitability
+
+React, TypeScript, Three.js, and Vite are appropriate for this project. React manages accessible interface state; Three.js owns the render loop, WebGL resources, scene graph, custom GLSL, and gamepad-driven camera. Keep simulation changes out of React's per-frame state updates, and pass only sampled HUD data to the UI.
+
+TypeScript makes entity metadata and loading/lifecycle contracts easier to maintain. Vite supports the static client and shader imports without requiring a server framework. Vitest covers deterministic calculations and ownership contracts; Playwright covers the browser, WebGL, focus, and interaction paths that unit tests cannot represent.
+
+A move to React Three Fiber is optional if declarative scene authoring becomes valuable. It would be a separate architectural choice, and would still require sensible asset, shader, and quality budgets. A framework migration is not required for the fixes in this branch.
+
 ### Key Design Decisions
 
 | Decision | Rationale |
 |----------|-----------|
 | Centralized SDK | All physics constants in one file for easy tuning |
 | Multi-system architecture | Enables separate lighting and LOD per system |
-| Lazy model loading | Prevents freeze when loading <53MB of GLB models (async loading) |
+| Scene-owned assets | Progress, fallback textures, retry, bounded model queues, and late-result disposal |
+| Graphics presets | Conservative shadow budgets and adjustable rendering cost |
+| Animation ownership | One cancellable RAF chain; bounded elapsed-time updates |
 | External GLSL shaders | Better IDE support and separation of concerns |
 
 ---
@@ -60,15 +70,19 @@ Cosmos follows a **Component-Based 3D Architecture**:
 cosmos/
 ├── cosmos-app/
 │   ├── src/
-│   │   ├── App.tsx               # Main component, animation loop (1001 lines)
+│   │   ├── App.tsx               # Scene coordination and React UI
 │   │   ├── main.tsx              # React entry point
 │   │   ├── index.css             # Glassmorphism UI styles
-│   │   ├── utils/            # Shared utilities
 │   │   ├── assets/           # Static assets (images, svg)
 │   │   ├── core/
 │   │   │   ├── SDK.ts            # Physics constants & utilities
 │   │   │   ├── InputHandler.ts   # Keyboard/mouse/gamepad input
-│   │   │   └── SystemManager.ts  # Multi-system singleton
+│   │   │   ├── SystemManager.ts  # Multi-system detection
+│   │   │   ├── SceneLifecycle.ts # Animation ownership and GPU cleanup
+│   │   │   ├── SceneAssets.ts    # Asset status, retry, and late-result handling
+│   │   │   ├── Quality.ts        # Persistent graphics presets
+│   │   │   ├── Simulation.ts     # Units, visibility constants, damping
+│   │   │   └── Entity.ts         # Shared required entity metadata
 │   │   ├── objects/
 │   │   │   ├── solar/            # Sun, planets (13 files)
 │   │   │   ├── quantumania/      # Mountains, structures, ships, inhabitants (7 files)
@@ -90,10 +104,10 @@ cosmos/
 │   │   ├── materials/
 │   │   │   └── Noise.ts          # Shared simplex noise GLSL
 │   │   └── __tests__/
-│   │       └── SDK.test.ts       # Vitest unit tests
+│   │       └── SDK.test.ts       # SDK, input, lifecycle, assets, system regressions
 │   └── public/
 │       ├── textures/             # 2K NASA textures
-│       └── models/               # 33 GLB models (~53MB)
+│       └── models/               # 34 GLB files; 26 Quantumania model entities
 ├── README.md                     # User-facing documentation
 ├── DEVELOPMENT.md                # This file
 ├── CHANGELOG.md                  # Version history
@@ -121,7 +135,7 @@ cosmos/
 | 1 | Solar System (planets, sun, moons) |
 | 2 | Quantumania (mountains, structures, ships, inhabitants) |
 
-Camera enables all layers. Sun light only affects Layer 1. Quantumania objects have independent lighting.
+Camera enables all layers. Layers select lights and objects against the camera. With all layers enabled in a single render pass, they do not guarantee illumination isolation between systems. Separate lighting remains a deferred project task.
 
 ### System Detection
 
@@ -189,30 +203,38 @@ Unified input handling.
 
 ---
 
+## Runtime ownership and loading
+
+`SceneLifecycle.startAnimationLoop` owns one RAF chain, cancels it during cleanup, skips hidden-tab updates, and caps long frame gaps. `disposeObject3D` releases shared geometry, materials, shader-uniform textures, skeletons, and light shadow resources. App removes listeners and invalidates asset/scene owners before disposing the renderer.
+
+Each scene has a `SceneAssets` manager. Texture failures receive a neutral fallback and a visible retry action. Model results arriving after disposal are released. Supported requests are aborted on teardown; image loading that cannot be aborted is guarded against stale callbacks.
+
+`GLBEntity` and `Nexus` retain the actual in-flight promise. Quantumania starts one sequential queue when shown and stops starting new requests when hidden. Failures are retried explicitly. Arishem and its interior models load when the camera approaches; the GLTF loader's JavaScript is also imported on demand.
+
+Quality presets apply without rebuilding the scene and persist under `cosmos-quality` in local storage. Low disables shadows; Medium uses 512-pixel shadows; High uses 1024-pixel shadows. Presets also control asteroid/star counts, black-hole raymarch steps, and the maximum pixel ratio.
+
+Orbit time follows the Solar System time controls. Cosmetic animations use active elapsed time independently. Explorer/Kyln movement pauses with the Solar simulation; full pause semantics remain a backlog item. Camera damping and zoom use real frame delta, and movement state resets when focus is lost.
+
 ## Testing
 
-### Running Tests
+Use Node.js 24, or Node.js 22.13+ on the supported 22.x line.
 
 ```bash
 cd cosmos-app
-
-# All tests
-npm test
-
-# Watch mode
-npm test -- --watch
-
-# With coverage
-npm test -- --coverage
+npm ci
+npm run check       # TypeScript lint, unit tests, strict production build
+npm run typecheck  # Standalone compiler check
+npm run test:watch # Unit test watch mode
+npx playwright install chromium
+npm run test:e2e
+npm audit
 ```
 
-### Test Coverage
+GitHub Actions runs project checks and Chromium regressions on pushes and pull requests. Failed browser checks retain traces as workflow artifacts.
 
-| Test File | Coverage |
-|-----------|----------|
-| `SDK.test.ts` | 12 tests for orbital mechanics |
+The current suite contains 30 unit tests across six files plus eight browser scenarios. Coverage targets animation ownership/teardown, late model disposal, loading promises and queue suspension/retry, input timing/boost, unit conversions, system transitions, HUD toggles, keyboard/search navigation, saved quality, small-screen layout, failed textures, deferred models, lost-keyup recovery, and black-hole shader compilation.
 
-**Areas needing tests**: InputHandler, SystemManager, planet classes
+If using an existing Chromium installation, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable path. The browser configuration supports software WebGL for CI; hardware performance must be measured separately.
 
 ---
 
@@ -235,9 +257,9 @@ npm run preview
 ### Production Checklist
 
 - [ ] All textures loading correctly
-- [ ] Models lazy-loading on Quantumania entry
+- [ ] Models load on selection/proximity and failed assets can be retried
 - [ ] No console errors
-- [ ] Bundle size acceptable (913KB chunk warning exists)
+- [ ] Initial bundle and on-demand GLTF chunk are measured; a large initial Three.js chunk warning still exists
 
 ---
 
@@ -254,12 +276,7 @@ npm run preview
 
 ### Debug Mode
 
-Open browser DevTools and check the console. All Three.js objects are accessible via:
-
-```javascript
-// In browser console
-window.__THREE_DEVTOOLS__
-```
+Open browser DevTools and check the console. Inspect scene/renderer state by setting a breakpoint in the scene update callback in `App.tsx`. The app does not expose a global scene object. Use the browser Performance/Memory panels to compare quality settings and repeated mount/unmount behavior.
 
 ---
 
@@ -267,7 +284,8 @@ window.__THREE_DEVTOOLS__
 
 ### Code Style
 
-- TypeScript strict mode enabled
+- TypeScript strict mode is enforced by `npm run build` and `npm run typecheck`
+- Run TypeScript ESLint and browser regressions for scene/input changes
 - Prefer `const` over `let`
 - Use SDK constants instead of magic numbers
 - Extract shaders to separate GLSL files
@@ -277,7 +295,7 @@ window.__THREE_DEVTOOLS__
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Make your changes
-4. Run tests (`npm test`)
+4. Run `npm run check` and relevant browser regressions (`npm run test:e2e`)
 5. Commit with clear messages
 6. Push and create a Pull Request
 
@@ -286,7 +304,7 @@ window.__THREE_DEVTOOLS__
 1. Add config to `SDK.ts` → `PLANETS`
 2. Create class in `src/objects/solar/`
 3. Add to scene in `App.tsx`
-4. Add to radar entities
+4. Add to radar entities with a unique ID, required category/system, and correct radius
 5. Update documentation
 
 ---

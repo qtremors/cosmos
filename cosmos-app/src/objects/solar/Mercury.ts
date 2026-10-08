@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SceneAssets } from '../../core/SceneAssets';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Cosmos, PlanetConfig } from '../../core/SDK';
 
@@ -12,15 +13,15 @@ export class Mercury extends THREE.Group {
   private data: PlanetConfig;
   private initialAngle: number;
 
-  constructor() {
+  constructor(assets = new SceneAssets()) {
     super();
 
     this.data = Cosmos.PLANETS.MERCURY;
     this.radius = this.data.RADIUS;
     this.initialAngle = Math.random() * Math.PI * 2;
 
-    const loader = new THREE.TextureLoader();
-    const texture = loader.load('/textures/2k_mercury.jpg');
+    const loader = assets;
+    const texture = loader.loadTexture('/textures/2k_mercury.jpg');
 
     const geometry = new THREE.SphereGeometry(this.radius, 64, 64);
 
