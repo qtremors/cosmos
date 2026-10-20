@@ -1,6 +1,6 @@
 # Cosmos Task Backlog
 
-> **Version:** 0.1.0 | **Last Updated:** 2026-10-20
+> **Version:** 0.1.1 | **Last Updated:** 2026-10-20
 
 Only unfinished work is listed. Development procedures belong in [DEVELOPMENT.md](DEVELOPMENT.md); model limitations belong in [COSMOS.md](COSMOS.md).
 

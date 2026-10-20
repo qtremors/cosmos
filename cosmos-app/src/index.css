@@ -102,6 +102,20 @@ kbd { background: #25252d; border: 1px solid var(--panel-border); border-radius:
 .scene-error h1 { font-size: 24px; }
 .scene-error p { max-width: 480px; line-height: 1.5; }
 .touch-controls { display: none; }
+.jet-controls { flex: 0 0 auto; display: grid; gap: 10px; padding: 12px 16px; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px; }
+.jet-controls label { display: grid; gap: 8px; }
+.jet-controls p { margin: 0; }
+.jet-controls-content { display: grid; gap: 10px; }
+.panel-disclosure-header, .panel-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.stats-hud .panel-disclosure-header { margin: -4px -4px 8px; }
+.stats-hud:has(#telemetry-content[hidden]) .panel-disclosure-header { margin-bottom: -4px; }
+.panel-toggle { min-width: 32px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--panel-border); border-radius: 6px; background: #25252d; color: var(--text-primary); font-size: 17px; pointer-events: auto; }
+.panel-toggle:hover { background: #34343e; }
+.object-info.is-collapsed, .performance-panel.is-collapsed { min-height: 0; flex: 0 0 auto; }
+.radar-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.radar-panel.is-collapsed, .settings-panel-inline.is-collapsed { height: auto; min-height: 0; align-self: start; }
+.ui-panels-container > .navigation-panels { pointer-events: none; }
+.navigation-panels > * { pointer-events: auto; }
 
 @media (max-width: 900px) {
     .navigation-panels { position: absolute; top: 0; left: 0; width: calc(100vw - 2 * var(--ui-inset)); }
@@ -124,4 +138,12 @@ kbd { background: #25252d; border: 1px solid var(--panel-border); border-radius:
     .context-panels { grid-area: 2 / 1; }
     .stats-hud { padding: 12px 16px; }
     .stats-hud-title { margin: 8px 0; padding-bottom: 8px; }
+    .jet-active .context-panels { grid-area: 1 / 1 / 3 / 2; position: relative; overflow: visible; }
+    .jet-active .stats-hud { position: absolute; top: 0; right: 0; width: calc(100% - var(--radar-size) - var(--ui-gap)); }
+    .jet-active .nearest-object, .jet-active .nearest-distance { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .jet-active .jet-controls { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; gap: 8px; }
+    .jet-active .jet-controls p { display: none; }
+    .jet-active .jet-controls p[role="status"] { display: block; grid-column: 1 / -1; }
+    .jet-active .jet-controls .jet-flight-hint { display: block; }
+    .jet-active .performance-panel { position: absolute; top: 150px; max-height: 170px; }
 }

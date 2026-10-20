@@ -2,11 +2,20 @@
 
 > **Project:** Cosmos
 >
-> **Version:** 0.1.0
+> **Version:** 0.1.1
 >
-> **Last Updated:** 2026-01-06
+> **Last Updated:** 2026-10-20
 
 ---
+
+## [0.1.1] - 2026-10-20
+
+- Collapse and expand telemetry, jet controls, object lists, settings, information, and performance panels individually.
+- Pilot a 20-metre jet with thrust, momentum, braking, smooth banked turns, engine plumes, and a separate chase camera.
+- Start camera and jet travel at 100 km/s, with slower flight near surfaces.
+- Keep flight shortcuts responsive after clicking panels.
+- Tap or hold Shift to accumulate travel speed, keep it on release, and use S to return to normal cruise.
+- Show live nearest-object distances in all telemetry views, measured from the ship while piloting.
 
 ## [0.1.0] - 2026-01-06
 

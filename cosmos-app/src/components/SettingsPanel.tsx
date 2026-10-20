@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TIME_PRESETS as TIME_VALUES } from '../core/TimeConfig';
 import { QUALITY_PRESETS, type QualityLevel } from '../core/Quality';
+import { PanelToggle } from './PanelToggle';
 
 interface SettingsPanelProps {
     isOpen: boolean;
@@ -45,6 +46,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     quality,
     onQualityChange,
 }) => {
+    const [collapsed, setCollapsed] = useState(false);
 
     if (!isOpen) return null;
 
@@ -53,12 +55,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     };
 
     return (
-        <section className="settings-panel-inline" aria-labelledby="settings-title" data-ui>
+        <section className={`settings-panel-inline${collapsed ? ' is-collapsed' : ''}`} aria-labelledby="settings-title" data-ui>
             <div className="settings-header">
                 <h2 id="settings-title">Settings</h2>
+                <PanelToggle name="settings" collapsed={collapsed} controls="settings-content" onToggle={() => setCollapsed(value => !value)} />
             </div>
 
-            <div className="settings-content">
+            <div className="settings-content" id="settings-content" hidden={collapsed}>
                 <section className="settings-section">
                     <h3>Graphics</h3>
                     <p className="setting-description">Use Low for smoother exploration on slower devices.</p>
@@ -99,7 +102,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     </label>
                     <button type="button" className="preset-button" onClick={onNow}>Now</button>
 
-                    <p className="setting-description">Pause freezes orbits, rotation, ships, model animation, and visual effects. Camera controls and loading stay available. Speed presets advance the dated astronomical model everywhere; decorative motion stays at real-time.</p>
+                    <p className="setting-description">Pause freezes orbits, rotation, scenery ships, model animation, and visual effects. Camera controls, piloted jet flight, and loading stay available. Speed presets advance the dated astronomical model everywhere; decorative motion stays at real-time.</p>
                     <button type="button" className={`pause-button ${isPaused ? 'paused' : ''}`} aria-pressed={isPaused} onClick={onPauseToggle}>{isPaused ? '▶ Play' : '⏸ Pause'}</button>
                             <div className="settings-row">
                                 <div className="setting-description">Speed: <span className="preset-label">{getActivePreset()}</span></div>
@@ -132,13 +135,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     <h3>Controls</h3>
                     <button type="button" className="preset-button" onClick={onResetView}>Reset view</button>
                     <p className="setting-description">Home returns to the Solar System overview. On touch screens, hold the flight buttons and drag the view to look.</p>
+                    <p className="setting-description">Camera and jet cruise at 100 km/s, slower near surfaces. Each Shift tap adds speed; holding Shift keeps accelerating with no speed cap. Release Shift to hold the reached speed and keep cruising. Hold S to slow to normal cruise, then release and press S again to brake the jet or move the camera backward. Touch Boost and gamepad boost use the same behavior.</p>
+                    <p className="setting-description">Choose Fly jet or press J to pilot the 20 m ship. W adds thrust, A/D banks into turns, R/F or up/down arrows pitches, left/right arrows yaws, and Q/E rolls. Dragging steers and scrolling adjusts throttle. Steering rolls the ship into a turn and smoothly levels it after release. The chase camera follows its heading and momentum. J or Esc despawns it; selecting an object returns to its orbit view.</p>
 
                     <div className="controls-grid">
                         <div className="control-group">
                             <h4>Movement</h4>
                             <div className="control-item"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div>
                             <div className="control-item"><kbd>R</kbd> Up | <kbd>F</kbd> Down</div>
-                            <div className="control-item"><kbd>Shift</kbd> Boost (hold longer = faster)</div>
+                            <div className="control-item"><kbd>Shift</kbd> Add speed · release to hold</div>
                         </div>
 
                         <div className="control-group">

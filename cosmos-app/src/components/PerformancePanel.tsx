@@ -1,6 +1,9 @@
 import type { PerformanceSnapshot } from '../core/Performance';
+import { useState } from 'react';
+import { PanelToggle } from './PanelToggle';
 
 export function PerformancePanel({ snapshot, onClose }: { snapshot: PerformanceSnapshot | null; onClose: () => void }) {
+    const [collapsed, setCollapsed] = useState(false);
     const download = () => {
         const gl = document.querySelector('canvas')?.getContext('webgl2');
         const debug = gl?.getExtension('WEBGL_debug_renderer_info');
@@ -9,9 +12,9 @@ export function PerformancePanel({ snapshot, onClose }: { snapshot: PerformanceS
         const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'cosmos-performance.json'; anchor.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
-    return <section className="performance-panel" data-ui aria-labelledby="performance-title">
-        <div className="panel-header"><h2 id="performance-title">Performance</h2><button type="button" className="close-btn" aria-label="Close performance" onClick={onClose}>×</button></div>
-        <div className="info-content">
+    return <section className={`performance-panel${collapsed ? ' is-collapsed' : ''}`} data-ui aria-labelledby="performance-title">
+        <div className="panel-header"><h2 id="performance-title">Performance</h2><div className="panel-actions"><PanelToggle name="performance" collapsed={collapsed} controls="performance-content" onToggle={() => setCollapsed(value => !value)} /><button type="button" className="close-btn" aria-label="Close performance" onClick={onClose}>×</button></div></div>
+        <div className="info-content" id="performance-content" hidden={collapsed}>
             {snapshot ? <>
                 <p>{snapshot.quality} · {snapshot.system} · {snapshot.samples} samples</p>
                 <dl><dt>Frame time p50 / p95</dt><dd>{snapshot.frameMsP50} / {snapshot.frameMsP95} ms</dd>

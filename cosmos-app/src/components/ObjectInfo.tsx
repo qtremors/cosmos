@@ -1,12 +1,15 @@
 import { BODY_DATA } from '../core/BodyData';
 import type { EntityInfo } from '../core/Entity';
+import { useState } from 'react';
+import { PanelToggle } from './PanelToggle';
 
 export function ObjectInfo({ entity, onClose }: { entity: EntityInfo; onClose: () => void }) {
+    const [collapsed, setCollapsed] = useState(false);
     const data = BODY_DATA[entity.label];
     const precise = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Moon', 'Io', 'Europa', 'Ganymede', 'Callisto'].includes(entity.label);
-    return <section className="object-info" data-ui aria-labelledby="object-info-title">
-        <div className="panel-header"><h2 id="object-info-title">{entity.label}</h2><button type="button" className="close-btn" aria-label="Close object information" onClick={onClose}>×</button></div>
-        <div className="info-content">
+    return <section className={`object-info${collapsed ? ' is-collapsed' : ''}`} data-ui aria-labelledby="object-info-title">
+        <div className="panel-header"><h2 id="object-info-title">{entity.label}</h2><div className="panel-actions"><PanelToggle name="object information" collapsed={collapsed} controls="object-info-content" onToggle={() => setCollapsed(value => !value)} /><button type="button" className="close-btn" aria-label="Close object information" onClick={onClose}>×</button></div></div>
+        <div className="info-content" id="object-info-content" hidden={collapsed}>
             <p>{data?.fact ?? (entity.label.includes('Belt') ? 'A representative population of small bodies at physical sizes and orbital distances.' : entity.isSystemProxy ? 'A navigation destination for exploring this system.' : 'A stylized or fictional object included for exploration. Its appearance and scale are artistic choices.')}</p>
             {entity.label.includes('Belt') && <p className="setting-description">Small markers make the rocks visible in wide views; marker size is a viewing aid. These rocks are not individually catalogued asteroids. Ceres and the named dwarf planets use sourced orbital elements.</p>}
             {data && <dl>

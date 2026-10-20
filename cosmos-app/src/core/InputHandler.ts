@@ -17,6 +17,11 @@ export interface InputState {
     rollRight: boolean;
     boost: boolean;
     boostHoldTime: number;
+    boostMultiplier: number;
+    boostPresses: number;
+    boostWasActive: boolean;
+    boostCruising: boolean;
+    brakingBoost: boolean;
     shiftLeft: boolean;
     shiftRight: boolean;
     pitchUp: boolean;
@@ -46,14 +51,19 @@ export function createInputState(): InputState {
     return {
         forward: false, back: false, left: false, right: false,
         up: false, down: false, rollLeft: false, rollRight: false,
-        boost: false, boostHoldTime: 0, shiftLeft: false, shiftRight: false, pitchUp: false, pitchDown: false, yawLeft: false, yawRight: false
+        boost: false, boostHoldTime: 0, boostMultiplier: 1, boostPresses: 0,
+        boostWasActive: false, boostCruising: false, brakingBoost: false,
+        shiftLeft: false, shiftRight: false, pitchUp: false, pitchDown: false, yawLeft: false, yawRight: false
     };
 }
 
 export function updateInputKey(state: InputState, code: string, pressed: boolean): void {
     switch (code) {
         case 'KeyW': state.forward = pressed; break;
-        case 'KeyS': state.back = pressed; break;
+        case 'KeyS':
+            state.back = pressed;
+            if (!pressed) state.brakingBoost = false;
+            break;
         case 'KeyA': state.left = pressed; break;
         case 'KeyD': state.right = pressed; break;
         case 'ArrowUp': state.pitchUp = pressed; break;
@@ -66,6 +76,7 @@ export function updateInputKey(state: InputState, code: string, pressed: boolean
         case 'KeyE': state.rollRight = pressed; break;
         case 'ShiftLeft':
         case 'ShiftRight':
+            if (pressed && !state.boost) state.boostPresses++;
             if (code === 'ShiftLeft') state.shiftLeft = pressed;
             else state.shiftRight = pressed;
             state.boost = state.shiftLeft || state.shiftRight;
@@ -79,24 +90,56 @@ export function pollGamepad(): Gamepad | null {
     return Array.from(gamepads).find(pad => pad?.connected && pad.mapping === 'standard') ?? null;
 }
 
-/**
- * Calculate current boost multiplier based on hold time.
- */
-function getProgressiveBoostMultiplier(state: InputState, delta: number, isBoosting: boolean): number {
-    if (!isBoosting) {
-        state.boostHoldTime = 0;
-        return 1;
+/** Shared action decoding for the free camera and the piloted ship. */
+export function readFlightInput(input: InputState, gamepad: Gamepad | null) {
+    const axis = (index: number) => {
+        const value = gamepad?.axes[index] ?? 0;
+        return Math.abs(value) > 0.15 ? value : 0;
+    };
+    return {
+        forward: Math.max(Number(input.forward), -axis(1), 0),
+        back: Math.max(Number(input.back), axis(1), 0),
+        left: Math.max(Number(input.left), -axis(0), 0),
+        right: Math.max(Number(input.right), axis(0), 0),
+        up: input.up || !!gamepad?.buttons[0]?.pressed,
+        down: input.down || !!gamepad?.buttons[1]?.pressed,
+        rollLeft: input.rollLeft || !!gamepad?.buttons[4]?.pressed,
+        rollRight: input.rollRight || !!gamepad?.buttons[5]?.pressed,
+        boost: input.boost || (gamepad?.buttons[7]?.value ?? 0) > 0.5,
+        zoomIn: !!gamepad?.buttons[12]?.pressed,
+        zoomOut: !!gamepad?.buttons[13]?.pressed,
+        lookX: axis(2), lookY: axis(3),
+        pitch: Number(input.pitchUp) - Number(input.pitchDown),
+        yaw: Number(input.yawLeft) - Number(input.yawRight),
+    };
+}
+
+/** Shift adds speed; release holds it. S sheds boost before ordinary braking. */
+export function getProgressiveBoostMultiplier(state: InputState, delta: number, isBoosting: boolean, isBraking = false): number {
+    const dt = Math.max(0, delta);
+    if (!isBraking) state.brakingBoost = false;
+    else if (state.boostMultiplier > 1) state.brakingBoost = true;
+    if (isBraking) {
+        // Keep this brake press in cruise recovery, even once normal speed is reached.
+        if (state.brakingBoost) state.boostMultiplier = Math.max(1, state.boostMultiplier * Math.exp(-2 * dt));
+        else state.boostCruising = false;
+    } else {
+        const presses = state.boostPresses || Number(isBoosting && !state.boostWasActive);
+        if (presses) {
+            state.boostMultiplier += presses * Cosmos.CONTROLS.BOOST_MULTIPLIER;
+            state.boostCruising = true;
+        }
+        if (isBoosting) {
+            state.boostCruising = true;
+            // Continuous acceleration, with no gameplay speed ceiling or stepped stages.
+            const accelerationOffset = 2 * Cosmos.CONTROLS.BOOST_MULTIPLIER - 1;
+            state.boostMultiplier += (state.boostMultiplier + accelerationOffset) * Math.expm1(0.5 * dt);
+        }
     }
-
-    state.boostHoldTime += delta;
-
-    // Every 2 seconds, increase multiplier by 10x
-    // 0-2s: 10x, 2-4s: 20x, 4-6s: 30x, ... max 100x
-    const baseMultiplier = Cosmos.CONTROLS.BOOST_MULTIPLIER; // 10x
-    const stages = Math.floor(state.boostHoldTime / 2); // 0, 1, 2, 3... every 2 seconds
-    const progressiveMultiplier = baseMultiplier * (1 + stages);
-
-    return Math.min(progressiveMultiplier, 100); // Cap at 100x
+    state.boostPresses = 0;
+    state.boostWasActive = isBoosting;
+    state.boostHoldTime = isBoosting ? state.boostHoldTime + dt : 0;
+    return state.boostMultiplier;
 }
 
 // =============================================================================
@@ -116,15 +159,12 @@ export function applyInputToCamera(
     const DEADZONE = 0.15;
     const SENSITIVITY = 0.002;
 
-    let moveFwd = input.forward;
-    let moveBack = input.back;
-    let moveLeft = input.left;
-    let moveRight = input.right;
-    let moveUp = input.up;
-    let moveDown = input.down;
-    let rollL = input.rollLeft;
-    let rollR = input.rollRight;
-    let doBoost = input.boost;
+    const controls = readFlightInput(input, gamepad);
+    const moveFwd = controls.forward > 0, moveBack = controls.back > 0;
+    const moveLeft = controls.left > 0, moveRight = controls.right > 0;
+    const moveUp = controls.up, moveDown = controls.down;
+    const rollL = controls.rollLeft, rollR = controls.rollRight;
+    const doBoost = controls.boost;
 
     // Mouse Look / Orbit (only apply in free flight, not in lock mode - handled separately)
     let orbitX = 0;
@@ -143,35 +183,35 @@ export function applyInputToCamera(
 
     // Gamepad input
     if (gamepad) {
-        const ax0 = gamepad.axes[0] ?? 0;
-        const ax1 = gamepad.axes[1] ?? 0;
         const ax2 = gamepad.axes[2] ?? 0;
         const ax3 = gamepad.axes[3] ?? 0;
-
-        if (ax1 < -DEADZONE) moveFwd = true;
-        if (ax1 > DEADZONE) moveBack = true;
-        if (ax0 < -DEADZONE) moveLeft = true;
-        if (ax0 > DEADZONE) moveRight = true;
-
-        if (gamepad.buttons[0]?.pressed) moveUp = true;
-        if (gamepad.buttons[1]?.pressed) moveDown = true;
 
         const RS_SENS = 2.0 * delta;
         if (!lockTarget && Math.abs(ax3) > DEADZONE) camera.rotateX(-ax3 * RS_SENS);
         if (!lockTarget && Math.abs(ax2) > DEADZONE) camera.rotateY(-ax2 * RS_SENS);
 
-        if (gamepad.buttons[4]?.pressed) rollL = true;
-        if (gamepad.buttons[5]?.pressed) rollR = true;
-        if (gamepad.buttons[7]?.value > 0.5) doBoost = true;
-
-        if (gamepad.buttons[12]?.pressed) zoomVelocity.current -= 60 * delta;
-        if (gamepad.buttons[13]?.pressed) zoomVelocity.current += 60 * delta;
+        if (controls.zoomIn) zoomVelocity.current -= 60 * delta;
+        if (controls.zoomOut) zoomVelocity.current += 60 * delta;
     }
 
     // Check if any movement key is pressed (for auto-unlock)
-    const isMoving = moveFwd || moveBack || moveLeft || moveRight || moveUp || moveDown;
-
-    const boostMultiplier = getProgressiveBoostMultiplier(input, delta, doBoost);
+    let travel = delta;
+    if (lockTarget) {
+        input.boostPresses = 0;
+        input.boostWasActive = doBoost;
+    } else {
+        getProgressiveBoostMultiplier(input, 0, doBoost, moveBack);
+        travel = 0;
+        let remaining = delta;
+        while (remaining > 1e-9) {
+            const step = Math.min(remaining, 1 / 120);
+            remaining -= step;
+            const previous = input.boostMultiplier;
+            const next = getProgressiveBoostMultiplier(input, step, doBoost, moveBack);
+            travel += (previous + next) * 0.5 * step;
+        }
+    }
+    const isMoving = moveFwd || moveBack || moveLeft || moveRight || moveUp || moveDown || (!lockTarget && input.boostCruising);
 
     const zoomDecay = Math.pow(0.9, delta * 60);
     const zoomDistance = zoomVelocity.current * (1 - zoomDecay) / (0.1 * 60);
@@ -179,11 +219,11 @@ export function applyInputToCamera(
 
     // Apply to camera (free flight mode)
     if (!lockTarget) {
-        const speed = flightSpeed * boostMultiplier * delta;
+        const speed = flightSpeed * travel;
         const rotSpeed = Cosmos.CONTROLS.ROLL_SPEED * delta;
 
-        if (moveFwd) camera.translateZ(-speed);
-        if (moveBack) camera.translateZ(speed);
+        if (moveFwd || input.boostCruising) camera.translateZ(-speed);
+        if (moveBack && !input.brakingBoost) camera.translateZ(speed);
         if (moveLeft) camera.translateX(-speed);
         if (moveRight) camera.translateX(speed);
         if (moveUp) camera.translateY(speed);

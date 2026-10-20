@@ -10,6 +10,10 @@ import { EMPTY_ASSET_STATUS } from './core/AssetStatus';
 import { getSavedQuality, saveQuality, type QualityLevel } from './core/Quality';
 import { readPreferences, savePreferences } from './core/Preferences';
 import type { SceneController, LockedInfo } from './core/SceneController';
+import { JetControls } from './components/JetControls';
+import type { JetStatus } from './core/JetConfig';
+import { PanelToggle } from './components/PanelToggle';
+import type { JetFlightState } from './core/JetFlight';
 
 export default function App() {
     const [saved] = useState(readPreferences);
@@ -18,8 +22,12 @@ export default function App() {
     const controllerRef = useRef<SceneController | null>(null);
     const [showLabels, setShowLabels] = useState(saved.showLabels);
     const [showUI, setShowUI] = useState(saved.showUI);
+    const [telemetryCollapsed, setTelemetryCollapsed] = useState(false);
     const [showRadarList, setShowRadarList] = useState(false);
     const [cameraSpeed, setCameraSpeed] = useState(0);
+    const [jetEnabled, setJetEnabled] = useState(false);
+    const [jetStatus, setJetStatus] = useState<JetStatus>('idle');
+    const [jetFlight, setJetFlight] = useState<JetFlightState>({ throttle: 0, boosting: false });
     const [lockedInfo, setLockedInfo] = useState<LockedInfo | null>(null);
     const [nearestObject, setNearestObject] = useState<{ name: string; distance: number } | null>(null);
     const [customEpoch, setCustomEpoch] = useState(saved.epoch);
@@ -42,7 +50,7 @@ export default function App() {
     const [showInfo, setShowInfo] = useState(() => saved.showInfo ?? !matchMedia('(max-width: 600px)').matches);
     const [darkSideFill, setDarkSideFill] = useState(saved.darkSideFill);
     const [starting, setStarting] = useState(true);
-    const settingsRef = useRef({ quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure });
+    const settingsRef = useRef({ quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure, jetEnabled });
     const closeRadar = useCallback(() => {
         setShowRadarList(false);
         radarButtonRef.current?.focus();
@@ -77,6 +85,8 @@ export default function App() {
                 onToggleLabels: () => setShowLabels(value => !value),
                 onToggleHUD: () => setShowUI(value => !value),
                 onPerformance: setPerformanceSnapshot, onDate: setSimulationDate,
+                onJetEnabled: setJetEnabled, onJetStatus: setJetStatus,
+                onJetFlight: setJetFlight,
             });
             setStarting(false);
         }).catch(() => { if (!cancelled) setSceneError('The exploration view could not start. Reload to try again.'); });
@@ -87,11 +97,11 @@ export default function App() {
         };
     }, [closeRadar]);
     useEffect(() => {
-        const settings = { quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure };
+        const settings = { quality, showLabels, timeScale, paused: isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure, jetEnabled };
         settingsRef.current = settings;
         controllerRef.current?.configure(settings);
         saveQuality(quality);
-    }, [quality, showLabels, timeScale, isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure]);
+    }, [quality, showLabels, timeScale, isPaused, darkSideFill, diagnostics, epoch, showOrbits, fiction, autoExposure, jetEnabled]);
     useEffect(() => {
         savePreferences({ showLabels, showUI, showOrbits, autoExposure, fiction, timeScale,
             paused: isPaused, darkSideFill, diagnostics, showInfo: infoPreference, epoch: customEpoch });
@@ -101,7 +111,7 @@ export default function App() {
 
             <div ref={mountRef} className="canvas-container" style={{ position: 'relative' }} />
 
-            <div className="hud-layer" hidden={!showUI} data-ui>
+            <div className={`hud-layer${jetEnabled ? ' jet-active' : ''}`} hidden={!showUI} data-ui>
                         {/* Main UI Container */}
                         <div className="ui-panels-container">
                             {/* Visual Radar Circle */}
@@ -162,6 +172,11 @@ export default function App() {
 
                         <aside className="context-panels" aria-label="Exploration information" hidden={showRadarList}>
                         <div className="stats-hud">
+                            <div className="panel-disclosure-header">
+                                <span>Telemetry</span>
+                                <PanelToggle name="telemetry" collapsed={telemetryCollapsed} controls="telemetry-content" onToggle={() => setTelemetryCollapsed(value => !value)} />
+                            </div>
+                            <div id="telemetry-content" hidden={telemetryCollapsed}>
                             <time className="simulation-date" dateTime={simulationDate}>{simulationDate.slice(0, 19).replace('T', ' ')} UTC</time>
                             <div className="setting-description">True scale · {isPaused ? 'Paused' : `${timeScale.toLocaleString()}× time`}</div>
                             {lockedInfo ? (
@@ -181,33 +196,39 @@ export default function App() {
                                 </>
                             ) : (
                                 <>
-                                    <div className="stats-hud-title">🚀 Free Flight</div>
-                                    <div className="stats-hud-row">
-                                        <span className="stats-hud-label">Camera speed:</span>
+                                    <div className="stats-hud-title">{jetEnabled ? 'Jet flight' : '🚀 Free Flight'}</div>
+                                    <div className="stats-hud-row flight-speed">
+                                        <span className="stats-hud-label">{jetEnabled ? 'Jet speed:' : 'Camera speed:'}</span>
                                         <span className="stats-hud-value">{cameraSpeed} km/s</span>
                                     </div>
-                                    {nearestObject && (
-                                        <>
-                                            <div className="stats-hud-row">
-                                                <span className="stats-hud-label">Nearest:</span>
-                                                <span className="stats-hud-value">{nearestObject.name}</span>
-                                            </div>
-                                            <div className="stats-hud-row">
-                                                <span className="stats-hud-label">Distance:</span>
-                                                <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
-                                            </div>
-                                        </>
-                                    )}
+                                    {jetEnabled && <div className="stats-hud-row flight-throttle">
+                                        <span className="stats-hud-label">Throttle{jetFlight.boosting ? ' · Boost cruise' : ''}:</span>
+                                        <span className="stats-hud-value">{Math.round(jetFlight.throttle * 100)}%</span>
+                                    </div>}
                                 </>
                             )}
+                            {nearestObject && <>
+                                <div className="stats-hud-row nearest-object">
+                                    <span className="stats-hud-label">Nearest object:</span>
+                                    <span className="stats-hud-value">{nearestObject.name}</span>
+                                </div>
+                                <div className="stats-hud-row nearest-distance" title={`Distance from the ${jetEnabled ? 'jet' : 'camera'} to the nearest object's centre. Orbiting objects keep moving when you stop.`}>
+                                    <span className="stats-hud-label">Distance to nearest:</span>
+                                    <span className="stats-hud-value">{nearestObject.distance.toLocaleString()} km</span>
+                                </div>
+                                <p className="setting-description nearest-distance-hint">Live distance · orbiting objects keep moving.</p>
+                            </>}
+                            </div>
                         </div>
+                        <JetControls enabled={jetEnabled} status={jetStatus}
+                            onToggle={() => setJetEnabled(value => !value)} />
                         {lockedEntity && (showInfo
                             ? <ObjectInfo entity={lockedEntity} onClose={() => { changeInfo(false); radarButtonRef.current?.focus(); }} />
                             : <button type="button" className="info-toggle" data-ui onClick={() => changeInfo(true)}>Object information</button>)}
                         {diagnostics && <PerformancePanel snapshot={performanceSnapshot} onClose={() => { setDiagnostics(false); radarButtonRef.current?.focus(); }} />}
                         </aside>
             </div>
-            <TouchControls onKey={touchKey} hidden={!showUI || showRadarList || Boolean(sceneError) || starting} />
+            <TouchControls onKey={touchKey} jet={jetEnabled} hidden={!showUI || showRadarList || Boolean(sceneError) || starting} />
             {starting && !sceneError && <div className="asset-status" role="status">Starting exploration…</div>}
             {(assetStatus.loading || assetStatus.failed.length > 0) && (
                 <div className="asset-status" role="status" data-ui>

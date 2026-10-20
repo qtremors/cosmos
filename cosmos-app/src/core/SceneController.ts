@@ -20,15 +20,21 @@ import { QUALITY_PRESETS, type QualityLevel } from './Quality';
 import { simulationDistanceToKm, VISIBILITY } from './Simulation';
 import { projectRadarPoint } from './Radar';
 import { sceneExposure } from './Lighting';
+import { JetFlight, type JetFlightState } from './JetFlight';
+import type { JetStatus } from './JetConfig';
 
 
 export interface LockedInfo {
     name: string; orbitalSpeed: number; refDist: number; refName: string; showOrbitalSpeed: boolean; viewDistanceKm: number;
 }
 export interface SceneSettings {
+    jetEnabled?: boolean;
     quality: QualityLevel; showLabels: boolean; timeScale: number; paused: boolean; darkSideFill: number; diagnostics: boolean; epoch: number; showOrbits: boolean; fiction: boolean; autoExposure: boolean;
 }
 export interface SceneOptions extends SceneSettings {
+    onJetEnabled?: (enabled: boolean) => void;
+    onJetStatus?: (status: JetStatus) => void;
+    onJetFlight?: (state: JetFlightState) => void;
     onDate: (date: string) => void;
     radarButton: HTMLButtonElement | null;
     onAssets: (status: AssetStatus) => void;
@@ -103,13 +109,33 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
     const lastCameraPos = cell(new THREE.Vector3());
     const teleportIndexRef = cell(0);
     const retryAssetsRef = cell(() => {});
+    const jet = new JetFlight(options.onJetStatus);
+    cleanup.push(() => jet.dispose());
+    let jetEnabled = false;
+    const setJetEnabled = (enabled: boolean) => {
+        if (jetEnabled === enabled || !cameraRef.current) return;
+        jetEnabled = enabled;
+        resetInput();
+        if (enabled) {
+            unlockCamera();
+            jet.enter(cameraRef.current);
+            void jet.load(assets);
+        } else jet.leave(cameraRef.current);
+        options.onJetEnabled?.(enabled);
+        options.onJetFlight?.({ throttle: 0, boosting: false });
+        mount.querySelector('canvas')?.focus();
+        lastCameraPos.current.copy(cameraRef.current.position);
+        setCameraSpeed(0);
+    };
     const { onAssets: setAssetStatus, onError: setSceneError, onEntities: setEntities,
         onSpeed: setCameraSpeed, onLockedInfo: setLockedInfo, onNearest: setNearestObject,
         onSystem: setCurrentSystem, onLock: setLockedEntity, onCloseRadar: closeRadar } = options;
     const lockOnTarget = (entity: EntityInfo) => {
+        setJetEnabled(false);
         const { mesh, radius } = entity;
         const camera = cameraRef.current;
         if (!camera) return;
+        resetInput();
         const targetPos = mesh.getWorldPosition(new THREE.Vector3());
         lastLockPosition.copy(targetPos);
         const relative = entity.viewDirection?.clone() ?? camera.position.clone().sub(targetPos);
@@ -154,6 +180,7 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
     const resetView = () => {
         const camera = cameraRef.current;
         if (!camera) return;
+        setJetEnabled(false);
         unlockCamera();
         resetInput();
         statsElapsed = 0;
@@ -173,6 +200,7 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
     } catch {
         assets.dispose();
+        jet.dispose();
         queueMicrotask(() => { if (!disposed) setSceneError('Your browser could not start the 3D view. Try enabling hardware acceleration or using another browser.'); });
         return { dispose() { disposed = true; }, lock() {}, unlock() {}, retry() {}, configure() {}, key() {}, resetView() {} };
     }
@@ -180,23 +208,34 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
     const resetInput = () => {
         inputRef.current = createInputState();
         keyboardCodes.clear(); touchCodes.clear();
+        jet.halt();
         isDragging.current = false;
         mouseDelta.current.x = mouseDelta.current.y = 0;
         zoomVelocity.current = 0;
     };
     const handleVisibility = () => { if (document.hidden) resetInput(); profiler.reset(); lastWallUpdate.current = performance.now(); };
     const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.defaultPrevented) return;
         const target = e.target;
-        if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return;
+        const flightKey = ['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyR', 'KeyF', 'KeyQ', 'KeyE', 'ShiftLeft', 'ShiftRight', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code);
+        const editing = target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]');
+        const rangeFlightKey = target instanceof HTMLInputElement && target.type === 'range'
+            && (flightKey || e.code === 'KeyJ') && !e.code.startsWith('Arrow');
+        if (editing && !rangeFlightKey) return;
         if (e.code === 'Home') { e.preventDefault(); resetView(); return; }
         if (e.key === 'Escape') {
             if (radarButtonRef.current?.getAttribute('aria-expanded') === 'true') closeRadar();
+            else if (jetEnabled) setJetEnabled(false);
             else unlockCamera();
             return;
         }
-        if (target instanceof HTMLElement && target.closest('[data-ui]') && !['h', 'l'].includes(e.key.toLowerCase())) return;
+        const inUI = target instanceof HTMLElement && target.closest('[data-ui]');
+        // Buttons keep native Space/Enter activation; flight keys still work after panel clicks.
+        if (inUI && !rangeFlightKey && !flightKey && !['KeyJ', 'KeyH', 'KeyL'].includes(e.code)) return;
+        if (e.code === 'KeyJ' && !e.repeat) { e.preventDefault(); setJetEnabled(!jetEnabled); return; }
         setKey(e.code, true, keyboardCodes);
-        if (e.code.startsWith('Arrow')) e.preventDefault();
+        if (flightKey && !e.code.startsWith('Shift') && inUI && target instanceof HTMLButtonElement) renderer.domElement.focus();
+        if (flightKey) e.preventDefault();
 
         if (e.code === 'KeyN' && !e.repeat) {
             e.preventDefault();
@@ -224,6 +263,7 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         if (e.key.toLowerCase() === 'l') options.onToggleLabels();
         if (e.key.toLowerCase() === 'h') options.onToggleHUD();
         if (e.key.toLowerCase() === 't' && cameraRef.current) {
+            setJetEnabled(false);
             toggleTopView(cameraRef.current);
         }
     };
@@ -297,6 +337,7 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         belt, kuiperBelt, dwarfPlanets, explorer, theKyln, solarHeliosphere, solarBeacon, quantumania, orbitPaths,
         alienX, blackHole, cosmicEntity, renderWorld, entities,
     } = createWorld(scene, assets);
+    scene.add(jet.scene);
     cleanup.push(() => { quantumania.dispose(); cosmicEntity.dispose(); });
     entitiesRef.current = entities;
     SystemManager.getInstance().updateCurrentSystem(camera.position);
@@ -404,7 +445,9 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         assets.retryTextures();
         quantumania.retryFailedModels();
         cosmicEntity.retryFailedModels();
+        if (jetEnabled) void jet.load(assets);
     };
+    if (options.jetEnabled) setJetEnabled(true);
     const stopAnimation = startAnimationLoop(delta => {
         const frameStart = performance.now();
         const wallDelta = Math.max(0, (frameStart - lastWallUpdate.current) / 1000);
@@ -545,7 +588,8 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         const flightSpeed = Math.max(1e-6, Math.min(Cosmos.CONTROLS.FLY_SPEED, clearance * 0.5));
         camera.near = Math.max(1e-8, Math.min(1, clearance * 0.01)); camera.updateProjectionMatrix();
         const pad = pollGamepad();
-        const isMoving = applyInputToCamera(
+        if (jetEnabled) jet.update(camera, delta, inputRef.current, mouseDelta.current, zoomVelocity, pad, flightSpeed);
+        const isMoving = !jetEnabled && applyInputToCamera(
             camera,
             inputRef.current,
             delta,
@@ -566,6 +610,7 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         renderWorld.fill.intensity = fill;
         earth.setDarkSideFill(fill);
         renderWorld.render(renderer, camera, showSolarSystem, showQuantumania);
+        if (jetEnabled) renderer.render(jet.scene, camera);
 
         // Toggle labels visibility
         if (labelRendererRef.current) {
@@ -576,10 +621,11 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         // STATS HUD UPDATE (throttled to avoid excessive re-renders)
         if (statsElapsed >= 1 / 6) {
             options.onDate(new Date(simTime * 1000).toISOString());
-            const speedKmS = simulationDistanceToKm(camera.position.distanceTo(lastCameraPos.current)) / statsElapsed;
+            const speedKmS = jetEnabled ? jet.speedKmS : simulationDistanceToKm(camera.position.distanceTo(lastCameraPos.current)) / statsElapsed;
             statsElapsed = 0;
             lastCameraPos.current.copy(camera.position);
-            setCameraSpeed(Math.round(speedKmS));
+            setCameraSpeed(jetEnabled ? Number(speedKmS.toFixed(2)) : Math.round(speedKmS));
+            if (jetEnabled) options.onJetFlight?.({ throttle: jet.throttle, boosting: jet.boosting });
 
             // Update locked object info
             if (lockRef.current?.mesh) {
@@ -607,37 +653,34 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
                     showOrbitalSpeed: Boolean(hasOrbit),
                     viewDistanceKm: simulationDistanceToKm(camera.position.distanceTo(targetPos)),
                 });
-                setNearestObject(null);
             } else {
                 setLockedInfo(null);
-
-                // Calculate nearest object for free flight mode
-                // Only include entities from current system + interstellar
-                let closest: { name: string; distance: number } | null = null;
-                let minDist = Infinity;
-                const sysManager = SystemManager.getInstance();
-                const mySystemId = sysManager.currentSystem;
-
-                entitiesRef.current.forEach(ent => {
-                    // Filter to current system + interstellar objects only
-                    if (ent.mesh && !ent.isSystemProxy && (fictionRef.current || (ent.system === SystemId.SOLAR_SYSTEM && ent.category !== EntityCategory.EASTER_EGG)) &&
-                        (ent.system === mySystemId || ent.system === SystemId.INTERSTELLAR)) {
-                        const pos = targetPosition;
-                        ent.mesh.getWorldPosition(pos);
-                        const dist = camera.position.distanceTo(pos);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            // Convert to display units (thousands of km)
-                            const distKm = simulationDistanceToKm(dist);
-                            closest = {
-                                name: ent.label,
-                                distance: Math.round(distKm)
-                            };
-                        }
-                    }
-                });
-                setNearestObject(closest);
             }
+
+            // Keep nearest-object distance available in both flight and orbit views.
+            let closest: { name: string; distance: number } | null = null;
+            let minDist = Infinity;
+            const sysManager = SystemManager.getInstance();
+            const mySystemId = sysManager.currentSystem;
+            const observerPosition = jetEnabled ? jet.position : camera.position;
+
+            entitiesRef.current.forEach(ent => {
+                // Filter to current system + interstellar objects only
+                if (ent.mesh && !ent.isSystemProxy && (fictionRef.current || (ent.system === SystemId.SOLAR_SYSTEM && ent.category !== EntityCategory.EASTER_EGG)) &&
+                    (ent.system === mySystemId || ent.system === SystemId.INTERSTELLAR)) {
+                    const pos = targetPosition;
+                    ent.mesh.getWorldPosition(pos);
+                    const dist = observerPosition.distanceTo(pos);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = {
+                            name: ent.label,
+                            distance: Math.round(simulationDistanceToKm(dist))
+                        };
+                    }
+                }
+            });
+            setNearestObject(closest);
         }
 
         // RADAR UPDATE (using cached DOM refs)
@@ -702,6 +745,7 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         assets.dispose();
         quantumania.dispose();
         cosmicEntity.dispose();
+        jet.dispose();
         disposeObject3D(scene);
         radarBlips.clear();
         entitiesRef.current = [];
@@ -730,6 +774,7 @@ function initializeSceneController(mount: HTMLDivElement, options: SceneOptions,
         unlock: unlockCamera,
         retry: () => retryAssetsRef.current(),
         configure: (settings: SceneSettings) => {
+            setJetEnabled(settings.jetEnabled ?? false);
             if (qualityRef.current !== settings.quality || diagnosticsRef.current !== settings.diagnostics) profiler.reset();
             diagnosticsRef.current = settings.diagnostics;
             qualityRef.current = settings.quality;

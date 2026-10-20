@@ -2,7 +2,7 @@
 
 > Setup, architecture, implementation conventions, and verification guidance.
 
-**Version:** 0.1.0 | **Last Updated:** 2026-10-20
+**Version:** 0.1.1 | **Last Updated:** 2026-10-20
 
 ## Table of Contents
 

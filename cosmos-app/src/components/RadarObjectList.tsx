@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { EntityCategory, type EntityInfo } from '../core/Entity';
 import { SystemId } from '../core/SystemId';
+import { PanelToggle } from './PanelToggle';
 
 interface RadarObjectListProps {
     isOpen: boolean;
@@ -29,8 +30,9 @@ const GROUPS = [
 export function RadarObjectList({ isOpen, entities, currentSystem, lockedEntity, onLockConfig, onToggle }: RadarObjectListProps) {
     const panelRef = useRef<HTMLElement>(null);
     const [query, setQuery] = useState('');
+    const [collapsed, setCollapsed] = useState(false);
     useEffect(() => {
-        if (isOpen) panelRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+        if (isOpen) panelRef.current?.querySelector<HTMLButtonElement>('[aria-label="Close objects and settings"]')?.focus();
     }, [isOpen]);
     if (!isOpen) return null;
 
@@ -48,11 +50,12 @@ export function RadarObjectList({ isOpen, entities, currentSystem, lockedEntity,
     );
 
     return (
-        <section className="radar-panel" ref={panelRef} aria-labelledby="objects-title" data-ui>
+        <section className={`radar-panel${collapsed ? ' is-collapsed' : ''}`} ref={panelRef} aria-labelledby="objects-title" data-ui>
             <div className="panel-header">
                 <h2 id="objects-title">Explore Objects</h2>
-                <button type="button" className="close-btn" onClick={onToggle} aria-label="Close objects and settings">×</button>
+                <div className="panel-actions"><PanelToggle name="object list" collapsed={collapsed} controls="object-list-content" onToggle={() => setCollapsed(value => !value)} /><button type="button" className="close-btn" onClick={onToggle} aria-label="Close objects and settings">×</button></div>
             </div>
+            <div className="radar-content" id="object-list-content" hidden={collapsed}>
             <label className="object-search">
                 <span className="sr-only">Find an object</span>
                 <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Find an object…" />
@@ -72,6 +75,7 @@ export function RadarObjectList({ isOpen, entities, currentSystem, lockedEntity,
                     );
                 })}
                 {query && objects.length === 0 && !destinations.some(matches) && <p className="empty-state">No objects match “{query}”.</p>}
+            </div>
             </div>
         </section>
     );

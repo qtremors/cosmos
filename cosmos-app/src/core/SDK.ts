@@ -338,7 +338,7 @@ export class Cosmos {
     // -------------------------------------------------------------------------
 
     static readonly CONTROLS: ControlsConfig = {
-        FLY_SPEED: 20.0,
+        FLY_SPEED: kmToUnits(100),
         BOOST_MULTIPLIER: 10.0,
         ROLL_SPEED: Math.PI / 3,
         FOV_DEFAULT: 50,

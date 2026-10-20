@@ -126,3 +126,31 @@ it('keeps the explicit information-panel choice across reloads and target change
     await click('Explore objects and settings'); await click('Earth');
     expect(container.querySelector('.object-info')).toBeNull();
 });
+
+it('offers Shift cruise without size controls or FTL and keeps jet exit accessible when collapsed', async () => {
+    await act(async () => root.render(<App />));
+    await click('Fly jet');
+    expect(scene.settings).toMatchObject({ jetEnabled: true });
+    expect(container.querySelector('.jet-controls input')).toBeNull();
+    expect(container.querySelector('.jet-controls')?.textContent).toContain('Shift adds speed');
+    expect(container.querySelector('.jet-controls')?.textContent).not.toContain('FTL');
+    await click('Collapse jet controls');
+    await click('Exit jet');
+    expect(scene.settings).toMatchObject({ jetEnabled: false });
+    await reload();
+    expect(scene.settings).toMatchObject({ jetEnabled: false });
+    await click('Fly jet');
+    expect(container.querySelector('.jet-controls')?.textContent).toContain('Normal cruise is 100 km/s');
+});
+
+it('keeps explicitly labelled nearest-object telemetry alongside selected-object information', async () => {
+    await act(async () => root.render(<App />));
+    await act(async () => {
+        scene.settings!.onNearest({ name: 'Moon', distance: 12345 });
+        scene.settings!.onLockedInfo({ name: 'Earth', orbitalSpeed: 30, refDist: 150, refName: 'Sun', showOrbitalSpeed: true, viewDistanceKm: 20000 });
+    });
+    expect(container.querySelector('.stats-hud-title')?.textContent).toBe('Locked: Earth');
+    expect(container.querySelector('.nearest-object')?.textContent).toContain('Moon');
+    expect(container.querySelector('.nearest-distance')?.textContent).toContain('Distance to nearest:12,345 km');
+    expect(container.querySelector('.nearest-distance-hint')?.textContent).toContain('orbiting objects keep moving');
+});

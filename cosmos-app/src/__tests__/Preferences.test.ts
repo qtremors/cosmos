@@ -18,6 +18,11 @@ it('restores preferences and the existing graphics-quality choice across session
     expect(readPreferences()).toMatchObject({ epoch: null, showInfo: null });
 });
 
+it('ignores the removed jet-size preference from older sessions', () => {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ version: 1, jetScale: 100_000_000 }));
+    expect(readPreferences()).not.toHaveProperty('jetScale');
+});
+
 it.each(['broken JSON', 'null', '{"version":2,"fiction":false}', '[]'])('ignores corrupt or unsupported storage: %s', raw => {
     const defaults = readPreferences();
     localStorage.setItem(PREFERENCES_KEY, raw);
